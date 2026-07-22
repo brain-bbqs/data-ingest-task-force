@@ -23,10 +23,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: "envs/.python-version"
+          python-version-file: "labs/kemere/envs/.python-version"
 
       - name: Install test environment
-        run: pip install "./envs[test]"
+        run: pip install "./labs/kemere/envs[test]"
 
       - name: Run the integration test
-        run: python -m pytest tests/ -q
+        run: python -m pytest labs/kemere/tests/ -q

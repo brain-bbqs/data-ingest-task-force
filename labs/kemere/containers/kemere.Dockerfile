@@ -16,8 +16,8 @@
 # media metadata -- that is this pipeline's one system dependency.
 FROM neurodebian:trixie
 
-LABEL org.opencontainers.image.source="https://github.com/brain-bbqs/kemere-R34DA059514-ingest"
-LABEL org.opencontainers.image.description="Pinned runtime environment for the Kemere-lab raw-to-BIDS (BEP047) conversion pipeline."
+LABEL org.opencontainers.image.source="https://github.com/brain-bbqs/data-ingest-task-force"
+LABEL org.opencontainers.image.description="Pinned runtime environment for the Kemere-lab raw-to-BIDS (BEP047) conversion pipeline (labs/kemere/)."
 
 # FFmpeg (provides ffprobe/ffmpeg), Python, and the basics for cloning and TLS.
 RUN apt-get update \

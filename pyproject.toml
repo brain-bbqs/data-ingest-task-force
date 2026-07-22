@@ -1,12 +1,13 @@
-# Repository tooling configuration. The runtime environment is declared
-# separately in envs/pyproject.toml (see containers/Dockerfile).
+# Repository tooling configuration, shared across the per-lab codebases nested
+# under labs/ (e.g. labs/kemere/). Each lab's runtime environment is declared
+# separately under its own envs/pyproject.toml (see e.g. labs/kemere/containers/).
 
 [tool.ruff]
 line-length = 120
 exclude = [
   "*/__init__.py",
-  "tests/example_raw",
-  "tests/expected_output",
+  "labs/kemere/tests/example_raw",
+  "labs/kemere/tests/expected_output",
 ]
 
 [tool.ruff.lint]
