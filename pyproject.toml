@@ -1,0 +1,17 @@
+# Repository tooling configuration. The runtime environment is declared
+# separately in envs/pyproject.toml (see containers/Dockerfile).
+
+[tool.ruff]
+line-length = 120
+exclude = [
+  "*/__init__.py",
+  "tests/example_raw",
+  "tests/expected_output",
+]
+
+[tool.ruff.lint]
+select = ["F", "E", "I"]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+relative-imports-order = "closest-to-furthest"

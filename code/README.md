@@ -85,12 +85,18 @@ deno run -A jsr:@bids/validator sourcedata/rawbids \
 
 ## Tests
 
+A single integration test (`tests/test_conversion.py`) runs this script on the
+committed mock input tree (`tests/example_raw/`) and asserts the output matches
+the committed golden tree (`tests/expected_output/`) — the same
+`example_raw` → `expected_output` fixture pattern used in
+[`dandi/s3-log-extraction`](https://github.com/dandi/s3-log-extraction/tree/main/tests).
+
 ```bash
-python3 -m pip install pytest imageio-ffmpeg av
-python3 -m pytest tests/ -q
+pip install "../envs[test]"      # pytest + PyAV
+python3 -m pytest ../tests/ -q   # (or run `pytest tests/ -q` from the repo root)
 ```
 
-The suite generates real media with the `ffmpeg` bundled by `imageio-ffmpeg`
-and probes it through `tests/ffprobe_shim.py` (a small PyAV-backed `ffprobe`
-stand-in used only for testing), so the converter's real metadata-parsing path
-runs without a system `ffprobe`.
+`ffprobe` is provided by `tests/ffprobe_shim.py` (a small PyAV-backed stand-in
+used only for testing), so the run is deterministic and needs no system
+`ffprobe`. To regenerate the fixtures after an intentional change, install the
+`dev` extra and run `python3 tests/generate_fixtures.py`.

@@ -1,0 +1,8 @@
+{
+  "participant_id": {
+    "Description": "Unique participant identifier."
+  },
+  "species": {
+    "Description": "Binomial species name. `sub-multi` aggregates the multiple individuals tracked within each recording."
+  }
+}

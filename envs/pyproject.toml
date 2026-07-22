@@ -1,0 +1,42 @@
+# Loose, declarative environment for the raw-to-BIDS conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/Dockerfile resolves it fresh at build
+# time and the resulting image (by digest) is the reproducibility lock, so there
+# is no lockfile in the repository to keep in sync.
+#
+# The converter itself (code/convert_raw_to_bids.py) is standard-library only at
+# run time. Its one real dependency is the external FFmpeg toolchain (ffprobe),
+# which is a *system* package installed in containers/Dockerfile, not a Python
+# package. Hence `dependencies` is empty.
+
+[project]
+name = "kemere-r34da059514-ingest"
+version = "0.1.0"
+description = "Convert Kemere-lab raw behavioral recordings into a BEP047 BIDS dataset."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Runtime for the integration test: `av` backs the PyAV ffprobe shim so the
+# suite is deterministic and needs no system FFmpeg.
+test = [
+  "pytest>=7",
+  "av>=10",
+]
+# Everything in `test`, plus the tooling needed to (re)generate the committed
+# fixtures via tests/generate_fixtures.py.
+dev = [
+  "pytest>=7",
+  "av>=10",
+  "imageio-ffmpeg>=0.4",
+]
+
+# The package carries no importable modules; installing it only realises the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
