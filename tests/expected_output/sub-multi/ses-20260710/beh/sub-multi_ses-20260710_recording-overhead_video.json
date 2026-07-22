@@ -1,0 +1,37 @@
+{
+  "RecordingDuration": 1.0,
+  "VideoCodec": "h264",
+  "VideoFrameRate": 30.0,
+  "VideoFrameCount": 30,
+  "ImageWidth": 160,
+  "ImageHeight": 120,
+  "ImagePixelFormat": "yuv420p",
+  "ImageBitDepth": 8,
+  "DevicePosition": "overhead",
+  "TrackingSettings": {
+    "Description": "Raw parameters from the Kemere-lab tracking / video-conversion pipeline, preserved verbatim from the source `*.settings` file for provenance. Not part of the BIDS specification.",
+    "SourceFile": "overhead_video.settings",
+    "Parameters": {
+      "calculate_posture": false,
+      "cm_per_pixel": 3.687,
+      "detect_size_filter": [
+        [
+          10,
+          100000
+        ]
+      ],
+      "detect_threshold": 15,
+      "detect_type": "background_subtraction",
+      "meta_encoding": "rgb8",
+      "meta_real_width": 3840,
+      "meta_source_path": "/Users/ckemere/Data/Sheep/Michigan-July-2026/07102026-Session1/overhead/beh/overhead_video.mp4",
+      "track_background_subtraction": true,
+      "track_max_individuals": 25,
+      "track_max_speed": 960,
+      "video_conversion_range": [
+        0,
+        99613
+      ]
+    }
+  }
+}

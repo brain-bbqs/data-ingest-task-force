@@ -1,0 +1,12 @@
+# Kemere lab behavioral recordings
+
+Behavioral video and image recordings organized under the BIDS `beh` datatype following BEP047 (audio/video/image recordings).
+
+Generated from `sourcedata/raw` by `code/convert_raw_to_bids.py`.
+
+- `_video` / `_audiovideo`: overhead behavioral recordings (MP4).
+- `_image`: still frames / average frames (PNG).
+- The `recording-<camera>` entity identifies the camera view.
+- Lab tracking / conversion parameters from the source `*.settings` files are preserved in each media sidecar under `TrackingSettings`.
+
+Media metadata was extracted with FFmpeg's `ffprobe`.

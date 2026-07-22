@@ -1,0 +1,18 @@
+{
+  "Name": "Kemere lab behavioral recordings",
+  "BIDSVersion": "1.10.0",
+  "DatasetType": "raw",
+  "Authors": [
+    "Kemere Lab"
+  ],
+  "GeneratedBy": [
+    {
+      "Name": "convert_raw_to_bids.py",
+      "Version": "0.1.0",
+      "Description": "Reorganizes raw behavioral video/image recordings into a BEP047 BIDS dataset; media metadata via ffprobe."
+    }
+  ],
+  "ReferencesAndLinks": [
+    "https://github.com/bids-standard/bids-specification/pull/2231"
+  ]
+}
