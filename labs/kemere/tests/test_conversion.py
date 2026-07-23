@@ -42,8 +42,7 @@ def _assert_file_matches(rel: str, produced: Path, expected: Path) -> None:
     prod, exp = produced / rel, expected / rel
     if rel.endswith(".json"):
         # Compare semantically so key order / whitespace never causes churn.
-        assert json.loads(prod.read_text()) == json.loads(exp.read_text()), \
-            f"JSON mismatch: {rel}"
+        assert json.loads(prod.read_text()) == json.loads(exp.read_text()), f"JSON mismatch: {rel}"
     elif rel.endswith((".tsv", ".txt")) or Path(rel).name == "README":
         assert prod.read_text() == exp.read_text(), f"text mismatch: {rel}"
     else:
@@ -81,4 +80,5 @@ def test_conversion_matches_expected_output(tmp_path):
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-v"]))

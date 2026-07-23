@@ -57,6 +57,7 @@ video_conversion_range = [0,99613]
 
 def _ffmpeg() -> str:
     import imageio_ffmpeg
+
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
@@ -71,16 +72,27 @@ def build_example_raw() -> None:
     beh.mkdir(parents=True)
 
     # Overhead video: small, deterministic, 1 s @ 30 fps, h264/yuv420p, no audio.
-    _run_ffmpeg([
-        "-f", "lavfi", "-i", "testsrc=size=160x120:rate=30:duration=1",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
-        "-metadata", f"creation_time={CREATION_TIME}",
-        "-y", str(beh / "overhead_video.mp4"),
-    ])
+    _run_ffmpeg(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=160x120:rate=30:duration=1",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-profile:v",
+            "high",
+            "-metadata",
+            f"creation_time={CREATION_TIME}",
+            "-y",
+            str(beh / "overhead_video.mp4"),
+        ]
+    )
     # Two still images derived from the overhead view.
     for name in ("average_overhead_video.png", "single_frame.png"):
-        _run_ffmpeg(["-f", "lavfi", "-i", "testsrc=size=160x120", "-frames:v", "1",
-                     "-y", str(beh / name)])
+        _run_ffmpeg(["-f", "lavfi", "-i", "testsrc=size=160x120", "-frames:v", "1", "-y", str(beh / name)])
 
     # Non-media companions: the .settings feeds the sidecar; the rest are ignored.
     (beh / "overhead_video.settings").write_text(SETTINGS_BODY)

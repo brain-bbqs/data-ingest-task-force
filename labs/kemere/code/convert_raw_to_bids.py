@@ -79,23 +79,55 @@ SETTINGS_SIDECAR_KEY = "TrackingSettings"
 # pixel-format -> bits per channel, used when ffprobe does not report
 # ``bits_per_raw_sample`` directly.
 _PIXFMT_BIT_DEPTH = {
-    "yuv420p": 8, "yuvj420p": 8, "yuv422p": 8, "yuvj422p": 8,
-    "yuv444p": 8, "yuvj444p": 8, "nv12": 8, "nv21": 8,
-    "rgb24": 8, "bgr24": 8, "gray": 8, "gray8": 8, "ya8": 8,
-    "rgba": 8, "bgra": 8, "argb": 8, "abgr": 8, "pal8": 8, "gbrp": 8,
-    "monob": 1, "monow": 1,
-    "yuv420p10le": 10, "yuv422p10le": 10, "yuv444p10le": 10,
-    "p010le": 10, "gray10le": 10, "gbrp10le": 10,
-    "yuv420p12le": 12, "yuv422p12le": 12, "yuv444p12le": 12, "gray12le": 12,
-    "yuv420p16le": 16, "gray16le": 16, "rgb48le": 16, "rgba64le": 16,
+    "yuv420p": 8,
+    "yuvj420p": 8,
+    "yuv422p": 8,
+    "yuvj422p": 8,
+    "yuv444p": 8,
+    "yuvj444p": 8,
+    "nv12": 8,
+    "nv21": 8,
+    "rgb24": 8,
+    "bgr24": 8,
+    "gray": 8,
+    "gray8": 8,
+    "ya8": 8,
+    "rgba": 8,
+    "bgra": 8,
+    "argb": 8,
+    "abgr": 8,
+    "pal8": 8,
+    "gbrp": 8,
+    "monob": 1,
+    "monow": 1,
+    "yuv420p10le": 10,
+    "yuv422p10le": 10,
+    "yuv444p10le": 10,
+    "p010le": 10,
+    "gray10le": 10,
+    "gbrp10le": 10,
+    "yuv420p12le": 12,
+    "yuv422p12le": 12,
+    "yuv444p12le": 12,
+    "gray12le": 12,
+    "yuv420p16le": 16,
+    "gray16le": 16,
+    "rgb48le": 16,
+    "rgba64le": 16,
     "gbrp16le": 16,
 }
 
 # h.264 profile name -> profile_idc, for building RFC 6381 codec strings.
 _H264_PROFILE_IDC = {
-    "Constrained Baseline": 0x42, "Baseline": 0x42, "Main": 0x4D,
-    "Extended": 0x58, "High": 0x64, "High 10": 0x6E, "High 4:2:2": 0x7A,
-    "High 4:4:4": 0xF4, "High 4:4:4 Predictive": 0xF4,
+    "Constrained Baseline": 0x42,
+    "Baseline": 0x42,
+    "Main": 0x4D,
+    "Extended": 0x58,
+    "High": 0x64,
+    "High 10": 0x6E,
+    "High 4:2:2": 0x7A,
+    "High 4:4:4": 0xF4,
+    "High 4:4:4 Predictive": 0xF4,
 }
 
 # aac profile name -> RFC 6381 object type suffix.
@@ -105,6 +137,7 @@ _AAC_RFC6381 = {"LC": "mp4a.40.2", "HE-AAC": "mp4a.40.5", "HE-AACv2": "mp4a.40.2
 # --------------------------------------------------------------------------- #
 # Small typed helpers
 # --------------------------------------------------------------------------- #
+
 
 def _to_int(value: Any) -> int | None:
     """Best-effort integer coercion; returns None for missing/"N/A" values."""
@@ -134,6 +167,7 @@ def sanitize_label(text: str) -> str:
 # --------------------------------------------------------------------------- #
 # .settings parsing
 # --------------------------------------------------------------------------- #
+
 
 def _coerce_setting_value(raw: str) -> Any:
     """Coerce a raw ``*.settings`` value string to a JSON-friendly Python type.
@@ -199,6 +233,7 @@ def build_settings_block(settings_path: Path) -> dict[str, Any]:
 # Session-label derivation
 # --------------------------------------------------------------------------- #
 
+
 @dataclass
 class SessionInfo:
     label: str
@@ -207,10 +242,7 @@ class SessionInfo:
     session_index: int | None
 
 
-_SESSION_RE = re.compile(
-    r"^(?P<mm>\d{2})(?P<dd>\d{2})(?P<yyyy>\d{4})"
-    r"[-_ ]*[Ss]ession[-_ ]*(?P<idx>\d+)$"
-)
+_SESSION_RE = re.compile(r"^(?P<mm>\d{2})(?P<dd>\d{2})(?P<yyyy>\d{4})" r"[-_ ]*[Ss]ession[-_ ]*(?P<idx>\d+)$")
 
 
 def derive_session_label(folder_name: str) -> SessionInfo:
@@ -235,6 +267,7 @@ def derive_session_label(folder_name: str) -> SessionInfo:
 # ffprobe interface
 # --------------------------------------------------------------------------- #
 
+
 class FFprobeError(RuntimeError):
     pass
 
@@ -242,27 +275,25 @@ class FFprobeError(RuntimeError):
 def run_ffprobe(path: Path, ffprobe_bin: str, count_frames: bool = False) -> dict:
     """Run ``ffprobe`` on ``path`` and return the parsed JSON document."""
     cmd = [
-        ffprobe_bin, "-v", "error",
-        "-print_format", "json",
-        "-show_format", "-show_streams",
+        ffprobe_bin,
+        "-v",
+        "error",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
     ]
     if count_frames:
         cmd += ["-count_frames"]
     cmd.append(str(path))
     try:
-        completed = subprocess.run(
-            cmd, capture_output=True, text=True, check=True
-        )
+        completed = subprocess.run(cmd, capture_output=True, text=True, check=True)
     except FileNotFoundError as exc:
         raise FFprobeError(
-            f"ffprobe executable not found: {ffprobe_bin!r}. Install FFmpeg or "
-            f"pass --ffprobe /path/to/ffprobe."
+            f"ffprobe executable not found: {ffprobe_bin!r}. Install FFmpeg or " f"pass --ffprobe /path/to/ffprobe."
         ) from exc
     except subprocess.CalledProcessError as exc:
-        raise FFprobeError(
-            f"ffprobe failed for {path} (exit {exc.returncode}): "
-            f"{exc.stderr.strip()}"
-        ) from exc
+        raise FFprobeError(f"ffprobe failed for {path} (exit {exc.returncode}): " f"{exc.stderr.strip()}") from exc
     try:
         return json.loads(completed.stdout)
     except json.JSONDecodeError as exc:
@@ -359,6 +390,7 @@ def device_from_tags(probe: dict) -> str | None:
 # Sidecar construction
 # --------------------------------------------------------------------------- #
 
+
 @dataclass
 class MediaResult:
     suffix: str
@@ -390,8 +422,7 @@ def build_media_sidecar(
     # Video stream properties.
     if video.get("codec_name"):
         sidecar["VideoCodec"] = video["codec_name"]
-    frame_rate = parse_frame_rate(video.get("avg_frame_rate")) \
-        or parse_frame_rate(video.get("r_frame_rate"))
+    frame_rate = parse_frame_rate(video.get("avg_frame_rate")) or parse_frame_rate(video.get("r_frame_rate"))
     if frame_rate and frame_rate > 0:
         sidecar["VideoFrameRate"] = round(frame_rate, 6)
 
@@ -487,13 +518,10 @@ def build_image_sidecar(
 # Filename / entity handling
 # --------------------------------------------------------------------------- #
 
+
 def build_stem(entities: dict[str, str], suffix: str) -> str:
     """Build a BIDS filename stem from an entity dict and a suffix."""
-    parts = [
-        f"{key}-{entities[key]}"
-        for key in ENTITY_ORDER
-        if entities.get(key)
-    ]
+    parts = [f"{key}-{entities[key]}" for key in ENTITY_ORDER if entities.get(key)]
     parts.append(suffix)
     return "_".join(parts)
 
@@ -531,6 +559,7 @@ def image_acq_label(stem: str, recording: str | None) -> str:
 # --------------------------------------------------------------------------- #
 # File placement
 # --------------------------------------------------------------------------- #
+
 
 def place_file(src: Path, dst: Path, mode: str, dry_run: bool) -> None:
     """Copy/symlink/hardlink/move ``src`` to ``dst`` according to ``mode``."""
@@ -573,6 +602,7 @@ def write_text(path: Path, text: str, dry_run: bool) -> None:
 # --------------------------------------------------------------------------- #
 # Conversion driver
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class Converter:
@@ -643,17 +673,11 @@ class Converter:
             device_position = recording  # camera mounting position, e.g. "overhead"
 
             if ext in VIDEO_EXTENSIONS:
-                self._convert_video(
-                    media_path, info, beh_dir, recording, device_position, used_stems
-                )
+                self._convert_video(media_path, info, beh_dir, recording, device_position, used_stems)
             elif ext in IMAGE_EXTENSIONS:
-                self._convert_image(
-                    media_path, info, beh_dir, recording, device_position, used_stems
-                )
+                self._convert_image(media_path, info, beh_dir, recording, device_position, used_stems)
             elif ext in AUDIO_EXTENSIONS:
-                self._convert_audio(
-                    media_path, info, beh_dir, recording, device_position, used_stems
-                )
+                self._convert_audio(media_path, info, beh_dir, recording, device_position, used_stems)
 
         # Record ignored, non-media files for the summary.
         for path in sorted(session_dir.rglob("*")):
@@ -662,8 +686,7 @@ class Converter:
             ):
                 self.skipped_files.append(path)
 
-    def _unique_stem(self, entities: dict, suffix: str, used: set[str],
-                     disambiguator: str) -> str:
+    def _unique_stem(self, entities: dict, suffix: str, used: set[str], disambiguator: str) -> str:
         """Build a filename stem that is unique within the session.
 
         On collision, an ``acq`` entity derived from the source filename is
@@ -720,8 +743,7 @@ class Converter:
 
         disambiguator = image_acq_label(media_path.stem, recording)
         stem = self._unique_stem(entities, suffix, used, disambiguator)
-        self._emit(media_path, beh_dir, stem, media_path.suffix.lower(),
-                   sidecar, info, acq_time)
+        self._emit(media_path, beh_dir, stem, media_path.suffix.lower(), sidecar, info, acq_time)
 
     def _convert_audio(self, media_path, info, beh_dir, recording, device_position, used):
         probe = self.probe(media_path)
@@ -756,8 +778,7 @@ class Converter:
             sidecar[SETTINGS_SIDECAR_KEY] = settings_block
         disambiguator = image_acq_label(media_path.stem, recording)
         stem = self._unique_stem(entities, "audio", used, disambiguator)
-        self._emit(media_path, beh_dir, stem, media_path.suffix.lower(),
-                   sidecar, info, acq_time)
+        self._emit(media_path, beh_dir, stem, media_path.suffix.lower(), sidecar, info, acq_time)
 
     def _convert_image(self, media_path, info, beh_dir, recording, device_position, used):
         probe = self.probe(media_path)
@@ -768,9 +789,7 @@ class Converter:
         stem = self._unique_stem(entities, "image", used, acq)
 
         if probe is not None:
-            sidecar = build_image_sidecar(
-                probe, device_position=device_position, device_override=self.device
-            )
+            sidecar = build_image_sidecar(probe, device_position=device_position, device_override=self.device)
             acq_time = format_creation_time(probe)
         else:
             sidecar = {}
@@ -843,10 +862,7 @@ class Converter:
         )
         write_text(self.bids_dir / "README", readme, self.dry_run)
 
-        participants_tsv = (
-            "participant_id\tspecies\n"
-            f"sub-{self.subject}\t{self.species}\n"
-        )
+        participants_tsv = "participant_id\tspecies\n" f"sub-{self.subject}\t{self.species}\n"
         write_text(self.bids_dir / "participants.tsv", participants_tsv, self.dry_run)
         participants_json = {
             "participant_id": {"Description": "Unique participant identifier."},
@@ -861,9 +877,7 @@ class Converter:
 
     def write_scans(self) -> None:
         scans_json = {
-            "filename": {
-                "Description": "Path to the media file, relative to the subject directory."
-            },
+            "filename": {"Description": "Path to the media file, relative to the subject directory."},
             "acq_time": {
                 "Description": (
                     "Acquisition time (ISO 8601). Taken from the media file's "
@@ -901,8 +915,9 @@ class Converter:
         self.log("")
         self.log(f"Converted {self.converted} media file(s) into {self.bids_dir}")
         if self.skipped_files:
-            self.log(f"Ignored {len(self.skipped_files)} non-media file(s) "
-                     f"(e.g. notes.txt, *.srt, *.pv, *.results).")
+            self.log(
+                f"Ignored {len(self.skipped_files)} non-media file(s) " f"(e.g. notes.txt, *.srt, *.pv, *.results)."
+            )
             for path in self.skipped_files:
                 self.vlog(f"  ignored: {path.relative_to(self.raw_dir)}")
         if self.warnings:
@@ -918,42 +933,54 @@ class Converter:
 # CLI
 # --------------------------------------------------------------------------- #
 
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Convert a sourcedata/raw behavioral-recording tree into a "
-                    "BEP047 BIDS dataset (sourcedata/rawbids).",
+        "BEP047 BIDS dataset (sourcedata/rawbids).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--raw-dir", type=Path, default=Path("sourcedata/raw"),
-                        help="Input raw directory (one session per sub-directory).")
-    parser.add_argument("--bids-dir", type=Path, default=Path("sourcedata/rawbids"),
-                        help="Output BIDS dataset directory.")
-    parser.add_argument("--subject", default="multi",
-                        help="BIDS subject label (without the sub- prefix).")
-    parser.add_argument("--link", dest="link_mode", default="copy",
-                        choices=["copy", "symlink", "hardlink", "move"],
-                        help="How to place media files into the BIDS tree.")
-    parser.add_argument("--ffprobe", dest="ffprobe_bin", default="ffprobe",
-                        help="Path to the ffprobe executable.")
-    parser.add_argument("--count-frames", action="store_true",
-                        help="Ask ffprobe to count frames exactly (slower, accurate).")
-    parser.add_argument("--skip-metadata", action="store_true",
-                        help="Do not run ffprobe; write sidecars from *.settings only.")
-    parser.add_argument("--device", default=None,
-                        help="Override the Device sidecar field for all media.")
-    parser.add_argument("--species", default="n/a",
-                        help="Value for the participants.tsv species column "
-                             "(e.g. 'Ovis aries').")
-    parser.add_argument("--dataset-name", default="Kemere lab behavioral recordings",
-                        help="dataset_description.json Name.")
-    parser.add_argument("--author", dest="authors", action="append", default=None,
-                        help="Author for dataset_description.json (repeatable).")
-    parser.add_argument("--overwrite", action="store_true",
-                        help="Overwrite existing output files.")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Report actions without writing anything.")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Print per-file mapping details.")
+    parser.add_argument(
+        "--raw-dir",
+        type=Path,
+        default=Path("sourcedata/raw"),
+        help="Input raw directory (one session per sub-directory).",
+    )
+    parser.add_argument(
+        "--bids-dir", type=Path, default=Path("sourcedata/rawbids"), help="Output BIDS dataset directory."
+    )
+    parser.add_argument("--subject", default="multi", help="BIDS subject label (without the sub- prefix).")
+    parser.add_argument(
+        "--link",
+        dest="link_mode",
+        default="copy",
+        choices=["copy", "symlink", "hardlink", "move"],
+        help="How to place media files into the BIDS tree.",
+    )
+    parser.add_argument("--ffprobe", dest="ffprobe_bin", default="ffprobe", help="Path to the ffprobe executable.")
+    parser.add_argument(
+        "--count-frames", action="store_true", help="Ask ffprobe to count frames exactly (slower, accurate)."
+    )
+    parser.add_argument(
+        "--skip-metadata", action="store_true", help="Do not run ffprobe; write sidecars from *.settings only."
+    )
+    parser.add_argument("--device", default=None, help="Override the Device sidecar field for all media.")
+    parser.add_argument(
+        "--species", default="n/a", help="Value for the participants.tsv species column " "(e.g. 'Ovis aries')."
+    )
+    parser.add_argument(
+        "--dataset-name", default="Kemere lab behavioral recordings", help="dataset_description.json Name."
+    )
+    parser.add_argument(
+        "--author",
+        dest="authors",
+        action="append",
+        default=None,
+        help="Author for dataset_description.json (repeatable).",
+    )
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output files.")
+    parser.add_argument("--dry-run", action="store_true", help="Report actions without writing anything.")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Print per-file mapping details.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -980,9 +1007,11 @@ def main(argv: list[str] | None = None) -> int:
         return converter.run()
     except FFprobeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
-        print("Hint: install FFmpeg (which provides ffprobe), or re-run with "
-              "--skip-metadata to write sidecars without media properties.",
-              file=sys.stderr)
+        print(
+            "Hint: install FFmpeg (which provides ffprobe), or re-run with "
+            "--skip-metadata to write sidecars without media properties.",
+            file=sys.stderr,
+        )
         return 1
 
 

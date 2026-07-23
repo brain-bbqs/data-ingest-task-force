@@ -2,6 +2,9 @@
 # under labs/ (e.g. labs/kemere/). Each lab's runtime environment is declared
 # separately under its own envs/pyproject.toml (see e.g. labs/kemere/containers/).
 
+[tool.black]
+line-length = 120
+
 [tool.ruff]
 line-length = 120
 exclude = [

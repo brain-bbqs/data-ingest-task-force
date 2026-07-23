@@ -1,0 +1,38 @@
+ci:
+  autoupdate_schedule: quarterly
+
+default_install_hook_types:
+  - pre-commit
+
+default_language_version:
+  python: python3.13
+
+# The committed test fixtures (raw inputs and expected BIDS outputs) must stay
+# byte-for-byte identical to what the conversion pipeline produces.
+exclude: ^labs/kemere/tests/(example_raw|expected_output)/
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+
+-   repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1
+    hooks:
+    -   id: black
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.15.20
+  hooks:
+  - id: ruff
+    args: [ --fix ]
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.2
+  hooks:
+  - id: codespell
+    additional_dependencies:
+    - tomli
