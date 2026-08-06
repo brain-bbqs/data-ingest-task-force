@@ -1,11 +1,8 @@
-# data-ingest-task-force
+# Data Ingest Task Force
 
-Data ingest pipelines for the BRAIN-BBQS labs, staging raw lab data into
-standardized formats (BIDS / NWB) ahead of DANDI upload.
+Data ingest pipelines for the BRAIN-BBQS labs, staging raw lab data into standardized formats (BIDS / NWB) ahead of DANDI upload.
 
-Each lab's codebase is self-contained under `labs/<lab>/` — its own
-conversion code, tests, Python environment declaration, and Dockerfile — so
-labs can evolve independently without stepping on each other.
+Each lab's codebase is self-contained under `labs/<lab>/` — its own conversion code, tests, Python environment declaration, and Dockerfile — so labs can evolve independently without stepping on each other.
 
 ## Layout
 
@@ -19,10 +16,8 @@ pyproject.toml          Repository-wide tooling (ruff)
 
 ## Adding a lab
 
-Add a new `labs/<lab>/` directory, self-contained the same way as
-`labs/kemere/` (code, tests, `envs/`, and its own `containers/<lab>.Dockerfile`
-if it needs a container). Give the Dockerfile a lab-specific name — the build
-workflow builds one named Dockerfile per run, not "the" Dockerfile.
+Add a new `labs/<lab>/` directory, self-contained the same way as `labs/kemere/` (code, tests, `envs/`, and its own `containers/<lab>.Dockerfile` if it needs a container).
+Give the Dockerfile a lab-specific name; the build workflow builds one named Dockerfile per run, not "the" Dockerfile.
 
 ## CI
 
