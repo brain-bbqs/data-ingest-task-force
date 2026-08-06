@@ -30,3 +30,20 @@ jobs:
 
       - name: Run the integration test
         run: python -m pytest labs/kemere/tests/ -q
+
+  Dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install test environment
+        run: pip install "./dispatch/envs[test]"
+
+      - name: Run dispatch's unit tests
+        run: python -m pytest dispatch/tests -q

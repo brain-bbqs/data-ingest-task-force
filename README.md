@@ -4,12 +4,16 @@ Data ingest pipelines for the BRAIN-BBQS labs, staging raw lab data into standar
 
 Each lab's codebase is self-contained under `labs/<lab>/` — its own conversion code, tests, Python environment declaration, and Dockerfile — so labs can evolve independently without stepping on each other.
 
+A scheduled self-hosted runner (in [`data-ingest-runner`](https://github.com/CodyCBakerPhD/data-ingest-runner)) periodically drives `dispatch/dispatch.py`, which downloads each lab's incoming dandiset, runs its conversion script on any new sessions, and uploads the standardized output — see `dispatch/README.md`.
+
 ## Layout
 
 ```
 labs/
   kemere/               Kemere lab: raw behavioral recordings -> BEP047 BIDS
                          (see labs/kemere/README.md)
+dispatch/               Cron entrypoint driving all labs' conversions
+                         (see dispatch/README.md)
 pyproject.toml          Repository-wide tooling (ruff)
 .github/workflows/      CI: tests + manually-triggered container builds
 ```
