@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Cron entrypoint that drives one pass of the ingest pipeline for every
-registered project (see projects.yaml):
+registered project (see projects.json):
 
   1. ``dandi download`` the incoming dandiset into ``<incoming-root>/<id>``.
-  2. Diff its sessions (``session_glob``) against the project's manifest to
-     find sessions that haven't been converted yet with the current script.
+  2. Diff its sessions (dispatch/sessions.json's spec for the lab) against
+     the project's manifest to find sessions that haven't been converted yet
+     with the current script.
   3. If there's new work (or the conversion script itself changed), run the
      lab's conversion command, writing into ``<standardized-root>/<id>``.
   4. ``dandi upload`` the standardized directory.
@@ -16,14 +17,13 @@ and any project can be excluded/selected with --only.
 
 Credentials: this script does not manage DANDI auth itself. It shells out to
 the `dandi` CLI, which must already be configured on the runner for the
-instance(s) named in projects.yaml (`dandi login -i <instance>`, or the
+instance(s) named in projects.json (`dandi login -i <instance>`, or the
 API-key env var dandi-cli itself supports) before this runs.
 """
 
 from __future__ import annotations
 
 import argparse
-import glob
 import logging
 import subprocess
 import sys
@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from registry import Project, load_registry
+from sessions import SessionSpec, discover_sessions, load_session_specs
 from state import IngestState, hash_file
 
 log = logging.getLogger("dispatch")
@@ -70,13 +71,6 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dry_run: bool) -> 
     )
 
 
-def discover_sessions(incoming_dir: Path, session_glob: str) -> list[str]:
-    """Session ids = basenames of session_glob's directory matches (a session
-    is a folder; stray files alongside them, e.g. notes.txt, are ignored)."""
-    matches = sorted(glob.glob(str(incoming_dir / session_glob)))
-    return [Path(m).name for m in matches if Path(m).is_dir()]
-
-
 def convert(
     project: Project,
     *,
@@ -107,6 +101,7 @@ def process_project(
     repo_root: Path,
     incoming_root: Path,
     standardized_root: Path,
+    session_spec: SessionSpec,
     skip_download: bool,
     skip_upload: bool,
     dry_run: bool,
@@ -128,7 +123,9 @@ def process_project(
         log.warning("[%s] conversion script not found at %s, cannot hash it", project.lab, script_path)
     script_changed = current_script_hash is not None and current_script_hash != state.script_sha256
 
-    discovered = [] if dry_run and not incoming_dir.is_dir() else discover_sessions(incoming_dir, project.session_glob)
+    discovered_paths = [] if dry_run and not incoming_dir.is_dir() else discover_sessions(incoming_dir, session_spec)
+    session_paths_by_id = {p.name: p for p in discovered_paths}
+    discovered = list(session_paths_by_id)
     new_sessions = state.new_sessions(discovered)
 
     if not new_sessions and not script_changed:
@@ -157,12 +154,11 @@ def process_project(
         dry_run=dry_run,
     )
 
-    session_glob_prefix = project.session_glob.split("*", 1)[0]  # dir portion before the first wildcard
     converted_at = now_iso()
     for session_id in discovered if script_changed else new_sessions:
         state.mark_converted(
             session_id,
-            source_path=str(incoming_dir / session_glob_prefix / session_id),
+            source_path=str(session_paths_by_id[session_id]),
             converted_at=converted_at,
         )
     if current_script_hash is not None:
@@ -191,7 +187,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--registry",
         type=Path,
         default=None,
-        help="Path to projects.yaml (default: <repo-root>/dispatch/projects.yaml).",
+        help="Path to projects.json (default: <repo-root>/dispatch/projects.json).",
+    )
+    parser.add_argument(
+        "--sessions",
+        type=Path,
+        default=None,
+        help="Path to sessions.json (default: <repo-root>/dispatch/sessions.json).",
     )
     parser.add_argument(
         "--incoming-root",
@@ -231,8 +233,10 @@ def main(argv: list[str] | None = None) -> int:
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
 
-    registry_path = args.registry or (args.repo_root / "dispatch" / "projects.yaml")
+    registry_path = args.registry or (args.repo_root / "dispatch" / "projects.json")
+    sessions_path = args.sessions or (args.repo_root / "dispatch" / "sessions.json")
     projects = load_registry(registry_path)
+    session_specs = load_session_specs(sessions_path)
     if args.only:
         wanted = set(args.only)
         projects = [p for p in projects if p.lab in wanted]
@@ -243,12 +247,18 @@ def main(argv: list[str] | None = None) -> int:
 
     failures = []
     for project in projects:
+        spec = session_specs.get(project.lab)
+        if spec is None:
+            log.error("[%s] no entry in %s; skipping", project.lab, sessions_path)
+            failures.append(project.lab)
+            continue
         try:
             process_project(
                 project,
                 repo_root=args.repo_root,
                 incoming_root=args.incoming_root,
                 standardized_root=args.standardized_root,
+                session_spec=spec,
                 skip_download=args.skip_download,
                 skip_upload=args.skip_upload,
                 dry_run=args.dry_run,

@@ -1,0 +1,22 @@
+{
+  "projects": [
+    {
+      "lab": "kemere",
+      "incoming_dandiset_id": "000477",
+      "standardized_dandiset_id": "000477",
+      "script_path": "labs/kemere/code/convert_raw_to_bids.py",
+      "dandi_instance": "emberarchive",
+      "overwrite_flag": "--overwrite",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/kemere/code/convert_raw_to_bids.py",
+        "--raw-dir",
+        "{incoming_dir}/sourcedata/raw",
+        "--bids-dir",
+        "{standardized_dir}/sourcedata/rawbids",
+        "--species",
+        "Ovis aries"
+      ]
+    }
+  ]
+}

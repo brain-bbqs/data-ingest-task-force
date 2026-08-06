@@ -1,0 +1,8 @@
+{
+  "labs": {
+    "kemere": {
+      "include": ["sourcedata/raw/*-Session*"],
+      "exclude": []
+    }
+  }
+}

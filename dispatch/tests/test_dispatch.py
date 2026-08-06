@@ -4,9 +4,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from registry import Project  # noqa: E402
+from sessions import SessionSpec  # noqa: E402
 from state import IngestState  # noqa: E402
 
 import dispatch  # noqa: E402
+
+SESSION_SPEC = SessionSpec(include=["raw/*"])
 
 
 def make_project(**overrides) -> Project:
@@ -14,7 +17,6 @@ def make_project(**overrides) -> Project:
         lab="test-lab",
         incoming_dandiset_id="000001",
         standardized_dandiset_id="000002",
-        session_glob="raw/*",
         script_path="labs/test-lab/code/convert.py",
         convert_command=[
             "python3",
@@ -36,14 +38,6 @@ def make_repo(tmp_path: Path) -> Path:
     return repo_root
 
 
-def test_discover_sessions_returns_basenames(tmp_path):
-    raw = tmp_path / "raw"
-    (raw / "ses-1").mkdir(parents=True)
-    (raw / "ses-2").mkdir(parents=True)
-    (raw / "notes.txt").write_text("x")  # not matched by the dir glob below
-    assert dispatch.discover_sessions(tmp_path, "raw/*") == ["ses-1", "ses-2"]
-
-
 def test_process_project_converts_new_sessions_and_records_state(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
@@ -59,6 +53,7 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
         repo_root=repo_root,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -77,6 +72,7 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
 
     state = IngestState.load(standardized_root / "000002")
     assert set(state.converted_sessions) == {"ses-1"}
+    assert state.converted_sessions["ses-1"]["source_path"] == str(incoming_root / "000001" / "raw" / "ses-1")
     assert state.script_sha256 is not None
 
 
@@ -101,6 +97,7 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
         repo_root=repo_root,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -128,6 +125,7 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
         repo_root=repo_root,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -154,6 +152,7 @@ def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch
         repo_root=repo_root,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
         skip_download=False,
         skip_upload=False,
         dry_run=True,

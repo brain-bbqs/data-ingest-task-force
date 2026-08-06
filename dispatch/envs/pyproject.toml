@@ -2,15 +2,16 @@
 # Not pinned/containerized: dispatch runs directly on the self-hosted runner,
 # which is also expected to already have the `dandi` CLI installed and
 # configured (dispatch shells out to it; see ../README.md).
+#
+# dispatch.py/registry.py/state.py are standard-library only at run time
+# (the registry is plain JSON) -- dependencies is only the test extra below.
 
 [project]
 name = "data-ingest-dispatch"
 version = "0.1.0"
 description = "Cron dispatch for the ember-incoming -> ember-standardized ingest pipeline."
 requires-python = ">=3.10"
-dependencies = [
-  "pyyaml>=6",
-]
+dependencies = []
 
 [project.optional-dependencies]
 test = [

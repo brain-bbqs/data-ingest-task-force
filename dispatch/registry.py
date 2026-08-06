@@ -1,20 +1,21 @@
-"""Loads and validates the project registry (projects.yaml) that tells
+"""Loads and validates the project registry (projects.json) that tells
 dispatch.py which dandisets exist, how they map incoming -> standardized,
 and how to run each lab's conversion script.
+
+Session discovery is deliberately not part of this file -- see sessions.py /
+dispatch/sessions.json.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-
-import yaml
 
 REQUIRED_FIELDS = (
     "lab",
     "incoming_dandiset_id",
     "standardized_dandiset_id",
-    "session_glob",
     "script_path",
     "convert_command",
 )
@@ -29,7 +30,6 @@ class Project:
     lab: str
     incoming_dandiset_id: str
     standardized_dandiset_id: str
-    session_glob: str
     script_path: str
     convert_command: list[str]
     dandi_instance: str = "emberarchive"
@@ -40,7 +40,7 @@ class Project:
 
 
 def _validate_raw(raw: dict, *, index: int) -> None:
-    label = f"projects.yaml entry #{index} ('{raw.get('lab')}')"
+    label = f"projects.json entry #{index} ('{raw.get('lab')}')"
     missing = [field for field in REQUIRED_FIELDS if field not in raw]
     if missing:
         raise RegistryError(f"{label} is missing required field(s): {', '.join(missing)}")
@@ -53,7 +53,7 @@ def _validate_raw(raw: dict, *, index: int) -> None:
 
 
 def load_registry(path: Path) -> list[Project]:
-    payload = yaml.safe_load(path.read_text()) or {}
+    payload = json.loads(path.read_text()) or {}
     raw_projects = payload.get("projects", [])
     if not raw_projects:
         raise RegistryError(f"{path} defines no projects")
@@ -64,14 +64,13 @@ def load_registry(path: Path) -> list[Project]:
         _validate_raw(raw, index=index)
         incoming_id = str(raw["incoming_dandiset_id"])
         if incoming_id in seen_incoming:
-            raise RegistryError(f"projects.yaml: incoming_dandiset_id {incoming_id!r} is registered more than once")
+            raise RegistryError(f"projects.json: incoming_dandiset_id {incoming_id!r} is registered more than once")
         seen_incoming.add(incoming_id)
         projects.append(
             Project(
                 lab=raw["lab"],
                 incoming_dandiset_id=incoming_id,
                 standardized_dandiset_id=str(raw["standardized_dandiset_id"]),
-                session_glob=raw["session_glob"],
                 script_path=raw["script_path"],
                 convert_command=list(raw["convert_command"]),
                 dandi_instance=raw.get("dandi_instance", "emberarchive"),
