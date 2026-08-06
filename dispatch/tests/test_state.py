@@ -1,9 +1,13 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from state import STATE_FILENAME, IngestState, hash_file  # noqa: E402
+
+pytestmark = pytest.mark.ai_generated
 
 
 def test_load_missing_manifest_returns_empty_state(tmp_path):

@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from registry import Project  # noqa: E402
@@ -8,6 +10,8 @@ from sessions import SessionSpec  # noqa: E402
 from state import IngestState  # noqa: E402
 
 import dispatch  # noqa: E402
+
+pytestmark = pytest.mark.ai_generated
 
 SESSION_SPEC = SessionSpec(include=["raw/*"])
 

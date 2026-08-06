@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from sessions import SessionSpec, SessionSpecError, discover_sessions, load_session_specs  # noqa: E402
 
+pytestmark = pytest.mark.ai_generated
+
 
 def test_load_session_specs_reads_the_committed_sessions_json():
     specs = load_session_specs(Path(__file__).resolve().parents[1] / "sessions.json")

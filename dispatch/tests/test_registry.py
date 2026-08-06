@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from registry import RegistryError, load_registry  # noqa: E402
 
+pytestmark = pytest.mark.ai_generated
+
 
 def write_registry(tmp_path: Path, payload: dict) -> Path:
     path = tmp_path / "projects.json"
