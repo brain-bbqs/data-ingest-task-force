@@ -4,7 +4,8 @@ Data ingest pipelines for the BRAIN-BBQS labs, staging raw lab data into standar
 
 Each lab's codebase is self-contained under `labs/<lab>/` — its own conversion code, tests, Python environment declaration, and Dockerfile — so labs can evolve independently without stepping on each other.
 
-A scheduled self-hosted runner (in [`data-ingest-runner`](https://github.com/CodyCBakerPhD/data-ingest-runner)) periodically drives `dispatch/dispatch.py`, which downloads each lab's incoming dandiset, runs its conversion script on any new sessions, and uploads the standardized output — see `dispatch/README.md`.
+A scheduled self-hosted runner (in [`data-ingest-runner`](https://github.com/CodyCBakerPhD/data-ingest-runner)) periodically calls `dispatch/dispatch.py`, which refreshes a local copy of each lab's incoming dandiset, runs its conversion script on any new sessions, and uploads the standardized output.
+See `dispatch/README.md` for more details.
 
 ## Layout
 
