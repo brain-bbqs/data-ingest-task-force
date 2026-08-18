@@ -8,6 +8,10 @@ registered project (see projects.json):
      with the current script.
   3. If there's new work (or the conversion script itself changed), run the
      lab's conversion command, writing into ``<standardized-root>/<id>``.
+     If the project names a container_image, the command runs inside it
+     (docker pull + docker run) rather than directly on the runner host --
+     the image holds only the lab's runtime environment (e.g. ffmpeg), not
+     the code or data, which are bind-mounted in at the same host paths.
   4. ``dandi upload`` the standardized directory.
 
 Intended to run unattended on a self-hosted runner via cron
@@ -15,10 +19,11 @@ Intended to run unattended on a self-hosted runner via cron
 effect (download/convert/upload/state write) is skippable with --dry-run,
 and any project can be excluded/selected with --only.
 
-Credentials: this script does not manage DANDI auth itself. It shells out to
-the `dandi` CLI, which must already be configured on the runner for the
-instance(s) named in projects.json (`dandi login -i <instance>`, or the
-API-key env var dandi-cli itself supports) before this runs.
+Credentials: this script does not manage DANDI or container-registry auth
+itself. It shells out to the `dandi` CLI, which must already be configured
+on the runner for the instance(s) named in projects.json (`dandi login -i
+<instance>`), and to `docker`, which must already be logged in for any
+private image a project's container_image names (`docker login ghcr.io`).
 """
 
 from __future__ import annotations
@@ -71,6 +76,37 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dry_run: bool) -> 
     )
 
 
+def containerize(
+    cmd: list[str],
+    *,
+    image: str,
+    repo_root: Path,
+    incoming_dir: Path,
+    standardized_dir: Path,
+) -> list[str]:
+    """Wrap cmd to run inside a lab's published container image (portable
+    Python env only -- ffmpeg, etc. -- not the code or data, which are
+    mounted in at run time). Host paths are mounted at identical paths
+    inside the container, so cmd's own {repo_root}/{incoming_dir}/
+    {standardized_dir}-based tokens (already resolved, absolute) need no
+    rewriting."""
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{repo_root}:{repo_root}:ro",
+        "-v",
+        f"{incoming_dir}:{incoming_dir}",
+        "-v",
+        f"{standardized_dir}:{standardized_dir}",
+        "-w",
+        str(repo_root),
+        image,
+        *cmd,
+    ]
+
+
 def convert(
     project: Project,
     *,
@@ -92,6 +128,17 @@ def convert(
         cmd.append(project.overwrite_flag)
     if not dry_run:
         standardized_dir.mkdir(parents=True, exist_ok=True)
+    if project.container_image:
+        # Refresh a floating tag (e.g. :latest) rather than trusting
+        # whatever's already cached locally on the runner.
+        run(["docker", "pull", project.container_image], dry_run=dry_run)
+        cmd = containerize(
+            cmd,
+            image=project.container_image,
+            repo_root=repo_root,
+            incoming_dir=incoming_dir,
+            standardized_dir=standardized_dir,
+        )
     run(cmd, dry_run=dry_run)
 
 

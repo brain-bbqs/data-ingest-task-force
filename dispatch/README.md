@@ -8,6 +8,7 @@ It is repo-level infra, not a lab — it doesn't do any conversion itself, it ju
 1. `dandi download` the project's incoming dandiset (from the `dandi.emberarchive.org` instance) into `<ember-incoming>/<incoming_dandiset_id>/`.
 2. Discover its sessions (per `sessions.json`'s spec for the lab) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
 3. If there are new sessions, **or** the conversion script's contents have changed since the manifest was last written (sha256, so any edit forces a full reprocess via `overwrite_flag`), run the lab's conversion command.
+   If the project names a `container_image`, this step runs inside it (`docker pull` + `docker run`) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
 4. `dandi upload` the standardized directory.
 
 Each lab needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
@@ -41,6 +42,7 @@ Session discovery doesn't reduce to a single glob in general — a lab may need 
 | `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`. |
 | `dandi_instance` | DANDI archive instance name (default: `emberarchive`). |
 | `overwrite_flag` | Optional single flag appended to `convert_command` when `script_path`'s hash has changed, so the script reprocesses sessions it would otherwise skip. |
+| `container_image` | Optional image (e.g. `ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest`) to run `convert_command` inside via `docker run`, rather than directly on the runner host. Holds only the lab's runtime environment — code and data are bind-mounted in at run time, not baked into the image. Omit to run directly on the host. |
 
 ### `sessions.json` fields
 
@@ -78,11 +80,14 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 
 ## Credentials
 
-`dispatch.py` does not manage DANDI credentials — it shells out to the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json` (e.g. via `dandi login -i emberarchive`, run once on the runner) before cron invokes this script.
+`dispatch.py` does not manage DANDI or container-registry credentials — it shells out to:
+
+- the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json` (e.g. via `dandi login -i emberarchive`, run once on the runner) before cron invokes this script;
+- `docker`, which must already be logged in for any private image a project's `container_image` names (e.g. `docker login ghcr.io`, run once on the runner) — GHCR packages default to private.
 
 ## Adding a project
 
-1. Add an entry to `projects.json` (see the field reference above).
+1. Add an entry to `projects.json` (see the field reference above). If the lab publishes a container image (see its own `containers/<lab>.Dockerfile` and `.github/workflows/build_and_upload_docker_image.yml`), set `container_image` to it so the conversion step doesn't need its runtime dependencies installed directly on the runner host.
 2. Add a matching entry (same `lab` key) to `sessions.json` describing how to discover its sessions.
 3. Make sure `convert_command` uses `{repo_root}` / `{incoming_dir}` / `{standardized_dir}` to reach the right paths.
 4. If reprocessing on a script change should pass a flag (like Kemere's `--overwrite`), set `overwrite_flag`; otherwise the script's own default behavior on already-existing output applies.

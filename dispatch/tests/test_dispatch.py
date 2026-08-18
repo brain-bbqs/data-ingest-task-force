@@ -141,6 +141,54 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
 
 
+def test_containerize_mounts_paths_and_wraps_cmd():
+    cmd = dispatch.containerize(
+        ["python3", "/repo/labs/x/code/convert.py"],
+        image="ghcr.io/example/x-ingest:latest",
+        repo_root=Path("/repo"),
+        incoming_dir=Path("/incoming/000001"),
+        standardized_dir=Path("/standardized/000002"),
+    )
+    assert cmd[:3] == ["docker", "run", "--rm"]
+    assert "-v" in cmd
+    assert "/repo:/repo:ro" in cmd
+    assert "/incoming/000001:/incoming/000001" in cmd
+    assert "/standardized/000002:/standardized/000002" in cmd
+    assert cmd[-3:] == ["ghcr.io/example/x-ingest:latest", "python3", "/repo/labs/x/code/convert.py"]
+
+
+def test_process_project_runs_conversion_in_container_when_configured(tmp_path, monkeypatch):
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project(container_image="ghcr.io/example/test-lab-ingest:latest")
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        skip_download=True,
+        skip_upload=True,
+        dry_run=False,
+    )
+
+    # docker pull, then the conversion itself wrapped in docker run.
+    assert len(calls) == 2
+    pull_cmd, _ = calls[0]
+    assert pull_cmd == ["docker", "pull", "ghcr.io/example/test-lab-ingest:latest"]
+    run_cmd, _ = calls[1]
+    assert run_cmd[:2] == ["docker", "run"]
+    assert run_cmd[-1] == "--overwrite"  # appended after the templated convert_command
+    assert str(standardized_root / "000002") in run_cmd  # convert_command's {standardized_dir} token, unrewritten
+    assert "python3" in run_cmd
+
+
 def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"

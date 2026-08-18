@@ -35,6 +35,7 @@ def test_load_registry_reads_the_committed_projects_json():
     kemere = next(p for p in projects if p.lab == "kemere")
     assert kemere.incoming_dandiset_id == "000477"
     assert kemere.overwrite_flag == "--overwrite"
+    assert kemere.container_image == "ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest"
 
 
 def test_valid_minimal_entry(tmp_path):
@@ -43,6 +44,13 @@ def test_valid_minimal_entry(tmp_path):
     assert project.lab == "test-lab"
     assert project.dandi_instance == "emberarchive"  # default
     assert project.overwrite_flag is None
+    assert project.container_image is None  # default: run directly on the runner host
+
+
+def test_container_image_is_read_when_present(tmp_path):
+    path = write_registry(tmp_path, {"projects": [entry(container_image="ghcr.io/example/lab-ingest:latest")]})
+    (project,) = load_registry(path)
+    assert project.container_image == "ghcr.io/example/lab-ingest:latest"
 
 
 def test_missing_required_field_raises(tmp_path):

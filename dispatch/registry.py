@@ -1,6 +1,7 @@
 """Loads and validates the project registry (projects.json) that tells
 dispatch.py which dandisets exist, how they map incoming -> standardized,
-and how to run each lab's conversion script.
+and how to run each lab's conversion script (optionally inside that lab's
+published container image -- see container_image below).
 
 Session discovery is deliberately not part of this file -- see sessions.py /
 dispatch/sessions.json.
@@ -34,6 +35,7 @@ class Project:
     convert_command: list[str]
     dandi_instance: str = "emberarchive"
     overwrite_flag: str | None = None
+    container_image: str | None = None
 
     def script_abspath(self, repo_root: Path) -> Path:
         return (repo_root / self.script_path).resolve()
@@ -75,6 +77,7 @@ def load_registry(path: Path) -> list[Project]:
                 convert_command=list(raw["convert_command"]),
                 dandi_instance=raw.get("dandi_instance", "emberarchive"),
                 overwrite_flag=raw.get("overwrite_flag"),
+                container_image=raw.get("container_image"),
             )
         )
     return projects
