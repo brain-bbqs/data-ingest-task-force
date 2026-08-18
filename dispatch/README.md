@@ -39,10 +39,11 @@ Session discovery doesn't reduce to a single glob in general — a lab may need 
 | `incoming_dandiset_id` | Six-digit dandiset id on the ember archive holding the raw upload. |
 | `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere). |
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
-| `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`. |
+| `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`, plus any key from `metadata` (e.g. `{species}`). |
 | `dandi_instance` | DANDI archive instance name (default: `emberarchive`). |
 | `overwrite_flag` | Optional single flag appended to `convert_command` when `script_path`'s hash has changed, so the script reprocesses sessions it would otherwise skip. |
 | `container_image` | Optional image (e.g. `ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest`) to run `convert_command` inside via `docker run`, rather than directly on the runner host. Holds only the lab's runtime environment — code and data are bind-mounted in at run time, not baked into the image. Omit to run directly on the host. |
+| `metadata` | Optional object of project-wide string values (e.g. `{"species": "Ovis aries"}`), available as `convert_command` placeholders. Keeps values like this in the registry entry instead of hardcoded into the command, so they show up alongside the rest of a project's config. Keys may not reuse the reserved `repo_root`/`incoming_dir`/`standardized_dir` placeholder names. |
 
 ### `sessions.json` fields
 
@@ -92,7 +93,7 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 3. Make sure `convert_command` uses `{repo_root}` / `{incoming_dir}` / `{standardized_dir}` to reach the right paths.
 4. If reprocessing on a script change should pass a flag (like Kemere's `--overwrite`), set `overwrite_flag`; otherwise the script's own default behavior on already-existing output applies.
 
-Note: Kemere's `incoming_dandiset_id`/`standardized_dandiset_id` in `projects.json` are placeholders (`000477`) — fill them in with the real assigned ids before relying on a cron run against them.
+Note: Kemere's `incoming_dandiset_id` in `projects.json` is still a placeholder (`000477`) — fill it in with the real assigned id before relying on a cron run against it. (`standardized_dandiset_id` is the real assigned id, `000525`.)
 
 ## Tests
 

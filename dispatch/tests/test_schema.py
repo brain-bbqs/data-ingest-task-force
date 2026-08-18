@@ -43,6 +43,14 @@ def test_projects_schema_rejects_non_six_digit_id():
         jsonschema.validate(instance=bad, schema=schema)
 
 
+def test_projects_schema_rejects_metadata_key_shadowing_a_reserved_placeholder():
+    schema = load("schema/projects.schema.json")
+    bad = load("projects.json")
+    bad["projects"][0]["metadata"] = {"incoming_dir": "nope"}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=bad, schema=schema)
+
+
 def test_sessions_schema_rejects_empty_include():
     schema = load("schema/sessions.schema.json")
     bad = {"labs": {"test-lab": {"include": []}}}

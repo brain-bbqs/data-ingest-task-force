@@ -189,6 +189,38 @@ def test_process_project_runs_conversion_in_container_when_configured(tmp_path, 
     assert "python3" in run_cmd
 
 
+def test_process_project_templates_metadata_into_convert_command(tmp_path, monkeypatch):
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project(
+        convert_command=[
+            "python3",
+            "{repo_root}/labs/test-lab/code/convert.py",
+            "--species",
+            "{species}",
+        ],
+        metadata={"species": "Mus musculus"},
+    )
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        skip_download=True,
+        skip_upload=True,
+        dry_run=False,
+    )
+    cmd, _ = calls[0]
+    assert "Mus musculus" in cmd
+
+
 def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"

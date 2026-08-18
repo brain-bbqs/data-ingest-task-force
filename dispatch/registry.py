@@ -10,7 +10,7 @@ dispatch/sessions.json.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REQUIRED_FIELDS = (
@@ -20,6 +20,10 @@ REQUIRED_FIELDS = (
     "script_path",
     "convert_command",
 )
+
+# Names convert_command tokens can already template; a metadata key reusing
+# one would silently shadow it, so it's rejected at load time instead.
+RESERVED_TEMPLATE_NAMES = ("repo_root", "incoming_dir", "standardized_dir")
 
 
 class RegistryError(ValueError):
@@ -36,6 +40,7 @@ class Project:
     dandi_instance: str = "emberarchive"
     overwrite_flag: str | None = None
     container_image: str | None = None
+    metadata: dict[str, str] = field(default_factory=dict)
 
     def script_abspath(self, repo_root: Path) -> Path:
         return (repo_root / self.script_path).resolve()
@@ -52,6 +57,12 @@ def _validate_raw(raw: dict, *, index: int) -> None:
         value = str(raw[id_field])
         if not (len(value) == 6 and value.isdigit()):
             raise RegistryError(f"{label}: {id_field}={value!r} is not a six-digit dandiset id")
+    metadata = raw.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise RegistryError(f"{label}: metadata must be an object of string values")
+    shadowed = set(metadata) & set(RESERVED_TEMPLATE_NAMES)
+    if shadowed:
+        raise RegistryError(f"{label}: metadata key(s) {sorted(shadowed)} shadow reserved convert_command placeholders")
 
 
 def load_registry(path: Path) -> list[Project]:
@@ -78,6 +89,7 @@ def load_registry(path: Path) -> list[Project]:
                 dandi_instance=raw.get("dandi_instance", "emberarchive"),
                 overwrite_flag=raw.get("overwrite_flag"),
                 container_image=raw.get("container_image"),
+                metadata=dict(raw.get("metadata", {})),
             )
         )
     return projects

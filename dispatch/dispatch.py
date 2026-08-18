@@ -121,6 +121,7 @@ def convert(
             repo_root=repo_root,
             incoming_dir=incoming_dir,
             standardized_dir=standardized_dir,
+            **project.metadata,
         )
         for token in project.convert_command
     ]

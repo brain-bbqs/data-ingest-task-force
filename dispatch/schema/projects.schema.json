@@ -52,7 +52,7 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" },
-          "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}."
+          "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}, plus any key from metadata (e.g. {species})."
         },
         "dandi_instance": {
           "type": "string",
@@ -67,6 +67,15 @@
         "container_image": {
           "type": ["string", "null"],
           "description": "Optional image (e.g. ghcr.io/brain-bbqs/<lab>-ingest:latest) to run convert_command inside via 'docker run', instead of directly on the runner host. Holds only the lab's runtime environment -- code and data are bind-mounted in at run time, not baked into the image."
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": {
+            "not": { "enum": ["repo_root", "incoming_dir", "standardized_dir"] }
+          },
+          "default": {},
+          "description": "Project-wide values (e.g. {\"species\": \"Ovis aries\"}) available as convert_command placeholders, so a lab doesn't need to hardcode metadata like this directly into its command. Keys may not reuse the reserved repo_root/incoming_dir/standardized_dir placeholder names."
         }
       }
     }
