@@ -1,33 +1,28 @@
 # Agent instructions
 
-## Pull requests
+## Commits and PRs
 
-Every pull request you open must record the prompt that led to it, so the PR
-explains not just what changed but what was actually asked for. Reviewers can
-then tell a faithful implementation from a drifting one, and a later reader can
-reconstruct the intent without hunting down the original session.
+- Always run `pre-commit` before committing and pushing changes
+- Always link PRs to issues when possible
+- PR titles should be human-readable and in the past tense. They should NOT use conventional commit style.
+- Keep PR descriptions as short and concise as possible: the fewest words that describe the change accurately
+- End every PR description with a `<details>` dropdown holding the prompts that asked for the work, quoted verbatim and in order: the original request first, then each follow-up as the branch grows. The prose above it stays a description of the change, not of the conversation
+- Every commit must include a `Co-Authored-By` trailer identifying your tool name and version and your underlying model and version. Format (replace all `<…>` placeholders with actual values): `Co-Authored-By: <Tool> <tool-version> / <Model> <model-version> <noreply@vendor-domain>`
 
-End the PR description with the originating prompt, verbatim, inside a
-collapsed `<details>` block:
+## Code style
 
-```markdown
-<details>
-<summary>Original prompt</summary>
+- Require keyword-only arguments `(*, ...)` for multi-input functions. For any function with exactly one caller-supplied parameter (excluding `self` and `cls`), require positional-only usage with the `/` designator.
+- Always add new imports at the top of the file. The only exception is when a local import is needed to avoid a circular dependency.
+- For external dependencies, use the full module import style (e.g., `import xyz; xyz.abc`) rather than `from xyz import abc`.
+- For internal imports, always use relative style (e.g., `from .foo import bar`).
+- Prefer assigning return values to named locals before `return` when this improves readability and debugger breakpoint placement.
+- Avoid excessive em-dashes, colons, and semicolons in written text such as documentation. Prefer breaking into separate, shorter sentences instead.
+- Favor defining one-word names for CLI flags, then map those onto longer, more explicit keyword arguments at the API level.
+- Keep inline comments sparse. Only explain non-obvious "why", not "what" the code does. Prefer self-documenting code and clear names over narration; do not annotate routine logic.
 
-> ...the user's prompt, quoted exactly as it was given...
+## Tests
 
-</details>
-```
-
-Rules:
-
-- **Verbatim.** Quote the prompt as it was written — do not summarize, correct
-  typos, reword, or tidy it up. If it spanned several messages, include each of
-  them in order.
-- **Collapsed.** Keep it inside `<details>` so it never crowds out the summary
-  of the change itself.
-- **Last.** It goes at the end of the description, after the actual write-up.
-- **Every PR**, including small follow-ups. If a PR grew out of follow-up
-  instructions, append those to the same block rather than dropping them.
-- **Redact secrets.** If a prompt contains a credential, token, or private URL,
-  replace just that value with `[redacted]` and leave the rest untouched.
+- To the best of your ability, ensure tests are passing before pushing
+- Follow assertion style: actual on left, expected on right
+- Always mark AI-generated tests with the `ai_generated` pytest marker
+- Use `pytest.mark.parametrize` wherever appropriate to reduce duplication in test cases

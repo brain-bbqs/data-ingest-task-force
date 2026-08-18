@@ -1,10 +1,8 @@
 name: Daily tests
 
-# The suite installs its environment unpinned (labs/*/envs/pyproject.toml is
-# deliberately not locked), so it can break without anything in this repository
-# changing — a new release of a dependency is enough. PR-triggered runs only
-# catch that whenever someone happens to open a PR; this scheduled run catches
-# it the next morning and emails on failure.
+# The lab environments are deliberately unpinned, so a dependency release can
+# break the suite with no commit to trigger a PR run. This catches that the
+# next morning and emails on failure.
 
 on:
   schedule:

@@ -23,13 +23,9 @@ Give the Dockerfile a lab-specific name; the build workflow builds one named Doc
 
 - **Tests** (`.github/workflows/test.yml`) run on every push/PR.
 - **Daily tests** (`.github/workflows/daily_tests.yml`) re-run that same suite
-  on a schedule (12:00 UTC) and email `cody.c.baker.phd@gmail.com` when it
-  fails. The lab environments are declared unpinned, so a dependency release
-  alone can break the suite with no change to this repository; the nightly run
-  is what surfaces that instead of leaving it for the next PR to trip over.
-  Requires the `MAIL_USERNAME` / `MAIL_PASSWORD` repository secrets (a Gmail
-  address and an app password); without them the run still fails loudly but the
-  notification step cannot send.
+  at 12:00 UTC and email on failure. The lab environments are unpinned, so a
+  dependency release alone can break the suite with no commit to trigger a PR
+  run. Requires the `MAIL_USERNAME` and `MAIL_PASSWORD` repository secrets.
 - **Container builds** (`.github/workflows/build_and_upload_docker_image.yml`)
   are manual-only (`workflow_dispatch`). Trigger a build from the Actions tab
   (or `gh workflow run`), picking the branch/tag to build from and pointing
