@@ -3,6 +3,7 @@
   "VideoCodec": "h264",
   "VideoFrameRate": 30.0,
   "VideoFrameCount": 30,
+  "VideoCodecRFC6381": "avc1.64000b",
   "ImageWidth": 160,
   "ImageHeight": 120,
   "ImagePixelFormat": "yuv420p",
