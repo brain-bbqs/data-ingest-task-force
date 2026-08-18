@@ -22,6 +22,7 @@ dispatch/
   state.py           Per-project manifest (.ingest_state.json) read/write
   projects.json      The project registry: dandiset ids + conversion command, one entry per lab
   sessions.json       The session-discovery registry: one entry per lab
+  schema/            JSON Schemas for both registry files (editor validation, see below)
   envs/              Python env declaration (pytest) for dispatch.py itself
   tests/             Unit tests (no DANDI/network access needed)
 ```
@@ -51,6 +52,15 @@ Keyed by lab name, under a top-level `"labs"` object. Each entry has:
 | `exclude` | Optional list of globs to drop from that union, matched against either the session's basename or its path relative to the incoming project dir. |
 
 A session's id is its directory's basename.
+
+### Schemas, and editing the registry outside this repo
+
+Both files carry a `"$schema"` pointer (`dispatch/schema/projects.schema.json` / `sessions.schema.json`) so editors with JSON Schema support (VS Code's built-in one, for example) give inline validation and autocomplete while you edit — required fields, the six-digit dandiset id pattern, unknown-field typos, etc.
+`dispatch/tests/test_schema.py` validates the committed files against these schemas in CI, and exercises each schema against a few known-bad shapes so a schema edit that silently stops catching something gets caught too.
+
+`dispatch.py --registry`/`--sessions` accept any path, not just these committed files — a self-hosted runner can point them at a `projects.json`/`sessions.json` living outside the repo (e.g. on the runner host) so the registry can be edited without a commit/PR.
+See `data-ingest-runner`'s README (`REGISTRY_PATH`/`SESSIONS_PATH`) for how the cron workflow wires that up.
+A relative `"$schema"` pointer only resolves for editors when the file is opened from its committed location in this repo, so an externally-hosted copy should either point `"$schema"` at this repo's raw GitHub URL for the schema file, or drop it — dispatch.py itself doesn't require or read `"$schema"`.
 
 ## Running it
 
@@ -86,4 +96,4 @@ pip install "./dispatch/envs[test]"
 python3 -m pytest dispatch/tests -q
 ```
 
-These are unit tests only (registry/session-spec validation, manifest read/write, command templating/dry-run with `subprocess.run` mocked out) — no DANDI, network, or self-hosted runner needed to run them, and they run in `test.yml` CI alongside the lab tests.
+These are unit tests only (registry/session-spec validation, manifest read/write, command templating/dry-run with `subprocess.run` mocked out, and the committed registry files against their JSON Schemas) — no DANDI, network, or self-hosted runner needed to run them, and they run in `test.yml` CI alongside the lab tests.

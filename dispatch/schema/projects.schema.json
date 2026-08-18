@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schema/projects.schema.json",
+  "title": "dispatch project registry",
+  "description": "One entry per lab: which dandisets it maps incoming -> standardized, and how to run its conversion script. See ../README.md for the full field reference.",
+  "type": "object",
+  "required": ["projects"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "projects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/project" }
+    }
+  },
+  "$defs": {
+    "sixDigitDandisetId": {
+      "type": "string",
+      "pattern": "^[0-9]{6}$"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "lab",
+        "incoming_dandiset_id",
+        "standardized_dandiset_id",
+        "script_path",
+        "convert_command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "lab": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must match both the labs/<lab>/ directory and its sessions.json key."
+        },
+        "incoming_dandiset_id": {
+          "$ref": "#/$defs/sixDigitDandisetId",
+          "description": "Dandiset id on the ember archive holding the raw upload."
+        },
+        "standardized_dandiset_id": {
+          "$ref": "#/$defs/sixDigitDandisetId",
+          "description": "Dandiset id the converted/standardized output is uploaded to. May equal incoming_dandiset_id."
+        },
+        "script_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path (repo-root-relative) to the conversion script, hashed to detect when it changes."
+        },
+        "convert_command": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}."
+        },
+        "dandi_instance": {
+          "type": "string",
+          "minLength": 1,
+          "default": "emberarchive",
+          "description": "DANDI archive instance name."
+        },
+        "overwrite_flag": {
+          "type": ["string", "null"],
+          "description": "Optional single flag appended to convert_command when script_path's hash has changed."
+        }
+      }
+    }
+  }
+}

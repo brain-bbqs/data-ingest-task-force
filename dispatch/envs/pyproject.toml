@@ -22,6 +22,7 @@ dependencies = []
 [project.optional-dependencies]
 test = [
   "pytest>=7",
+  "jsonschema>=4",  # validates projects.json/sessions.json against dispatch/schema/*.json in tests
 ]
 
 [tool.hatch.build.targets.wheel]

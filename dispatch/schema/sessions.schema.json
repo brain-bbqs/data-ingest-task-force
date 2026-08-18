@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schema/sessions.schema.json",
+  "title": "dispatch session-discovery registry",
+  "description": "One entry per lab (keyed by the same 'lab' name used in projects.json), describing how to discover its session directories. See ../README.md for the full field reference.",
+  "type": "object",
+  "required": ["labs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "labs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/sessionSpec" }
+    }
+  },
+  "$defs": {
+    "sessionSpec": {
+      "type": "object",
+      "required": ["include"],
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Globs (relative to the incoming project dir) whose directory matches are sessions. Matches from all patterns are unioned; only directories count."
+        },
+        "exclude": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": [],
+          "description": "Globs to drop from that union, matched against either the session's basename or its path relative to the incoming project dir."
+        }
+      }
+    }
+  }
+}
