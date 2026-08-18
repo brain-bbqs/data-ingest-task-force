@@ -8,6 +8,9 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+  # Callable so the scheduled run (daily_tests.yml) exercises exactly this
+  # suite rather than a drifting copy of it.
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
