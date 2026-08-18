@@ -20,15 +20,20 @@ dependencies = []
 [project.optional-dependencies]
 # Runtime for the integration test: `av` backs the PyAV ffprobe shim so the
 # suite is deterministic and needs no system FFmpeg.
+#
+# The `av` floor is 18.1, not 18. 18.1.0 is the first release to populate
+# `codec_context.level` for a demuxed h.264 stream. Below it the shim omits
+# `level`, the converter skips `VideoCodecRFC6381`, and the committed golden
+# sidecar no longer matches.
 test = [
   "pytest>=7",
-  "av>=10",
+  "av>=18.1",
 ]
 # Everything in `test`, plus the tooling needed to (re)generate the committed
 # fixtures via tests/generate_fixtures.py.
 dev = [
   "pytest>=7",
-  "av>=10",
+  "av>=18.1",
   "imageio-ffmpeg>=0.4",
 ]
 

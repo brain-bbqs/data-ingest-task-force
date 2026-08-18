@@ -1,0 +1,34 @@
+name: Daily tests
+
+# The lab environments are deliberately unpinned, so a dependency release can
+# break the suite with no commit to trigger a PR run. This catches that the
+# next morning and emails on failure.
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  DailyTests:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  NotifyOnFailure:
+    permissions: {}
+    runs-on: ubuntu-latest
+    needs: [DailyTests]
+    if: ${{ always() && needs.DailyTests.result == 'failure' }}
+    steps:
+      - uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "CI Failure: Data Ingest Task Force Daily Tests"
+          to: cody.c.baker.phd@gmail.com
+          from: Data Ingest Task Force <data-ingest-task-force@users.noreply.github.com>
+          body: "The daily test workflow failed, please check status at https://github.com/brain-bbqs/data-ingest-task-force/actions/workflows/daily_tests.yml"
