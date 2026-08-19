@@ -70,10 +70,10 @@ A relative `"$schema"` pointer only resolves for editors when the file is opened
 ```bash
 pip install "./dispatch/envs"
 
-python3 dispatch/dispatch.py \
-    --incoming-root      /path/to/ember-incoming \
-    --standardized-root  /path/to/ember-standardized
+python3 dispatch/dispatch.py --dry-run   # or drop --dry-run to actually run
 ```
+
+`--incoming-root`/`--standardized-root` default to `ember-incoming`/`ember-standardized` siblings of `--repo-root`, created as needed — no path required for the common case. Pass them explicitly to put the data somewhere else. Whatever is supplied or defaulted is always resolved to an absolute path before use (a relative one would reach `docker run -v` as a relative host path, which Docker rejects).
 
 Useful flags: `--only <lab>` (repeatable, restrict to specific projects), `--skip-download`, `--skip-upload`, `--dry-run` (log every action, touch nothing), `--repo-root` (defaults to this checkout), `--registry` (defaults to `dispatch/projects.json`), `--sessions` (defaults to `dispatch/sessions.json`).
 

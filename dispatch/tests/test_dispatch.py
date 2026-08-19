@@ -221,6 +221,48 @@ def test_process_project_templates_metadata_into_convert_command(tmp_path, monke
     assert "Mus musculus" in cmd
 
 
+def make_full_repo(tmp_path: Path) -> Path:
+    """A repo_root with a minimal but complete dispatch/ registry, for
+    exercising main()'s argument resolution end to end."""
+    repo_root = make_repo(tmp_path)
+    (repo_root / "dispatch").mkdir()
+    (repo_root / "dispatch" / "projects.json").write_text(
+        '{"projects": [{'
+        '"lab": "test-lab", "incoming_dandiset_id": "000001", "standardized_dandiset_id": "000002", '
+        '"script_path": "labs/test-lab/code/convert.py", "convert_command": ["python3"]'
+        "}]}"
+    )
+    (repo_root / "dispatch" / "sessions.json").write_text('{"labs": {"test-lab": {"include": ["raw/*"]}}}')
+    return repo_root
+
+
+def test_main_defaults_incoming_and_standardized_root_to_repo_root_siblings(tmp_path, monkeypatch):
+    repo_root = make_full_repo(tmp_path)
+    calls = []
+    monkeypatch.setattr(dispatch, "process_project", lambda project, **kwargs: calls.append(kwargs))
+
+    assert dispatch.main(["--repo-root", str(repo_root), "--dry-run"]) == 0
+
+    (kwargs,) = calls
+    assert kwargs["incoming_root"] == repo_root.parent / "ember-incoming"
+    assert kwargs["standardized_root"] == repo_root.parent / "ember-standardized"
+
+
+def test_main_resolves_relative_repo_root_and_incoming_root_to_absolute(tmp_path, monkeypatch):
+    make_full_repo(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    calls = []
+    monkeypatch.setattr(dispatch, "process_project", lambda project, **kwargs: calls.append(kwargs))
+
+    assert dispatch.main(["--repo-root", "repo", "--incoming-root", "somewhere/relative", "--dry-run"]) == 0
+
+    (kwargs,) = calls
+    assert kwargs["repo_root"].is_absolute()
+    assert kwargs["incoming_root"] == (tmp_path / "somewhere/relative").resolve()
+    assert kwargs["incoming_root"].is_absolute()
+    assert kwargs["standardized_root"].is_absolute()  # untouched default, still resolved
+
+
 def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"

@@ -19,6 +19,13 @@ Intended to run unattended on a self-hosted runner via cron
 effect (download/convert/upload/state write) is skippable with --dry-run,
 and any project can be excluded/selected with --only.
 
+--incoming-root/--standardized-root default to 'ember-incoming'/
+'ember-standardized' siblings of --repo-root (created as needed) -- no
+caller-supplied path required for the common case. Whatever is supplied
+or defaulted is always resolved to an absolute path before use, since a
+relative one would reach `docker run -v` as a relative host path, which
+Docker rejects.
+
 Credentials: this script does not manage DANDI or container-registry auth
 itself. It shells out to the `dandi` CLI, which must already be configured
 on the runner for the instance(s) named in projects.json (`dandi login -i
@@ -246,14 +253,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--incoming-root",
         type=Path,
-        required=True,
-        help="Top-level 'ember-incoming' folder of local dandiset copies.",
+        default=None,
+        help="Top-level 'ember-incoming' folder of local dandiset copies "
+        "(default: an 'ember-incoming' sibling of --repo-root, created as needed).",
     )
     parser.add_argument(
         "--standardized-root",
         type=Path,
-        required=True,
-        help="Top-level 'ember-standardized' folder for converted output.",
+        default=None,
+        help="Top-level 'ember-standardized' folder for converted output "
+        "(default: an 'ember-standardized' sibling of --repo-root, created as needed).",
     )
     parser.add_argument(
         "--only",
@@ -280,6 +289,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
+
+    # Resolve to absolute paths unconditionally: relative --incoming-root/
+    # --standardized-root/--repo-root values would otherwise reach `docker
+    # run -v` as relative host paths, which Docker rejects outright.
+    args.repo_root = args.repo_root.resolve()
+    args.incoming_root = (args.incoming_root or args.repo_root.parent / "ember-incoming").resolve()
+    args.standardized_root = (args.standardized_root or args.repo_root.parent / "ember-standardized").resolve()
+    log.info("repo_root=%s", args.repo_root)
+    log.info("incoming_root=%s", args.incoming_root)
+    log.info("standardized_root=%s", args.standardized_root)
 
     registry_path = args.registry or (args.repo_root / "dispatch" / "projects.json")
     sessions_path = args.sessions or (args.repo_root / "dispatch" / "sessions.json")
