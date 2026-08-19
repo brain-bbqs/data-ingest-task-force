@@ -14,6 +14,7 @@ import dispatch  # noqa: E402
 pytestmark = pytest.mark.ai_generated
 
 SESSION_SPEC = SessionSpec(include=["raw/*"])
+DANDI_IMAGE = "ghcr.io/example/dandi-cli:test"
 
 
 def make_project(**overrides) -> Project:
@@ -58,6 +59,7 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -102,6 +104,7 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -130,6 +133,7 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -139,6 +143,59 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
 
     reloaded = IngestState.load(state_dir)
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
+
+
+def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
+    monkeypatch.setenv("DANDI_API_KEY", "secret-value")
+    incoming_root = tmp_path / "incoming"
+    incoming_dir = incoming_root / "000001"
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+    dispatch.dandi_download(project, incoming_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    assert len(calls) == 2  # docker pull, then docker run
+    pull_cmd, _ = calls[0]
+    assert pull_cmd == ["docker", "pull", DANDI_IMAGE]
+    run_cmd, _ = calls[1]
+    assert run_cmd[:2] == ["docker", "run"]
+    assert f"{incoming_root}:{incoming_root}" in run_cmd
+    assert "DANDI_API_KEY" in run_cmd
+    assert not any("secret-value" in token for token in run_cmd)
+    assert run_cmd[-8:] == [
+        DANDI_IMAGE,
+        "dandi",
+        "download",
+        "-o",
+        str(incoming_root),
+        "-e",
+        "refresh",
+        "dandi://emberarchive/000001",
+    ]
+    assert incoming_root.is_dir()  # created ahead of the mount
+
+
+def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
+    standardized_dir = tmp_path / "standardized" / "000002"
+    standardized_dir.mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+    dispatch.dandi_upload(project, standardized_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    assert len(calls) == 2  # docker pull, then docker run
+    pull_cmd, _ = calls[0]
+    assert pull_cmd == ["docker", "pull", DANDI_IMAGE]
+    run_cmd, cwd = calls[1]
+    assert run_cmd[:2] == ["docker", "run"]
+    assert f"{standardized_dir}:{standardized_dir}" in run_cmd
+    assert "-w" in run_cmd and str(standardized_dir) in run_cmd
+    assert run_cmd[-6:] == ["dandi", "upload", "-i", "emberarchive", "--existing", "refresh"]
+    assert cwd is None  # working directory is set inside the container (-w), not on the host
 
 
 def test_containerize_mounts_paths_and_wraps_cmd(monkeypatch):
@@ -191,6 +248,7 @@ def test_process_project_runs_conversion_in_container_when_configured(tmp_path, 
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -228,6 +286,7 @@ def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -259,6 +318,7 @@ def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
@@ -325,6 +385,7 @@ def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
         skip_download=False,
         skip_upload=False,
         dry_run=True,

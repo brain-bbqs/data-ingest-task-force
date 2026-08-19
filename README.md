@@ -14,7 +14,10 @@ labs/
   kemere/               Kemere lab: raw behavioral recordings -> BEP047 BIDS
                          (see labs/kemere/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
-                         (see dispatch/README.md)
+                         (see dispatch/README.md), including its own
+                         containers/dandi.Dockerfile -- the portable dandi
+                         CLI runtime dispatch.py's download/upload steps
+                         run inside, same pattern as a lab's own container
 pyproject.toml          Repository-wide tooling (ruff)
 .github/workflows/      CI: tests + manually-triggered container builds
 ```
@@ -34,5 +37,6 @@ Give the Dockerfile a lab-specific name; the build workflow builds one named Doc
 - **Container builds** (`.github/workflows/build_and_upload_docker_image.yml`)
   are manual-only (`workflow_dispatch`). Trigger a build from the Actions tab
   (or `gh workflow run`), picking the branch/tag to build from and pointing
-  `dockerfile`/`context`/`image` inputs at the lab's Dockerfile. Every run
-  always builds and publishes to `ghcr.io/brain-bbqs/<image>`.
+  `dockerfile`/`context`/`image` inputs at the Dockerfile to build — a lab's
+  own, or `dispatch/containers/dandi.Dockerfile`. Every run always builds and
+  publishes to `ghcr.io/brain-bbqs/<image>`.

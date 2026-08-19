@@ -14,6 +14,13 @@ registered project (see projects.json):
      the code or data, which are bind-mounted in at the same host paths.
   4. ``dandi upload`` the standardized directory.
 
+Every external tool this script drives -- dandi and each lab's own
+conversion script -- runs inside a container, not directly on the runner
+host: steps 1 and 4 run in --dandi-image (default: this repo's published
+dandi-cli image), and step 3 runs in the project's own container_image.
+The runner host itself only needs `python3` (to run this orchestrator)
+and `docker` (to run everything it drives).
+
 Intended to run unattended on a self-hosted runner via cron
 (see data-ingest-runner's .github/workflows/cron_ingest.yml). Every side
 effect (download/convert/upload/state write) is skippable with --dry-run,
@@ -27,14 +34,15 @@ relative one would reach `docker run -v` as a relative host path, which
 Docker rejects.
 
 Credentials: this script does not manage DANDI or container-registry auth
-itself. It shells out to the `dandi` CLI, which must already be configured
-on the runner for the instance(s) named in projects.json (`dandi login -i
-<instance>`, or a DANDI_API_KEY already set in this process's environment,
-which every `dandi`/docker-run subprocess inherits -- forwarded into a
-container by name only, via `docker run -e DANDI_API_KEY`, never as a
-literal value on the argv), and to `docker`, which must already be logged
-in for any private image a project's container_image names (`docker login
-ghcr.io`).
+itself. `dandi` runs only inside --dandi-image, which must already be
+logged in for every dandi_instance named in projects.json -- either baked
+into the image (not recommended) or, more simply, via a DANDI_API_KEY
+already set in this process's environment. Every docker-run subprocess
+this script starts inherits and forwards that key into its container by
+name only (`docker run -e DANDI_API_KEY`), never as a literal value on the
+argv. `docker` itself must already be logged in for any private image
+(--dandi-image or a project's container_image) this script names
+(`docker login ghcr.io`).
 """
 
 from __future__ import annotations
@@ -53,6 +61,8 @@ from state import IngestState, hash_file
 
 log = logging.getLogger("dispatch")
 
+DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:latest"
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -67,25 +77,57 @@ def run(cmd: list[str], *, cwd: Path | None = None, dry_run: bool) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-def dandi_download(project: Project, incoming_dir: Path, *, dry_run: bool) -> None:
+def docker_run_prefix(
+    *,
+    image: str,
+    mounts: dict[Path, str],
+    workdir: Path | None = None,
+    forward_env: tuple[str, ...] = (),
+) -> list[str]:
+    """The 'docker run --rm ...' argv prefix shared by every containerized
+    step: bind-mount host paths (mounts maps host path -> a docker -v mode
+    suffix, e.g. "" for read-write or ":ro"), set a working directory, and
+    forward named environment variables by name only -- "-e NAME" with no
+    "=value" makes docker read the current value from this process's own
+    environment, so a secret never appears as a literal on the argv, where
+    `ps` or process-listing tools could see it."""
+    prefix = ["docker", "run", "--rm"]
+    for host_path, mode in mounts.items():
+        prefix += ["-v", f"{host_path}:{host_path}{mode}"]
+    if workdir is not None:
+        prefix += ["-w", str(workdir)]
+    for var in forward_env:
+        if var in os.environ:
+            prefix += ["-e", var]
+    prefix.append(image)
+    return prefix
+
+
+def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
     url = f"dandi://{project.dandi_instance}/{project.incoming_dandiset_id}"
     if not dry_run:
         incoming_dir.parent.mkdir(parents=True, exist_ok=True)
-    run(
-        ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url],
-        dry_run=dry_run,
-    )
+    run(["docker", "pull", dandi_image], dry_run=dry_run)
+    cmd = docker_run_prefix(
+        image=dandi_image,
+        mounts={incoming_dir.parent: ""},
+        forward_env=("DANDI_API_KEY",),
+    ) + ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
+    run(cmd, dry_run=dry_run)
 
 
-def dandi_upload(project: Project, standardized_dir: Path, *, dry_run: bool) -> None:
+def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
     if not dry_run and not standardized_dir.is_dir():
         log.info("[%s] no standardized output yet at %s, skipping upload", project.lab, standardized_dir)
         return
-    run(
-        ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"],
-        cwd=standardized_dir,
-        dry_run=dry_run,
-    )
+    run(["docker", "pull", dandi_image], dry_run=dry_run)
+    cmd = docker_run_prefix(
+        image=dandi_image,
+        mounts={standardized_dir: ""},
+        workdir=standardized_dir,
+        forward_env=("DANDI_API_KEY",),
+    ) + ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"]
+    run(cmd, dry_run=dry_run)
 
 
 def containerize(
@@ -102,26 +144,13 @@ def containerize(
     inside the container, so cmd's own {repo_root}/{incoming_dir}/
     {standardized_dir}-based tokens (already resolved, absolute) need no
     rewriting."""
-    docker_cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{repo_root}:{repo_root}:ro",
-        "-v",
-        f"{incoming_dir}:{incoming_dir}",
-        "-v",
-        f"{standardized_dir}:{standardized_dir}",
-        "-w",
-        str(repo_root),
-    ]
-    if "DANDI_API_KEY" in os.environ:
-        # Bare "-e NAME" (no "=value") forwards this process's current
-        # value into the container without ever putting the secret itself
-        # on the argv, where `ps` or process-listing tools could see it.
-        docker_cmd += ["-e", "DANDI_API_KEY"]
-    docker_cmd += [image, *cmd]
-    return docker_cmd
+    prefix = docker_run_prefix(
+        image=image,
+        mounts={repo_root: ":ro", incoming_dir: "", standardized_dir: ""},
+        workdir=repo_root,
+        forward_env=("DANDI_API_KEY",),
+    )
+    return prefix + cmd
 
 
 def convert(
@@ -173,6 +202,7 @@ def process_project(
     incoming_root: Path,
     standardized_root: Path,
     session_spec: SessionSpec,
+    dandi_image: str,
     skip_download: bool,
     skip_upload: bool,
     dry_run: bool,
@@ -182,7 +212,7 @@ def process_project(
     log.info("=== %s: %s -> %s ===", project.lab, project.incoming_dandiset_id, project.standardized_dandiset_id)
 
     if not skip_download:
-        dandi_download(project, incoming_dir, dry_run=dry_run)
+        dandi_download(project, incoming_dir, dandi_image=dandi_image, dry_run=dry_run)
     else:
         log.info("[%s] --skip-download set, using existing local copy", project.lab)
 
@@ -202,7 +232,7 @@ def process_project(
     if not new_sessions and not script_changed:
         log.info("[%s] nothing new (%d known sessions, script unchanged)", project.lab, len(discovered))
         if not skip_upload:
-            dandi_upload(project, standardized_dir, dry_run=dry_run)
+            dandi_upload(project, standardized_dir, dandi_image=dandi_image, dry_run=dry_run)
         return
 
     if script_changed:
@@ -242,7 +272,7 @@ def process_project(
         log.info("[%s] [dry-run] would write state for %d session(s)", project.lab, len(touched))
 
     if not skip_upload:
-        dandi_upload(project, standardized_dir, dry_run=dry_run)
+        dandi_upload(project, standardized_dir, dandi_image=dandi_image, dry_run=dry_run)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -279,6 +309,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Top-level 'ember-standardized' folder for converted output "
         "(default: an 'ember-standardized' sibling of --repo-root, created as needed).",
+    )
+    parser.add_argument(
+        "--dandi-image",
+        default=DEFAULT_DANDI_IMAGE,
+        help="Container image the dandi CLI (download/upload) runs inside.",
     )
     parser.add_argument(
         "--only",
@@ -342,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
                 incoming_root=args.incoming_root,
                 standardized_root=args.standardized_root,
                 session_spec=spec,
+                dandi_image=args.dandi_image,
                 skip_download=args.skip_download,
                 skip_upload=args.skip_upload,
                 dry_run=args.dry_run,
