@@ -18,9 +18,7 @@
         "--raw-dir",
         "{incoming_dir}/sourcedata/raw",
         "--bids-dir",
-        "{standardized_dir}/sourcedata/rawbids",
-        "--species",
-        "{species}"
+        "{standardized_dir}/sourcedata/rawbids"
       ]
     }
   ]

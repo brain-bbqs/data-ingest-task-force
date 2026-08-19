@@ -39,11 +39,11 @@ Session discovery doesn't reduce to a single glob in general — a lab may need 
 | `incoming_dandiset_id` | Six-digit dandiset id on the ember archive holding the raw upload. |
 | `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere). |
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
-| `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`, plus any key from `metadata` (e.g. `{species}`). |
+| `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`, plus any key from `metadata` (e.g. `{species}`) — rarely needed, since `metadata` entries are auto-appended as flags (see below); only reach for a placeholder when a value needs to land somewhere other than a trailing flag. |
 | `dandi_instance` | DANDI archive instance name (default: `emberarchive`). |
 | `overwrite_flag` | Optional single flag appended to `convert_command` when `script_path`'s hash has changed, so the script reprocesses sessions it would otherwise skip. |
 | `container_image` | Optional image (e.g. `ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest`) to run `convert_command` inside via `docker run`, rather than directly on the runner host. Holds only the lab's runtime environment — code and data are bind-mounted in at run time, not baked into the image. Omit to run directly on the host. |
-| `metadata` | Optional object of project-wide string values (e.g. `{"species": "Ovis aries"}`), available as `convert_command` placeholders. Keeps values like this in the registry entry instead of hardcoded into the command, so they show up alongside the rest of a project's config. Keys may not reuse the reserved `repo_root`/`incoming_dir`/`standardized_dir` placeholder names. |
+| `metadata` | Optional object of project-wide string values (e.g. `{"species": "Ovis aries"}`). Each entry is automatically appended to `convert_command` as its own `--<key> <value>` flag (underscores in the key become dashes) — a lab's own command template doesn't need to name it. Keys may not reuse the reserved `repo_root`/`incoming_dir`/`standardized_dir` placeholder names. |
 
 ### `sessions.json` fields
 
@@ -81,9 +81,9 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 
 ## Credentials
 
-`dispatch.py` does not manage DANDI or container-registry credentials — it shells out to:
+`dispatch.py` does not manage DANDI or container-registry credentials itself — it shells out to:
 
-- the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json` (e.g. via `dandi login -i emberarchive`, run once on the runner) before cron invokes this script;
+- the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json`, either via `dandi login -i emberarchive` (run once on the runner) or a `DANDI_API_KEY` already present in dispatch's own environment (e.g. set by the calling workflow — see `data-ingest-runner`'s README). If `container_image` is set, this same `DANDI_API_KEY` is also forwarded into the container by name only (`docker run -e DANDI_API_KEY`, no `=value`), so a lab's conversion step can use it too, without the secret ever appearing in a logged command line;
 - `docker`, which must already be logged in for any private image a project's `container_image` names (e.g. `docker login ghcr.io`, run once on the runner) — GHCR packages default to private.
 
 ## Adding a project

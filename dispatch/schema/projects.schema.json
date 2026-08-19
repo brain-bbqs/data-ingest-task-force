@@ -52,7 +52,7 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" },
-          "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}, plus any key from metadata (e.g. {species})."
+          "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}, plus any key from metadata (e.g. {species}) -- rarely needed, since every metadata entry is also auto-appended as its own --<key> <value> flag; only use a placeholder when a value needs to land somewhere other than a trailing flag."
         },
         "dandi_instance": {
           "type": "string",
@@ -75,7 +75,7 @@
             "not": { "enum": ["repo_root", "incoming_dir", "standardized_dir"] }
           },
           "default": {},
-          "description": "Project-wide values (e.g. {\"species\": \"Ovis aries\"}) available as convert_command placeholders, so a lab doesn't need to hardcode metadata like this directly into its command. Keys may not reuse the reserved repo_root/incoming_dir/standardized_dir placeholder names."
+          "description": "Project-wide values (e.g. {\"species\": \"Ovis aries\"}). Each entry is automatically appended to convert_command as its own --<key> <value> flag (underscores in the key become dashes), so a lab doesn't need to name it in its own command template. Keys may not reuse the reserved repo_root/incoming_dir/standardized_dir placeholder names."
         }
       }
     }

@@ -29,14 +29,19 @@ Docker rejects.
 Credentials: this script does not manage DANDI or container-registry auth
 itself. It shells out to the `dandi` CLI, which must already be configured
 on the runner for the instance(s) named in projects.json (`dandi login -i
-<instance>`), and to `docker`, which must already be logged in for any
-private image a project's container_image names (`docker login ghcr.io`).
+<instance>`, or a DANDI_API_KEY already set in this process's environment,
+which every `dandi`/docker-run subprocess inherits -- forwarded into a
+container by name only, via `docker run -e DANDI_API_KEY`, never as a
+literal value on the argv), and to `docker`, which must already be logged
+in for any private image a project's container_image names (`docker login
+ghcr.io`).
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -97,7 +102,7 @@ def containerize(
     inside the container, so cmd's own {repo_root}/{incoming_dir}/
     {standardized_dir}-based tokens (already resolved, absolute) need no
     rewriting."""
-    return [
+    docker_cmd = [
         "docker",
         "run",
         "--rm",
@@ -109,9 +114,14 @@ def containerize(
         f"{standardized_dir}:{standardized_dir}",
         "-w",
         str(repo_root),
-        image,
-        *cmd,
     ]
+    if "DANDI_API_KEY" in os.environ:
+        # Bare "-e NAME" (no "=value") forwards this process's current
+        # value into the container without ever putting the secret itself
+        # on the argv, where `ps` or process-listing tools could see it.
+        docker_cmd += ["-e", "DANDI_API_KEY"]
+    docker_cmd += [image, *cmd]
+    return docker_cmd
 
 
 def convert(
@@ -132,6 +142,12 @@ def convert(
         )
         for token in project.convert_command
     ]
+    # Every metadata entry becomes a --<key> <value> flag automatically, so
+    # convert_command doesn't need to name each one -- a project only has to
+    # declare e.g. {"species": "Ovis aries"} once, in metadata, not also
+    # spell out "--species" in its own command template.
+    for key, value in project.metadata.items():
+        cmd += [f"--{key.replace('_', '-')}", value]
     if force_overwrite and project.overwrite_flag:
         cmd.append(project.overwrite_flag)
     if not dry_run:

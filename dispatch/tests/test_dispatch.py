@@ -141,7 +141,8 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
 
 
-def test_containerize_mounts_paths_and_wraps_cmd():
+def test_containerize_mounts_paths_and_wraps_cmd(monkeypatch):
+    monkeypatch.delenv("DANDI_API_KEY", raising=False)
     cmd = dispatch.containerize(
         ["python3", "/repo/labs/x/code/convert.py"],
         image="ghcr.io/example/x-ingest:latest",
@@ -155,6 +156,23 @@ def test_containerize_mounts_paths_and_wraps_cmd():
     assert "/incoming/000001:/incoming/000001" in cmd
     assert "/standardized/000002:/standardized/000002" in cmd
     assert cmd[-3:] == ["ghcr.io/example/x-ingest:latest", "python3", "/repo/labs/x/code/convert.py"]
+    assert "DANDI_API_KEY" not in cmd  # not set in the environment -> not forwarded
+
+
+def test_containerize_forwards_dandi_api_key_by_name_only(monkeypatch):
+    monkeypatch.setenv("DANDI_API_KEY", "super-secret-value")
+    cmd = dispatch.containerize(
+        ["python3", "/repo/labs/x/code/convert.py"],
+        image="ghcr.io/example/x-ingest:latest",
+        repo_root=Path("/repo"),
+        incoming_dir=Path("/incoming/000001"),
+        standardized_dir=Path("/standardized/000002"),
+    )
+    assert "DANDI_API_KEY" in cmd
+    # By name only ("-e DANDI_API_KEY", no "=value") -- docker reads the
+    # current value from its own environment, so the secret itself never
+    # appears in the argv.
+    assert not any("super-secret-value" in token for token in cmd)
 
 
 def test_process_project_runs_conversion_in_container_when_configured(tmp_path, monkeypatch):
@@ -189,7 +207,9 @@ def test_process_project_runs_conversion_in_container_when_configured(tmp_path, 
     assert "python3" in run_cmd
 
 
-def test_process_project_templates_metadata_into_convert_command(tmp_path, monkeypatch):
+def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
+    """convert_command doesn't need to name a metadata key -- each entry
+    becomes its own --<key> <value> flag, appended automatically."""
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
@@ -199,13 +219,8 @@ def test_process_project_templates_metadata_into_convert_command(tmp_path, monke
     monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
 
     project = make_project(
-        convert_command=[
-            "python3",
-            "{repo_root}/labs/test-lab/code/convert.py",
-            "--species",
-            "{species}",
-        ],
-        metadata={"species": "Mus musculus"},
+        convert_command=["python3", "{repo_root}/labs/test-lab/code/convert.py"],
+        metadata={"species": "Mus musculus", "some_key": "some-value"},
     )
     dispatch.process_project(
         project,
@@ -218,7 +233,38 @@ def test_process_project_templates_metadata_into_convert_command(tmp_path, monke
         dry_run=False,
     )
     cmd, _ = calls[0]
-    assert "Mus musculus" in cmd
+    # --overwrite (first-ever run) lands after the auto-appended flags.
+    assert cmd[-5:] == ["--species", "Mus musculus", "--some-key", "some-value", "--overwrite"]
+
+
+def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path, monkeypatch):
+    """{key} templating inside convert_command still works too, for a value
+    that needs to land somewhere other than a trailing --<key> <value> flag
+    (e.g. embedded in a longer token)."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project(
+        convert_command=["python3", "{repo_root}/labs/test-lab/code/convert-{species}.py"],
+        metadata={"species": "mus-musculus"},
+    )
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        skip_download=True,
+        skip_upload=True,
+        dry_run=False,
+    )
+    cmd, _ = calls[0]
+    assert str(repo_root / "labs" / "test-lab" / "code" / "convert-mus-musculus.py") in cmd
 
 
 def make_full_repo(tmp_path: Path) -> Path:
