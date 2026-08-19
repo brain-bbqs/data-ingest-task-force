@@ -83,7 +83,7 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 
 `dispatch.py` does not manage DANDI or container-registry credentials itself — it shells out to:
 
-- the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json`, either via `dandi login -i emberarchive` (run once on the runner) or a `DANDI_API_KEY` already present in dispatch's own environment (e.g. set by the calling workflow — see `data-ingest-runner`'s README). If `container_image` is set, this same `DANDI_API_KEY` is also forwarded into the container by name only (`docker run -e DANDI_API_KEY`, no `=value`), so a lab's conversion step can use it too, without the secret ever appearing in a logged command line;
+- the `dandi` CLI, which must already be configured on the runner for every `dandi_instance` named in `projects.json`, either via `dandi login -i emberarchive` (run once on the runner) or a `DANDI_API_KEY` already present in dispatch's own environment (e.g. set by the calling workflow — see `data-ingest-runner`'s README; verify against your `dandi` CLI version whether a plain env var authenticates a *named* instance the way you expect, falling back to `dandi login -i emberarchive` if not). If `container_image` is set, this same `DANDI_API_KEY` is also forwarded into the container by name only (`docker run -e DANDI_API_KEY`, no `=value`), so a lab's conversion step can use it too, without the secret ever appearing in a logged command line;
 - `docker`, which must already be logged in for any private image a project's `container_image` names (e.g. `docker login ghcr.io`, run once on the runner) — GHCR packages default to private.
 
 ## Adding a project
