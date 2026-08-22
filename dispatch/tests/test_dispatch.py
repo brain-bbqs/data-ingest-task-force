@@ -195,10 +195,25 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     project = make_project()
     dispatch.dandi_upload(project, standardized_dir, dandi_image=DANDI_IMAGE, dry_run=False)
 
-    assert len(calls) == 2  # docker pull, then docker run
+    assert len(calls) == 3  # docker pull, fetch dandiset.yaml, then docker run upload
     pull_cmd, _ = calls[0]
     assert pull_cmd == ["docker", "pull", DANDI_IMAGE]
-    run_cmd, cwd = calls[1]
+    fetch_cmd, _ = calls[1]
+    assert fetch_cmd[:2] == ["docker", "run"]
+    assert f"{standardized_dir.parent}:{standardized_dir.parent}" in fetch_cmd
+    assert fetch_cmd[-10:] == [
+        DANDI_IMAGE,
+        "dandi",
+        "download",
+        "-o",
+        str(standardized_dir.parent),
+        "-e",
+        "refresh",
+        "--download",
+        "dandiset.yaml",
+        "dandi://ember-dandi/000002",
+    ]
+    run_cmd, cwd = calls[2]
     assert run_cmd[:2] == ["docker", "run"]
     assert f"{standardized_dir}:{standardized_dir}" in run_cmd
     assert "-w" in run_cmd and str(standardized_dir) in run_cmd

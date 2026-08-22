@@ -12,7 +12,9 @@ registered project (see projects.json):
      (docker pull + docker run) rather than directly on the runner host --
      the image holds only the lab's runtime environment (e.g. ffmpeg), not
      the code or data, which are bind-mounted in at the same host paths.
-  4. ``dandi upload`` the standardized directory.
+  4. ``dandi upload`` the standardized directory (first fetching just its
+     dandiset.yaml, since ``dandi upload`` needs one already on disk to
+     know which dandiset it's uploading to).
 
 Every external tool this script drives -- dandi and each lab's own
 conversion script -- runs inside a container, not directly on the runner
@@ -132,11 +134,25 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         log.info("[%s] no standardized output yet at %s, skipping upload", project.lab, standardized_dir)
         return
     run(["docker", "pull", dandi_image], dry_run=dry_run)
+    forward_env = (dandi_api_key_env_var(project.dandi_instance),)
+    # `dandi upload` identifies its target dandiset from a dandiset.yaml it
+    # walks up from cwd to find -- one only ever lands here via a prior
+    # `dandi download` of standardized_dandiset_id, which never happens on
+    # its own when standardized_dandiset_id differs from incoming_dandiset_id
+    # (the only one dispatch downloads). Fetch just that file -- not the
+    # whole dandiset -- so upload works before any such download has.
+    url = f"dandi://{project.dandi_instance}/{project.standardized_dandiset_id}"
+    fetch_dandiset_yaml_cmd = docker_run_prefix(
+        image=dandi_image,
+        mounts={standardized_dir.parent: ""},
+        forward_env=forward_env,
+    ) + ["dandi", "download", "-o", str(standardized_dir.parent), "-e", "refresh", "--download", "dandiset.yaml", url]
+    run(fetch_dandiset_yaml_cmd, dry_run=dry_run)
     cmd = docker_run_prefix(
         image=dandi_image,
         mounts={standardized_dir: ""},
         workdir=standardized_dir,
-        forward_env=(dandi_api_key_env_var(project.dandi_instance),),
+        forward_env=forward_env,
     ) + ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"]
     run(cmd, dry_run=dry_run)
 
