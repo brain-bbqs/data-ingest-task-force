@@ -1,0 +1,82 @@
+name: Container images
+
+permissions:
+  contents: read
+
+# Publishing to GHCR is gated on each image passing its own test suite. Every
+# run builds the image fresh (no layer cache, so the loose dependencies in
+# envs/pyproject.toml are re-resolved) and runs the corresponding tests inside
+# that exact build. On pull requests this build-and-test is the main gate and
+# nothing is published. On a merge to main the passing image itself is pushed.
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  # Manual runs also publish when green. Useful for refreshing the unpinned
+  # environments without a code change.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  TestAndPublish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: kemere-r34da059514-ingest
+            dockerfile: labs/kemere/containers/kemere.Dockerfile
+            context: labs/kemere
+            tests: labs/kemere/tests
+          - image: dandi-cli
+            dockerfile: dispatch/containers/dandi.Dockerfile
+            context: dispatch
+            tests: dispatch/tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build fresh image
+        run: >
+          docker build
+          --no-cache
+          --file "${{ matrix.dockerfile }}"
+          --tag "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          "${{ matrix.context }}"
+
+      - name: Smoke test the default command
+        run: docker run --rm "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+
+      - name: Run the image's test suite inside it
+        run: >
+          docker run --rm
+          --volume "${GITHUB_WORKSPACE}:/work"
+          --workdir /work
+          "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          python -m pytest "${{ matrix.tests }}" -q
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retags and pushes the very bytes the tests ran in, rather than
+      # rebuilding, so what lands on GHCR is exactly what passed.
+      - name: Publish the tested image
+        if: github.event_name != 'pull_request'
+        run: |
+          set -eu
+          candidate="ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          for tag in latest "${{ github.sha }}"; do
+            docker tag "$candidate" "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
+            docker push "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
+          done

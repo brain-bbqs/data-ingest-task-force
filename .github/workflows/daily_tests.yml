@@ -1,8 +1,10 @@
-name: Daily tests
+name: Python dev environment (daily tests)
 
-# The lab environments are deliberately unpinned, so a dependency release can
-# break the suite with no commit to trigger a PR run. This catches that the
-# next morning and emails on failure.
+# Re-runs the pip-installed (uncontainerized) suite from test.yml every day.
+# The dev environments are deliberately unpinned, so a dependency release can
+# break them with no commit to trigger a CI run. This catches that the next
+# morning and emails on failure. The container images have their own gate in
+# container_images.yml.
 
 on:
   schedule:
@@ -28,7 +30,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "CI Failure: Data Ingest Task Force Daily Tests"
+          subject: "CI Failure: Data Ingest Task Force Python dev environment (daily tests)"
           to: cody.c.baker.phd@gmail.com
           from: Data Ingest Task Force <data-ingest-task-force@users.noreply.github.com>
           body: "The daily test workflow failed, please check status at https://github.com/brain-bbqs/data-ingest-task-force/actions/workflows/daily_tests.yml"
