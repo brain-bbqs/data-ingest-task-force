@@ -22,10 +22,10 @@ import pynwb
 import pytest
 
 TESTS = Path(__file__).resolve().parent
-REPO = TESTS.parent
-sys.path.insert(0, str(REPO / "code"))
+REPO_ROOT = TESTS.parents[2]
+sys.path.insert(0, str(REPO_ROOT))
 
-import batch_convert  # noqa: E402
+from labs.inman.code import batch_convert  # noqa: E402
 
 pytestmark = pytest.mark.ai_generated
 

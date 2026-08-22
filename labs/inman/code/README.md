@@ -64,4 +64,4 @@ sub-XYZ/
 
 ### Notes
 
-The script 'inman_to_nwb.py' converts one session into one NWB file. The wrapper 'batch_convert.py' calls it for every `.mat` file found under an incoming directory and creates the subject/ NWB naming structure above, with two DANDI-required deviations from the tree sketch. The session label is `ses-walk<N>` (per-walk dates are not yet available in the metadata config), and each NWB sits directly under `sub-XYZ/` rather than in a `ses-` subfolder (dandi validation rejects nested session folders).
+The script '_inman_to_nwb.py' converts one session into one NWB file. The wrapper 'batch_convert.py' (run as `python3 -m labs.inman.code.batch_convert` from the repository root) calls it for every `.mat` file found under an incoming directory and creates the subject/ NWB naming structure above, with two DANDI-required deviations from the tree sketch. The session label is `ses-walk<N>` (per-walk dates are not yet available in the metadata config), and each NWB sits directly under `sub-XYZ/` rather than in a `ses-` subfolder (dandi validation rejects nested session folders).

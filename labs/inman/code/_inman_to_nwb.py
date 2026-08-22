@@ -1,12 +1,12 @@
 """
-inman_to_nwb.py
+_inman_to_nwb.py
 ================================
 Original script developed by Grace Bezold (gbezold1). Some fixes from Neha Thomas (neha-thomas477).
 
 Convert re-structured MATLAB walk session files from the Inman dataset into
 Neurodata Without Borders (NWB) 2.x files.
 
-The script is primarily intended for command-line use via ``python inman_to_nwb.py``.
+The script is primarily intended for command-line use via ``python _inman_to_nwb.py``.
 It parses a single ``.mat`` file that contains synchronized behavioural,
 physiological and environmental recordings, assembles them into an
 :pyclass:`~pynwb.NWBFile`, applies optional HDF5 compression and writes the
@@ -526,7 +526,7 @@ if __name__ == "__main__":
     """
     Example CLI usage
     --------
-    python inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 \
+    python _inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 \
         --config ./config.yaml --out ./InmanWalk-S03-Walk1.nwb
     """
     print("calling main")

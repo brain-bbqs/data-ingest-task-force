@@ -2,7 +2,7 @@
 """Batch driver for the Inman .mat-to-NWB conversion.
 
 Discovers every ``.mat`` walk file under an incoming directory tree (one
-folder per session, e.g. ``sample-1/``) and runs ``inman_to_nwb.build_nwb``
+folder per session, e.g. ``sample-1/``) and runs ``_inman_to_nwb.build_nwb``
 on each, writing the results into the standardized output tree described in
 ``code/README.md``::
 
@@ -23,10 +23,10 @@ whenever new sessions appear in the incoming dandiset, and appends
 A failed file does not stop the batch. The remaining files are still
 converted and the exit code reports whether any failed.
 
-Example CLI usage
------------------
-python3 batch_convert.py --input ember-incoming/000519 \\
-    --output ember-standardized/000526 --config ./config.yaml
+Example CLI usage (from the repository root, so the package resolves)
+---------------------------------------------------------------------
+python3 -m labs.inman.code.batch_convert --input ember-incoming/000519 \\
+    --output ember-standardized/000526 --config labs/inman/code/config.yaml
 """
 
 import argparse
@@ -35,8 +35,9 @@ import sys
 import traceback
 from pathlib import Path
 
-import inman_to_nwb
 import pymatreader
+
+from ._inman_to_nwb import READ_KEYS, REQUIRED_KEYS, build_nwb, load_cfg
 
 WALK_FILENAME_PATTERN = re.compile(r"RW(?P<subject>\d+)_Walk(?P<walk>\d+)", re.IGNORECASE)
 
@@ -102,16 +103,16 @@ def remove_legacy_output(*, standardized_dir, subject, walk):
 
 
 def convert_walk(*, mat_path, subject, walk, out_nwb, cfg):
-    data = pymatreader.read_mat(mat_path, variable_names=inman_to_nwb.READ_KEYS)
-    missing = [key for key in inman_to_nwb.REQUIRED_KEYS if key not in data]
+    data = pymatreader.read_mat(mat_path, variable_names=READ_KEYS)
+    missing = [key for key in REQUIRED_KEYS if key not in data]
     if missing:
         raise ValueError(f"missing keys in MAT data: {missing}")
     out_nwb.parent.mkdir(parents=True, exist_ok=True)
-    inman_to_nwb.build_nwb(data=data, subject_name=subject, session=walk, out_nwb=out_nwb, cfg=cfg)
+    build_nwb(data=data, subject_name=subject, session=walk, out_nwb=out_nwb, cfg=cfg)
 
 
 def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False):
-    cfg = inman_to_nwb.load_cfg(config_path)
+    cfg = load_cfg(config_path)
     walks = discover_walks(incoming_dir)
     if not walks:
         print(f"No .mat files found under {incoming_dir}")

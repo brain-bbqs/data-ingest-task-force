@@ -18,7 +18,7 @@ ported here as-is. Improvements are planned as a separate follow-up.
 ```
 labs/inman/
   code/                 Conversion code, ported from the original work
-    inman_to_nwb.py       one .mat walk session -> one NWB file
+    _inman_to_nwb.py      one .mat walk session -> one NWB file (private core module)
     batch_convert.py      batch driver: every .mat under a directory -> NWB tree
     config.yaml           metadata template consumed by the converter
     README.md             the original conversion notes (data layout, NWB tree)
@@ -50,11 +50,13 @@ converter.
 
 ## Run it — with the container (reproducible)
 
-Commands below assume `labs/inman/` as the working directory.
+Commands below assume the repository root as the working directory. The
+batch driver is a package module (`labs.inman.code.batch_convert`, run with
+`-m`), so the whole repository checkout is mounted, not just `labs/inman/`.
 
 ```bash
 # Build locally...
-docker build -t inman-ingest -f containers/inman.Dockerfile .
+docker build -t inman-ingest -f labs/inman/containers/inman.Dockerfile labs/inman
 
 # ...or pull the image published by CI:
 docker pull ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest
@@ -62,27 +64,27 @@ docker pull ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest
 # Mount the repo + data and run the batch converter (code is supplied at run time):
 docker run --rm -v "$PWD":/work -w /work \
     ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest \
-    python code/batch_convert.py \
-        --input 000519 --output 000526 --config code/config.yaml
+    python -m labs.inman.code.batch_convert \
+        --input 000519 --output 000526 --config labs/inman/code/config.yaml
 
 # The same image runs the test suite:
 docker run --rm -v "$PWD":/work -w /work \
     ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest \
-    python -m pytest tests/ -q
+    python -m pytest labs/inman/tests/ -q
 ```
 
 ## Run it — locally (without the container)
 
-Requires Python ≥ 3.10.
+Requires Python ≥ 3.10. From the repository root:
 
 ```bash
-pip install "./envs"
-python3 code/inman_to_nwb.py \
+pip install "./labs/inman/envs"
+python3 labs/inman/code/_inman_to_nwb.py \
     --mat RWNApp_RW3_Walk1_restructured.mat \
-    --subject 3 --session 1 --config code/config.yaml
+    --subject 3 --session 1 --config labs/inman/code/config.yaml
 ```
 
-`inman_to_nwb.py` handles one `.mat` file (one walk) per invocation.
+`_inman_to_nwb.py` handles one `.mat` file (one walk) per invocation.
 `batch_convert.py` wraps it for the whole incoming dandiset. It discovers
 every `.mat` file under `--input`, parses each subject and walk number from
 the filename (e.g. `RWNApp_RW3_Walk1_restructured.mat` is subject 3, walk 1,
@@ -93,8 +95,8 @@ with a folder-name fallback for files that don't match), and writes
 `dispatch/projects.json` and the Inman note in `dispatch/README.md`):
 
 ```bash
-python3 code/batch_convert.py \
-    --input path/to/000519 --output path/to/000526 --config code/config.yaml
+python3 -m labs.inman.code.batch_convert \
+    --input path/to/000519 --output path/to/000526 --config labs/inman/code/config.yaml
 ```
 
 ## Tests
@@ -107,6 +109,6 @@ which is not byte-stable across library versions, so the assertion is on the
 read-back contents rather than on golden bytes as in `labs/kemere/`.
 
 ```bash
-pip install "./envs[test]"
-python -m pytest tests/ -q
+pip install "./labs/inman/envs[test]"
+python -m pytest labs/inman/tests/ -q
 ```
