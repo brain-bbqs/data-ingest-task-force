@@ -29,7 +29,7 @@ dispatch/
   sessions.json       The session-discovery registry: one entry per lab
   schema/            JSON Schemas for both registry files (editor validation, see below)
   containers/        dandi.Dockerfile -- the portable dandi CLI runtime the
-                       download/upload steps run inside (see build_and_upload_docker_image.yml)
+                       download/upload steps run inside (see container_images.yml)
   envs/              Python env declaration (pytest) for dispatch.py itself
   tests/             Unit tests (no DANDI/network access needed)
 ```
@@ -94,7 +94,7 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 
 ## Adding a project
 
-1. Add an entry to `projects.json` (see the field reference above). If the lab publishes a container image (see its own `containers/<lab>.Dockerfile` and `.github/workflows/build_and_upload_docker_image.yml`), set `container_image` to it so the conversion step doesn't need its runtime dependencies installed directly on the runner host.
+1. Add an entry to `projects.json` (see the field reference above). If the lab publishes a container image (see its own `containers/<lab>.Dockerfile` and `.github/workflows/container_images.yml`), set `container_image` to it so the conversion step doesn't need its runtime dependencies installed directly on the runner host.
 2. Add a matching entry (same `lab` key) to `sessions.json` describing how to discover its sessions.
 3. Make sure `convert_command` uses `{repo_root}` / `{incoming_dir}` / `{standardized_dir}` to reach the right paths.
 4. If reprocessing on a script change should pass a flag (like Kemere's `--overwrite`), set `overwrite_flag`; otherwise the script's own default behavior on already-existing output applies.

@@ -1,12 +1,14 @@
-name: Tests
+name: Python dev environment tests
+
+# Installs each suite's loose environment with pip directly on the runner and
+# runs the tests there. This exercises the uncontainerized developer setup
+# only. The PR gate is container_images.yml, which runs these same suites
+# inside a fresh build of each image before it can publish.
 
 permissions:
   contents: read
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
   workflow_dispatch:
   # Callable so the scheduled run (daily_tests.yml) exercises exactly this
   # suite rather than a drifting copy of it.

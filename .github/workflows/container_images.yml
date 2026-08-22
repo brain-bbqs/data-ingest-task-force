@@ -1,0 +1,147 @@
+name: Container images
+
+permissions:
+  contents: read
+
+# Publishing to GHCR is gated on each image passing its own test suite. Every
+# run builds the image fresh (no layer cache, so the loose dependencies in
+# envs/pyproject.toml are re-resolved) and runs the corresponding tests inside
+# that exact build. On pull requests this build-and-test is the main gate and
+# nothing is published. On a merge to main the passing image itself is pushed.
+#
+# Only images whose paths the changeset touches are built, so PR cost stays
+# proportional to the change as labs are added. A manual dispatch runs (and
+# publishes) everything, which is how to refresh the unpinned environments
+# without a code change. Register a new image in BOTH the registry JSON and
+# the path filters of the Changes job below.
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  Changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Detect which images the changeset touches
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            kemere-r34da059514-ingest:
+              - 'labs/kemere/**'
+              - '.github/workflows/container_images.yml'
+            dandi-cli:
+              - 'dispatch/**'
+              - '.github/workflows/container_images.yml'
+
+      - name: Build the matrix of affected images
+        id: matrix
+        env:
+          EVENT: ${{ github.event_name }}
+          CHANGED: ${{ steps.filter.outputs.changes }}
+        run: |
+          set -eu
+          registry='[
+            {"image": "kemere-r34da059514-ingest",
+             "dockerfile": "labs/kemere/containers/kemere.Dockerfile",
+             "context": "labs/kemere",
+             "tests": "labs/kemere/tests"},
+            {"image": "dandi-cli",
+             "dockerfile": "dispatch/containers/dandi.Dockerfile",
+             "context": "dispatch",
+             "tests": "dispatch/tests"}
+          ]'
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            matrix=$(jq -cn --argjson all "$registry" '$all')
+          else
+            matrix=$(jq -cn --argjson all "$registry" --argjson changed "$CHANGED" \
+              '[$all[] | select(.image as $i | $changed | index($i))]')
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Affected images: $(jq -r '[.[].image] | join(", ")' <<< "$matrix")"
+
+  TestAndPublish:
+    runs-on: ubuntu-latest
+    needs: Changes
+    if: needs.Changes.outputs.matrix != '[]'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.Changes.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build fresh image
+        run: >
+          docker build
+          --no-cache
+          --file "${{ matrix.dockerfile }}"
+          --tag "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          "${{ matrix.context }}"
+
+      - name: Smoke test the default command
+        run: docker run --rm "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+
+      - name: Run the image's test suite inside it
+        run: >
+          docker run --rm
+          --volume "${GITHUB_WORKSPACE}:/work"
+          --workdir /work
+          "ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          python -m pytest "${{ matrix.tests }}" -q
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Retags and pushes the very bytes the tests ran in, rather than
+      # rebuilding, so what lands on GHCR is exactly what passed.
+      - name: Publish the tested image
+        if: github.event_name != 'pull_request'
+        run: |
+          set -eu
+          candidate="ghcr.io/brain-bbqs/${{ matrix.image }}:candidate"
+          for tag in latest "${{ github.sha }}"; do
+            docker tag "$candidate" "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
+            docker push "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
+          done
+
+  # Single stable check for branch protection: green when every affected
+  # image passed, including the no-images-affected case where TestAndPublish
+  # is skipped entirely.
+  ContainerGate:
+    runs-on: ubuntu-latest
+    needs: [Changes, TestAndPublish]
+    if: always()
+    permissions: {}
+    steps:
+      - name: Verify no affected image failed
+        env:
+          CHANGES_RESULT: ${{ needs.Changes.result }}
+          TESTS_RESULT: ${{ needs.TestAndPublish.result }}
+        run: |
+          set -eu
+          [ "$CHANGES_RESULT" = "success" ]
+          case "$TESTS_RESULT" in
+            success|skipped) ;;
+            *) echo "TestAndPublish result: $TESTS_RESULT" && exit 1 ;;
+          esac
