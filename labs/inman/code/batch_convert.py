@@ -85,6 +85,22 @@ def output_path(*, standardized_dir, subject, walk):
     return nwb_path
 
 
+def remove_legacy_output(*, standardized_dir, subject, walk):
+    """Outputs briefly landed in a ses- subfolder, which dandi validation
+    rejects (NON_DANDI_FOLDERNAME). Remove that variant wherever it still
+    exists so it cannot fail future uploads of the standardized directory."""
+    session = f"walk{walk}"
+    legacy_dir = standardized_dir / f"sub-{subject}" / f"ses-{session}"
+    legacy_nwb = legacy_dir / f"sub-{subject}_ses-{session}_behavior+ecephys.nwb"
+    if legacy_nwb.is_file():
+        print(f"Removing legacy nested output: {legacy_nwb}", flush=True)
+        legacy_nwb.unlink()
+        try:
+            legacy_dir.rmdir()
+        except OSError:
+            pass
+
+
 def convert_walk(*, mat_path, subject, walk, out_nwb, cfg):
     data = pymatreader.read_mat(mat_path, variable_names=inman_to_nwb.READ_KEYS)
     missing = [key for key in inman_to_nwb.REQUIRED_KEYS if key not in data]
@@ -105,6 +121,7 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     skipped = 0
     failed = []
     for mat_path, subject, walk in walks:
+        remove_legacy_output(standardized_dir=standardized_dir, subject=subject, walk=walk)
         out_nwb = output_path(standardized_dir=standardized_dir, subject=subject, walk=walk)
         if out_nwb.is_file() and not overwrite:
             print(f"Exists, skipping (use --overwrite): {out_nwb}", flush=True)

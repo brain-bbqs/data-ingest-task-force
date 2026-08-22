@@ -125,6 +125,22 @@ def test_convert_batch_continues_past_failures(sample_incoming, tmp_path, capsys
     assert "FAILED" in captured.err
 
 
+def test_convert_batch_removes_legacy_nested_output(sample_incoming, tmp_path):
+    standardized = tmp_path / "standardized"
+    legacy_dir = standardized / "sub-3" / "ses-walk1"
+    legacy_dir.mkdir(parents=True)
+    legacy_nwb = legacy_dir / "sub-3_ses-walk1_behavior+ecephys.nwb"
+    legacy_nwb.write_bytes(b"stale output from the nested layout")
+
+    exit_code = batch_convert.convert_batch(
+        incoming_dir=sample_incoming, standardized_dir=standardized, config_path=CONFIG
+    )
+    assert exit_code == 0
+    assert not legacy_nwb.exists()
+    assert not legacy_dir.exists()
+    assert (standardized / "sub-3" / "sub-3_ses-walk1_behavior+ecephys.nwb").is_file()
+
+
 def test_convert_batch_empty_input(tmp_path, capsys):
     incoming = tmp_path / "incoming"
     incoming.mkdir()

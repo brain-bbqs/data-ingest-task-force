@@ -201,7 +201,7 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         identifier=f"InmanWalk-Subject{subject_name}-Walk{session}",
         session_start_time=session_start,
         experimenter=cfg_get("session", "experimenter", CFG=cfg),
-        institution=cfg_get("session", "instituition", CFG=cfg),
+        institution=cfg_get("session", "institution", CFG=cfg),
     )
 
     # subject definition
