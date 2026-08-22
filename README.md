@@ -18,6 +18,7 @@ dispatch/               Cron entrypoint driving all labs' conversions
                          containers/dandi.Dockerfile -- the portable dandi
                          CLI runtime dispatch.py's download/upload steps
                          run inside, same pattern as a lab's own container
+docs/                   Repository documentation (CI, see docs/README.md)
 pyproject.toml          Repository-wide tooling (ruff)
 .github/workflows/      CI: container build/test/publish + daily dev-env tests
 ```
@@ -25,21 +26,8 @@ pyproject.toml          Repository-wide tooling (ruff)
 ## Adding a lab
 
 Add a new `labs/<lab>/` directory, self-contained the same way as `labs/kemere/` (code, tests, `envs/`, and its own `containers/<lab>.Dockerfile` if it needs a container).
-Give the Dockerfile a lab-specific name, and register the image in the matrix of `.github/workflows/container_images.yml` (dockerfile, build context, image name, and the test suite that gates it).
+Give the Dockerfile a lab-specific name, and register the image in `.github/workflows/container_images.yml` in both places its comment points at: the registry JSON (dockerfile, build context, image name, and the test suite that gates it) and the change-detection path filters.
 
 ## CI
 
-- **Container images** (`.github/workflows/container_images.yml`) are the main
-  PR gate. Every run builds each registered image fresh (no layer cache, so
-  the unpinned environments are re-resolved) and runs the image's own test
-  suite inside that exact build. Pull requests stop there. On a merge to main
-  the same run then publishes the tested image itself to
-  `ghcr.io/brain-bbqs/<image>` (`latest` + commit SHA tags), so nothing
-  reaches GHCR without passing its suite. A manual `workflow_dispatch` does
-  the same, which is how to refresh the images without a code change.
-- **Python dev environment (daily tests)**
-  (`.github/workflows/daily_tests.yml`) re-run the pip-installed
-  (uncontainerized) suite from `.github/workflows/test.yml` at 12:00 UTC and
-  email on failure. The dev environments are unpinned, so a dependency
-  release alone can break them with no commit to trigger a CI run. Requires
-  the `MAIL_USERNAME` and `MAIL_PASSWORD` repository secrets.
+See [docs/README.md](docs/README.md).

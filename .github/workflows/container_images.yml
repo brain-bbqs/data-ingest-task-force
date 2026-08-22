@@ -8,12 +8,16 @@ permissions:
 # envs/pyproject.toml are re-resolved) and runs the corresponding tests inside
 # that exact build. On pull requests this build-and-test is the main gate and
 # nothing is published. On a merge to main the passing image itself is pushed.
+#
+# Only images whose paths the changeset touches are built, so PR cost stays
+# proportional to the change as labs are added. A manual dispatch runs (and
+# publishes) everything, which is how to refresh the unpinned environments
+# without a code change. Register a new image in BOTH the registry JSON and
+# the path filters of the Changes job below.
 on:
   pull_request:
   push:
     branches: [ main ]
-  # Manual runs also publish when green. Useful for refreshing the unpinned
-  # environments without a code change.
   workflow_dispatch:
 
 concurrency:
@@ -21,23 +25,63 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  Changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Detect which images the changeset touches
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            kemere-r34da059514-ingest:
+              - 'labs/kemere/**'
+              - '.github/workflows/container_images.yml'
+            dandi-cli:
+              - 'dispatch/**'
+              - '.github/workflows/container_images.yml'
+
+      - name: Build the matrix of affected images
+        id: matrix
+        env:
+          EVENT: ${{ github.event_name }}
+          CHANGED: ${{ steps.filter.outputs.changes }}
+        run: |
+          set -eu
+          registry='[
+            {"image": "kemere-r34da059514-ingest",
+             "dockerfile": "labs/kemere/containers/kemere.Dockerfile",
+             "context": "labs/kemere",
+             "tests": "labs/kemere/tests"},
+            {"image": "dandi-cli",
+             "dockerfile": "dispatch/containers/dandi.Dockerfile",
+             "context": "dispatch",
+             "tests": "dispatch/tests"}
+          ]'
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            matrix=$(jq -cn --argjson all "$registry" '$all')
+          else
+            matrix=$(jq -cn --argjson all "$registry" --argjson changed "$CHANGED" \
+              '[$all[] | select(.image as $i | $changed | index($i))]')
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Affected images: $(jq -r '[.[].image] | join(", ")' <<< "$matrix")"
+
   TestAndPublish:
     runs-on: ubuntu-latest
+    needs: Changes
+    if: needs.Changes.outputs.matrix != '[]'
     permissions:
       contents: read
       packages: write
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - image: kemere-r34da059514-ingest
-            dockerfile: labs/kemere/containers/kemere.Dockerfile
-            context: labs/kemere
-            tests: labs/kemere/tests
-          - image: dandi-cli
-            dockerfile: dispatch/containers/dandi.Dockerfile
-            context: dispatch
-            tests: dispatch/tests
+        include: ${{ fromJSON(needs.Changes.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -80,3 +124,24 @@ jobs:
             docker tag "$candidate" "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
             docker push "ghcr.io/brain-bbqs/${{ matrix.image }}:$tag"
           done
+
+  # Single stable check for branch protection: green when every affected
+  # image passed, including the no-images-affected case where TestAndPublish
+  # is skipped entirely.
+  ContainerGate:
+    runs-on: ubuntu-latest
+    needs: [Changes, TestAndPublish]
+    if: always()
+    permissions: {}
+    steps:
+      - name: Verify no affected image failed
+        env:
+          CHANGES_RESULT: ${{ needs.Changes.result }}
+          TESTS_RESULT: ${{ needs.TestAndPublish.result }}
+        run: |
+          set -eu
+          [ "$CHANGES_RESULT" = "success" ]
+          case "$TESTS_RESULT" in
+            success|skipped) ;;
+            *) echo "TestAndPublish result: $TESTS_RESULT" && exit 1 ;;
+          esac
