@@ -27,7 +27,3 @@ pyproject.toml          Repository-wide tooling (ruff)
 
 Add a new `labs/<lab>/` directory, self-contained the same way as `labs/kemere/` (code, tests, `envs/`, and its own `containers/<lab>.Dockerfile` if it needs a container).
 Give the Dockerfile a lab-specific name, and register the image in `.github/workflows/container_images.yml` in both places its comment points at: the registry JSON (dockerfile, build context, image name, and the test suite that gates it) and the change-detection path filters.
-
-## CI
-
-See [docs/README.md](docs/README.md).
