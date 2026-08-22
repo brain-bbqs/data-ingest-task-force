@@ -33,6 +33,7 @@ python3 batch_convert.py --input ember-incoming/000519 \\
 import argparse
 import re
 import sys
+import traceback
 from pathlib import Path
 
 import inman_to_nwb
@@ -86,7 +87,7 @@ def output_path(*, standardized_dir, subject, walk):
 
 
 def convert_walk(*, mat_path, subject, walk, out_nwb, cfg):
-    data = pymatreader.read_mat(mat_path)
+    data = pymatreader.read_mat(mat_path, variable_names=inman_to_nwb.READ_KEYS)
     missing = [key for key in inman_to_nwb.REQUIRED_KEYS if key not in data]
     if missing:
         raise ValueError(f"missing keys in MAT data: {missing}")
@@ -107,19 +108,20 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     for mat_path, subject, walk in walks:
         out_nwb = output_path(standardized_dir=standardized_dir, subject=subject, walk=walk)
         if out_nwb.is_file() and not overwrite:
-            print(f"Exists, skipping (use --overwrite): {out_nwb}")
+            print(f"Exists, skipping (use --overwrite): {out_nwb}", flush=True)
             skipped += 1
             continue
-        print(f"Converting {mat_path} (subject {subject}, walk {walk}) -> {out_nwb}")
+        print(f"Converting {mat_path} (subject {subject}, walk {walk}) -> {out_nwb}", flush=True)
         try:
             convert_walk(mat_path=mat_path, subject=subject, walk=walk, out_nwb=out_nwb, cfg=cfg)
         except Exception as error:
-            print(f"FAILED: {mat_path}: {error}", file=sys.stderr)
+            traceback.print_exc()
+            print(f"FAILED: {mat_path}: {error}", file=sys.stderr, flush=True)
             failed.append(mat_path)
             continue
         converted += 1
 
-    print(f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(walks)} walk file(s)")
+    print(f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(walks)} walk file(s)", flush=True)
     exit_code = 1 if failed else 0
     return exit_code
 

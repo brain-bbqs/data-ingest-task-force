@@ -61,6 +61,12 @@ REQUIRED_KEYS = [
     "ntp_xs",
 ]
 
+# Everything the conversion reads from a .mat file. Restricting read_mat to
+# these avoids parsing unrelated variables the real files also carry (e.g.
+# the original evnts_tbl MATLAB table object, which pymatreader cannot
+# reliably import).
+READ_KEYS = [*REQUIRED_KEYS, "evnts_struct"]
+
 
 def load_cfg(cfg_path: Path):
     """
@@ -496,7 +502,7 @@ def main():
     args = parse_args()
 
     cfg = load_cfg(args.config)
-    mat_data = read_mat(args.mat)
+    mat_data = read_mat(args.mat, variable_names=READ_KEYS)
 
     missing = [k for k in REQUIRED_KEYS if k not in mat_data]
     if missing:

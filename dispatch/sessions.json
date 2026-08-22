@@ -6,7 +6,7 @@
       "exclude": []
     },
     "inman": {
-      "include": ["*"],
+      "include": ["sourcedata/raw/*"],
       "exclude": []
     }
   }
