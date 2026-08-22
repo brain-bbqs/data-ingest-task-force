@@ -27,20 +27,17 @@
       "standardized_dandiset_id": "000526",
       "script_path": "labs/inman/code/inman_to_nwb.py",
       "dandi_instance": "ember-dandi",
+      "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest",
       "convert_command": [
         "python3",
-        "{repo_root}/labs/inman/code/inman_to_nwb.py",
-        "--mat",
-        "{incoming_dir}/sourcedata/raw/RWNApp_RW3_Walk1_restructured.mat",
-        "--subject",
-        "3",
-        "--session",
-        "1",
+        "{repo_root}/labs/inman/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/inman/code/config.yaml",
-        "--out",
-        "{standardized_dir}/InmanWalk-S3-Walk1.nwb"
+        "{repo_root}/labs/inman/code/config.yaml"
       ]
     }
   ]

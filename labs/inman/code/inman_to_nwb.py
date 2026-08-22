@@ -43,6 +43,24 @@ from pynwb.behavior import BehavioralTimeSeries, CompassDirection, EyeTracking, 
 from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.file import Subject
 
+# Data/timing arrays every re-structured walk .mat must carry (see README.md).
+REQUIRED_KEYS = [
+    "d_amb",
+    "ntp_amb",
+    "d_gaze_x",
+    "d_gaze_y",
+    "d_gaze_fix",
+    "ntp_gaze",
+    "d_kde",
+    "ntp_kde",
+    "d_imu",
+    "ntp_imu",
+    "d_np",
+    "ntp_np",
+    "d_xs",
+    "ntp_xs",
+]
+
 
 def load_cfg(cfg_path: Path):
     """
@@ -480,24 +498,7 @@ def main():
     cfg = load_cfg(args.config)
     mat_data = read_mat(args.mat)
 
-    required_keys = [
-        "d_amb",
-        "ntp_amb",
-        "d_gaze_x",
-        "d_gaze_y",
-        "d_gaze_fix",
-        "ntp_gaze",
-        "d_kde",
-        "ntp_kde",
-        "d_imu",
-        "ntp_imu",
-        "d_np",
-        "ntp_np",
-        "d_xs",
-        "ntp_xs",
-    ]
-
-    missing = [k for k in required_keys if k not in mat_data]
+    missing = [k for k in REQUIRED_KEYS if k not in mat_data]
     if missing:
         raise SystemExit(f"Missing keys in MAT data: {missing}")
     else:

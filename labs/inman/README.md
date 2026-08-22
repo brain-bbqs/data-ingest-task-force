@@ -19,6 +19,7 @@ ported here as-is. Improvements are planned as a separate follow-up.
 labs/inman/
   code/                 Conversion code, ported from the original work
     inman_to_nwb.py       one .mat walk session -> one NWB file
+    batch_convert.py      batch driver: every .mat under a directory -> NWB tree
     config.yaml           metadata template consumed by the converter
     README.md             the original conversion notes (data layout, NWB tree)
   containers/           The pinned, reproducible runtime (inman.Dockerfile)
@@ -58,14 +59,11 @@ docker build -t inman-ingest -f containers/inman.Dockerfile .
 # ...or pull the image published by CI:
 docker pull ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest
 
-# Mount the repo + data and run the converter (code is supplied at run time):
+# Mount the repo + data and run the batch converter (code is supplied at run time):
 docker run --rm -v "$PWD":/work -w /work \
     ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest \
-    python code/inman_to_nwb.py \
-        --mat 000519/sourcedata/raw/RWNApp_RW3_Walk1_restructured.mat \
-        --subject 3 --session 1 \
-        --config code/config.yaml \
-        --out InmanWalk-S03-Walk1.nwb
+    python code/batch_convert.py \
+        --input 000519 --output 000526 --config code/config.yaml
 
 # The same image runs the test suite:
 docker run --rm -v "$PWD":/work -w /work \
@@ -84,9 +82,20 @@ python3 code/inman_to_nwb.py \
     --subject 3 --session 1 --config code/config.yaml
 ```
 
-The converter handles one `.mat` file (one walk) per invocation. Batching
-over every subject and session of the incoming dandiset is a planned
-follow-up (see the note in `dispatch/README.md`).
+`inman_to_nwb.py` handles one `.mat` file (one walk) per invocation.
+`batch_convert.py` wraps it for the whole incoming dandiset. It discovers
+every `.mat` file under `--input`, parses each subject and walk number from
+the filename (e.g. `RWNApp_RW3_Walk1_restructured.mat` is subject 3, walk 1,
+with a folder-name fallback for files that don't match), and writes
+`sub-<subject>/ses-walk<N>/sub-<subject>_ses-walk<N>_behavior+ecephys.nwb`
+under `--output`. Walks whose output already exists are skipped unless
+`--overwrite` is passed. This is the entry point dispatch runs (see
+`dispatch/projects.json` and the Inman note in `dispatch/README.md`):
+
+```bash
+python3 code/batch_convert.py \
+    --input path/to/000519 --output path/to/000526 --config code/config.yaml
+```
 
 ## Tests
 

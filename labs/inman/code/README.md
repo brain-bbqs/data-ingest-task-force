@@ -64,4 +64,4 @@ sub-XYZ/
 
 ### Notes
 
-The script 'inman_to_nwb.py' converts one session into one NWB file. You may need to create a wrapper bash script that calls this for every subject and every session, and creates the desired subject/ session/ and nwb file naming convention structure above.
+The script 'inman_to_nwb.py' converts one session into one NWB file. The wrapper 'batch_convert.py' calls it for every `.mat` file found under an incoming directory and creates the subject/ session/ NWB naming structure above (with `ses-walk<N>` as the session label, since per-walk dates are not yet available in the metadata config).
