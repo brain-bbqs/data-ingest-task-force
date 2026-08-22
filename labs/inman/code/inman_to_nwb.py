@@ -1,6 +1,8 @@
 """
 inman_to_nwb.py
 ================================
+Original script developed by Grace Bezold (gbezold1). Some fixes from Neha Thomas (neha-thomas477).
+
 Convert re-structured MATLAB walk session files from the Inman dataset into
 Neurodata Without Borders (NWB) 2.x files.
 
