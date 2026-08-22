@@ -35,9 +35,8 @@ import re
 import sys
 from pathlib import Path
 
-import pymatreader
-
 import inman_to_nwb
+import pymatreader
 
 WALK_FILENAME_PATTERN = re.compile(r"RW(?P<subject>\d+)_Walk(?P<walk>\d+)", re.IGNORECASE)
 
