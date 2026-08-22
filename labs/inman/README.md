@@ -87,8 +87,8 @@ python3 code/inman_to_nwb.py \
 every `.mat` file under `--input`, parses each subject and walk number from
 the filename (e.g. `RWNApp_RW3_Walk1_restructured.mat` is subject 3, walk 1,
 with a folder-name fallback for files that don't match), and writes
-`sub-<subject>/ses-walk<N>/sub-<subject>_ses-walk<N>_behavior+ecephys.nwb`
-under `--output`. Walks whose output already exists are skipped unless
+`sub-<subject>/sub-<subject>_ses-walk<N>_behavior+ecephys.nwb` under
+`--output` (assets sit directly under `sub-<subject>/`, per DANDI layout). Walks whose output already exists are skipped unless
 `--overwrite` is passed. This is the entry point dispatch runs (see
 `dispatch/projects.json` and the Inman note in `dispatch/README.md`):
 

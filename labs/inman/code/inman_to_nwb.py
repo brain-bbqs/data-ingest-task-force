@@ -322,17 +322,19 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         description=cfg_get("device_imu", "description", CFG=cfg),
     )
 
+    # Gyro and acceleration are not spatial positions, so they are plain
+    # TimeSeries -- SpatialSeries only permits spatial units (DANDI rejects
+    # 'deg/s' or 'm/s²' there).
     gyro_x = np.asarray(data["d_imu"]["gyroX"])
     gyro_y = np.asarray(data["d_imu"]["gyroY"])
     gyro_z = np.asarray(data["d_imu"]["gyroZ"])
     gyro_data = np.column_stack((gyro_x, gyro_y, gyro_z))
 
-    imu_gyro_spatial_series = SpatialSeries(
+    imu_gyro_series = TimeSeries(
         name="IMUGyro",
         description=cfg_get("timeseries", "imu_gyro", "description", CFG=cfg),
         data=gyro_data,
         timestamps=rel_times["imu"],
-        reference_frame=cfg_get("timeseries", "imu_gyro", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_gyro", "unit", CFG=cfg),
     )
 
@@ -341,12 +343,11 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     accel_z = np.asarray(data["d_imu"]["accelZ"])
     accel_data = np.column_stack((accel_x, accel_y, accel_z))
 
-    imu_accel_spatial_series = SpatialSeries(
+    imu_accel_series = TimeSeries(
         name="IMUAccel",
         description=cfg_get("timeseries", "imu_accel", "description", CFG=cfg),
         data=accel_data,
         timestamps=rel_times["imu"],
-        reference_frame=cfg_get("timeseries", "imu_accel", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_accel", "unit", CFG=cfg),
     )
 
@@ -368,8 +369,8 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         name="IMUCompassDirection",
     )
 
-    beh.add(imu_gyro_spatial_series)
-    beh.add(imu_accel_spatial_series)
+    beh.add(imu_gyro_series)
+    beh.add(imu_accel_series)
     beh.add(imu_compass_direction)
 
     behavior_annotation_data = data["evnts_struct"]

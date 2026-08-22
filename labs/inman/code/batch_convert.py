@@ -8,8 +8,7 @@ on each, writing the results into the standardized output tree described in
 
     <output>/
       sub-<subject>/
-        ses-walk<N>/
-          sub-<subject>_ses-walk<N>_behavior+ecephys.nwb
+        sub-<subject>_ses-walk<N>_behavior+ecephys.nwb
 
 Subject and walk numbers are parsed from filenames like
 ``RWNApp_RW3_Walk1_restructured.mat`` (subject 3, walk 1). A file whose name
@@ -79,10 +78,10 @@ def discover_walks(incoming_dir, /):
 
 
 def output_path(*, standardized_dir, subject, walk):
+    # DANDI layout keeps assets directly under sub-<subject>/ (a ses-
+    # subfolder fails dandi validation with NON_DANDI_FOLDERNAME).
     session = f"walk{walk}"
-    nwb_path = (
-        standardized_dir / f"sub-{subject}" / f"ses-{session}" / f"sub-{subject}_ses-{session}_behavior+ecephys.nwb"
-    )
+    nwb_path = standardized_dir / f"sub-{subject}" / f"sub-{subject}_ses-{session}_behavior+ecephys.nwb"
     return nwb_path
 
 

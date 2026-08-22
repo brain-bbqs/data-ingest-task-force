@@ -23,12 +23,12 @@ session:
 
 subject:
   id: ''
-  description: ''
-  species: ''
+  description: 'Human participant in the ambulatory navigation task (PROVISIONAL description)'
+  species: 'Homo sapiens'
   genotype: ''
   strain: ''
-  sex: ''              # required by DANDI, should be one of "M", "F", "O", "U"
-  age: ''              # required by DANDI, should be ISO 8601 duration - for example, P5W3D
+  sex: 'U'             # PROVISIONAL ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
+  age: 'P30Y'          # PROVISIONAL. Required by DANDI, should be ISO 8601 duration - for example, P5W3D
   weight: ''           # In grams
   date_of_birth: ''    # can be used instead of age - should be an ISO 8601 timestamp
 

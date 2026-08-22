@@ -67,7 +67,7 @@ def test_discover_walks_with_fallback(tmp_path):
 
 def test_output_path():
     nwb_path = batch_convert.output_path(standardized_dir=Path("out"), subject="3", walk=1)
-    assert nwb_path == Path("out/sub-3/ses-walk1/sub-3_ses-walk1_behavior+ecephys.nwb")
+    assert nwb_path == Path("out/sub-3/sub-3_ses-walk1_behavior+ecephys.nwb")
 
 
 @pytest.fixture()
@@ -86,7 +86,7 @@ def test_convert_batch_end_to_end(sample_incoming, tmp_path):
     )
     assert exit_code == 0
 
-    out_nwb = standardized / "sub-3" / "ses-walk1" / "sub-3_ses-walk1_behavior+ecephys.nwb"
+    out_nwb = standardized / "sub-3" / "sub-3_ses-walk1_behavior+ecephys.nwb"
     assert out_nwb.is_file()
     with pynwb.NWBHDF5IO(out_nwb, "r") as io:
         nwbfile = io.read()
@@ -119,7 +119,7 @@ def test_convert_batch_continues_past_failures(sample_incoming, tmp_path, capsys
     )
     assert exit_code == 1
 
-    good_output = standardized / "sub-3" / "ses-walk1" / "sub-3_ses-walk1_behavior+ecephys.nwb"
+    good_output = standardized / "sub-3" / "sub-3_ses-walk1_behavior+ecephys.nwb"
     assert good_output.is_file()
     captured = capsys.readouterr()
     assert "FAILED" in captured.err
