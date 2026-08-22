@@ -172,6 +172,7 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
     assert f"{incoming_root}:{incoming_root}" in run_cmd
     assert "EMBER_DANDI_API_KEY" in run_cmd
     assert not any("secret-value" in token for token in run_cmd)
+    assert "DANDI_CACHE=ignore" in run_cmd  # sidesteps a joblib/fscacher digest-cache race
     assert run_cmd[-8:] == [
         DANDI_IMAGE,
         "dandi",
@@ -201,6 +202,7 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     fetch_cmd, _ = calls[1]
     assert fetch_cmd[:2] == ["docker", "run"]
     assert f"{standardized_dir.parent}:{standardized_dir.parent}" in fetch_cmd
+    assert "DANDI_CACHE=ignore" in fetch_cmd
     assert fetch_cmd[-10:] == [
         DANDI_IMAGE,
         "dandi",
@@ -217,6 +219,7 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     assert run_cmd[:2] == ["docker", "run"]
     assert f"{standardized_dir}:{standardized_dir}" in run_cmd
     assert "-w" in run_cmd and str(standardized_dir) in run_cmd
+    assert "DANDI_CACHE=ignore" in run_cmd
     assert run_cmd[-6:] == ["dandi", "upload", "-i", "ember-dandi", "--existing", "refresh"]
     assert cwd is None  # working directory is set inside the container (-w), not on the host
 

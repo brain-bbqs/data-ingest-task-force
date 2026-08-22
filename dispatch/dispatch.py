@@ -96,14 +96,17 @@ def docker_run_prefix(
     mounts: dict[Path, str],
     workdir: Path | None = None,
     forward_env: tuple[str, ...] = (),
+    literal_env: dict[str, str] | None = None,
 ) -> list[str]:
     """The 'docker run --rm ...' argv prefix shared by every containerized
     step: bind-mount host paths (mounts maps host path -> a docker -v mode
-    suffix, e.g. "" for read-write or ":ro"), set a working directory, and
+    suffix, e.g. "" for read-write or ":ro"), set a working directory,
     forward named environment variables by name only -- "-e NAME" with no
     "=value" makes docker read the current value from this process's own
     environment, so a secret never appears as a literal on the argv, where
-    `ps` or process-listing tools could see it."""
+    `ps` or process-listing tools could see it -- and set literal_env
+    entries with an explicit "=value" (for non-secret config, not
+    credentials)."""
     prefix = ["docker", "run", "--rm"]
     for host_path, mode in mounts.items():
         prefix += ["-v", f"{host_path}:{host_path}{mode}"]
@@ -112,8 +115,21 @@ def docker_run_prefix(
     for var in forward_env:
         if var in os.environ:
             prefix += ["-e", var]
+    for key, value in (literal_env or {}).items():
+        prefix += ["-e", f"{key}={value}"]
     prefix.append(image)
     return prefix
+
+
+# dandi-cli caches file checksums on disk (fscacher, keyed by DANDI_CACHE)
+# to avoid rehashing unchanged files across runs -- a benefit this script
+# never gets anyway, since every dandi container is `--rm` and starts with
+# an empty cache dir every time. Worse, a checksum computed in a fresh cache
+# dir has a known joblib race (JobLibCollisionWarning between two identically
+# named get_digest functions) that can fail an upload outright ("failed to
+# compute digest: ... func_code.py"). Disabling it costs nothing here and
+# sidesteps that race, so every dandi invocation sets DANDI_CACHE=ignore.
+DANDI_CACHE_ENV = {"DANDI_CACHE": "ignore"}
 
 
 def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
@@ -125,6 +141,7 @@ def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dr
         image=dandi_image,
         mounts={incoming_dir.parent: ""},
         forward_env=(dandi_api_key_env_var(project.dandi_instance),),
+        literal_env=DANDI_CACHE_ENV,
     ) + ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
     run(cmd, dry_run=dry_run)
 
@@ -146,6 +163,7 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         image=dandi_image,
         mounts={standardized_dir.parent: ""},
         forward_env=forward_env,
+        literal_env=DANDI_CACHE_ENV,
     ) + ["dandi", "download", "-o", str(standardized_dir.parent), "-e", "refresh", "--download", "dandiset.yaml", url]
     run(fetch_dandiset_yaml_cmd, dry_run=dry_run)
     cmd = docker_run_prefix(
@@ -153,6 +171,7 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         mounts={standardized_dir: ""},
         workdir=standardized_dir,
         forward_env=forward_env,
+        literal_env=DANDI_CACHE_ENV,
     ) + ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"]
     run(cmd, dry_run=dry_run)
 

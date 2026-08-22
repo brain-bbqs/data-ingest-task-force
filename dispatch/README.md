@@ -13,6 +13,8 @@ It is repo-level infra, not a lab — it doesn't do any conversion itself, it ju
 
 Every external tool dispatch drives runs in a container, not directly on the runner host — steps 1 and 4 in `--dandi-image` (default: this repo's own `dispatch/containers/dandi.Dockerfile`, published as `ghcr.io/brain-bbqs/dandi-cli`), step 3 in the project's own `container_image`. The runner host itself only needs `python3` (to run `dispatch.py` — see the top-level docstring for why that part stays native) and `docker`.
 
+Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
+
 Each lab needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
 
 ## Layout
