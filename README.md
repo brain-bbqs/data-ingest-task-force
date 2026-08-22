@@ -13,6 +13,8 @@ See `dispatch/README.md` for more details.
 labs/
   kemere/               Kemere lab: raw behavioral recordings -> BEP047 BIDS
                          (see labs/kemere/README.md)
+  inman/                Inman lab: restructured .mat walk sessions -> NWB
+                         (see labs/inman/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
                          (see dispatch/README.md), including its own
                          containers/dandi.Dockerfile -- the portable dandi

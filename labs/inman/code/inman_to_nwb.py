@@ -26,20 +26,21 @@ All heavy lifting happens inside :pyfunc:`build_nwb`, while the remaining
 helpers keep the public surface minimal and testable.
 """
 
-from pathlib import Path
-from scipy.io import loadmat
-import numpy as np
-import ntplib
-from datetime import datetime, timezone
-from pynwb import NWBFile, NWBHDF5IO
-from pynwb.file import Subject
-from pynwb.behavior import TimeSeries, EyeTracking, SpatialSeries, BehavioralTimeSeries, CompassDirection
-from pynwb.ecephys import LFP, ElectricalSeries
-from pynwb.base import DynamicTable
-import yaml
-from pymatreader import read_mat
 import argparse
-from neuroconv.tools.nwb_helpers import get_default_backend_configuration 
+from datetime import datetime, timezone
+from pathlib import Path
+
+import ntplib
+import numpy as np
+import yaml
+from neuroconv.tools.nwb_helpers import get_default_backend_configuration
+from pymatreader import read_mat
+from pynwb import NWBHDF5IO, NWBFile
+from pynwb.base import DynamicTable
+from pynwb.behavior import BehavioralTimeSeries, CompassDirection, EyeTracking, SpatialSeries, TimeSeries
+from pynwb.ecephys import LFP, ElectricalSeries
+from pynwb.file import Subject
+
 
 def load_cfg(cfg_path: Path):
     """
@@ -61,6 +62,7 @@ def load_cfg(cfg_path: Path):
         return yaml.safe_load(cfg_path.read_text()) or {}
     except FileNotFoundError:
         raise SystemExit(f"Config file not found: {cfg_path}")
+
 
 def cfg_get(*path, CFG, default=None):
     """
@@ -85,9 +87,11 @@ def cfg_get(*path, CFG, default=None):
         node = node.get(key, {})
     return node or default
 
+
 def make_rel(data, t0):
     """Compute seconds relative to *t0* for a list/array of datetimes."""
     return [(t - t0).total_seconds() for t in data]
+
 
 def get_relative_times(data, keys, t0):
     """
@@ -101,14 +105,14 @@ def get_relative_times(data, keys, t0):
 
     Returns
     -------
-    (rel_times, t0): *rel_times* maps each key in *keys* to a list of seconds relative to, *t0* suitable for NWB *timestamps*; *t0* is passed through unchanged
-    for convenience.
+    (rel_times, t0): *rel_times* maps each key in *keys* to a list of seconds relative to, *t0* suitable for NWB
+    *timestamps*; *t0* is passed through unchanged for convenience.
     """
 
     all_times = {}
 
     for key in keys:
-        ntp_time = data[f'ntp_{key}']
+        ntp_time = data[f"ntp_{key}"]
 
         # Handle nested arrays from pymatreader - flatten to 1D array of timestamps
         ntp_array = np.asarray(ntp_time).flatten()
@@ -128,13 +132,15 @@ def get_relative_times(data, keys, t0):
 
     return rel_times, t0
 
+
 def check_time_zero_axis(data, name):
     """Warn when *data* appears to have the time dimension in the wrong axis."""
     if len(data.shape) > 1:
-        if data.shape[1] > data.shape[0]:   # heuristic that there will normally have more rows of time than cols
-            print(f'Check that {name} has time as 0th axis')
-    
-    return 
+        if data.shape[1] > data.shape[0]:  # heuristic that there will normally have more rows of time than cols
+            print(f"Check that {name} has time as 0th axis")
+
+    return
+
 
 def build_nwb(data, subject_name, session, out_nwb, cfg):
     """
@@ -163,7 +169,9 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
 
     # create NWB file
     nwbfile = NWBFile(
-        session_description=cfg_get("session", "description", CFG=cfg), # hardcode what session is/information in this block
+        session_description=cfg_get(
+            "session", "description", CFG=cfg
+        ),  # hardcode what session is/information in this block
         identifier=f"InmanWalk-Subject{subject_name}-Walk{session}",
         session_start_time=session_start,
         experimenter=cfg_get("session", "experimenter", CFG=cfg),
@@ -176,18 +184,18 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     age = cfg_get("subject", "age", CFG=cfg)
     sex = cfg_get("subject", "sex", CFG=cfg)
     description_subject = cfg_get("subject", "description", CFG=cfg)
-    
+
     nwb_subject = Subject(
         subject_id=subject_id,
-        species=species, 
+        species=species,
         description=description_subject,
-        age=age, 
+        age=age,
         sex=sex,
     )
 
     nwbfile.subject = nwb_subject
 
-    t0 = cfg_get("session", "start_time", CFG=cfg) # assumes start_time is in datetime utc
+    t0 = cfg_get("session", "start_time", CFG=cfg)  # assumes start_time is in datetime utc
     t0_datetime = datetime.strptime(t0, date_format)
 
     # Ensure t0 is timezone-aware (should match the timezone in the config string)
@@ -197,19 +205,19 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         t0_datetime = t0_datetime.replace(tzinfo=timezone.utc)
 
     # make NTP timestamps NWB compatible by making them seconds relative to start
-    keys = ['amb', 'gaze', 'kde', 'imu', 'np', 'xs']
-    rel_times, _ = get_relative_times(data, keys, t0_datetime) 
+    keys = ["amb", "gaze", "kde", "imu", "np", "xs"]
+    rel_times, _ = get_relative_times(data, keys, t0_datetime)
 
     # Processing: behavior/kinematics container
     beh = nwbfile.create_processing_module(name="behavior", description="Kinematic and derived data")
-    
+
     # ambient light packaging
     ambient_light_series = TimeSeries(
         name="AmbientLight",
         description=cfg_get("timeseries", "ambient_light", "description", CFG=cfg),
-        data=data['d_amb'],
-        timestamps=rel_times['amb'], # TODO: verify rel_times arr matches data arr
-        unit=cfg_get("timeseries", "ambient_light", "unit", CFG=cfg)
+        data=data["d_amb"],
+        timestamps=rel_times["amb"],  # TODO: verify rel_times arr matches data arr
+        unit=cfg_get("timeseries", "ambient_light", "unit", CFG=cfg),
     )
 
     nwbfile.add_acquisition(ambient_light_series)
@@ -218,8 +226,8 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     kde_series = TimeSeries(
         name="KernelDensityEstimation",
         description=cfg_get("timeseries", "kde", "description", CFG=cfg),
-        data=data['d_kde'],
-        timestamps=rel_times['kde'],
+        data=data["d_kde"],
+        timestamps=rel_times["kde"],
         unit=cfg_get("timeseries", "kde", "unit", CFG=cfg),
     )
 
@@ -231,48 +239,46 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     velocity_time_series = TimeSeries(
         name="MovementVelocity",
         description=cfg_get("timeseries", "movement_velocity", "description", CFG=cfg),
-        data=data['d_xs'],
-        timestamps=rel_times['xs'],
+        data=data["d_xs"],
+        timestamps=rel_times["xs"],
         unit=cfg_get("timeseries", "movement_velocity", "unit", CFG=cfg),
     )
 
-    movement_velocity = BehavioralTimeSeries(
-        name="MovementVelocityBehavioral", time_series=velocity_time_series
-    )
+    movement_velocity = BehavioralTimeSeries(name="MovementVelocityBehavioral", time_series=velocity_time_series)
 
     beh.add(movement_velocity)
 
     # eye tracker data packaging
 
     # add eye tracker device to NWB file
-    device_eyetracker = nwbfile.create_device(
+    nwbfile.create_device(
         name=cfg_get("device_eyetracker", "name", CFG=cfg),
         description=cfg_get("device_eyetracker", "description", CFG=cfg),
     )
 
-    gaze_x = np.asarray(data['d_gaze_x'])
-    gaze_y = np.asarray(data['d_gaze_y'])
+    gaze_x = np.asarray(data["d_gaze_x"])
+    gaze_y = np.asarray(data["d_gaze_y"])
     gaze_data = np.column_stack((gaze_x, gaze_y))
 
     gaze_spatial_series = SpatialSeries(
         name="GazePosition",
         description=cfg_get("timeseries", "gaze_position", "description", CFG=cfg),
         data=gaze_data,
-        timestamps=rel_times['gaze'],  
+        timestamps=rel_times["gaze"],
         reference_frame=cfg_get("timeseries", "gaze_position", "reference_frame", CFG=cfg),
-        unit=cfg_get("timeseries", "gaze_position", "unit", CFG=cfg)
+        unit=cfg_get("timeseries", "gaze_position", "unit", CFG=cfg),
     )
 
     eye_tracking = EyeTracking(
         name="EyeTracking",
-        spatial_series=gaze_spatial_series, 
+        spatial_series=gaze_spatial_series,
     )
 
     fixation_time_series = TimeSeries(
         name="GazeFixation",
         description=cfg_get("timeseries", "gaze_fixation", "description", CFG=cfg),
-        data=data['d_gaze_fix'],
-        timestamps=rel_times['gaze'],
+        data=data["d_gaze_fix"],
+        timestamps=rel_times["gaze"],
         unit=cfg_get("timeseries", "gaze_fixation", "unit", CFG=cfg),
     )
 
@@ -285,48 +291,48 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     beh.add(fixation_behavioral_ts)
 
     # package IMU data
-    device_IMU = nwbfile.create_device(
+    nwbfile.create_device(
         name=cfg_get("device_imu", "name", CFG=cfg),
         description=cfg_get("device_imu", "description", CFG=cfg),
     )
 
-    gyro_x = np.asarray(data['d_imu']['gyroX'])
-    gyro_y = np.asarray(data['d_imu']['gyroY'])
-    gyro_z = np.asarray(data['d_imu']['gyroZ'])
+    gyro_x = np.asarray(data["d_imu"]["gyroX"])
+    gyro_y = np.asarray(data["d_imu"]["gyroY"])
+    gyro_z = np.asarray(data["d_imu"]["gyroZ"])
     gyro_data = np.column_stack((gyro_x, gyro_y, gyro_z))
 
     imu_gyro_spatial_series = SpatialSeries(
         name="IMUGyro",
         description=cfg_get("timeseries", "imu_gyro", "description", CFG=cfg),
         data=gyro_data,
-        timestamps=rel_times['imu'],
+        timestamps=rel_times["imu"],
         reference_frame=cfg_get("timeseries", "imu_gyro", "reference_frame", CFG=cfg),
-        unit=cfg_get("timeseries", "imu_gyro", "unit", CFG=cfg),  
+        unit=cfg_get("timeseries", "imu_gyro", "unit", CFG=cfg),
     )
 
-    accel_x = np.asarray(data['d_imu']['accelX'])
-    accel_y = np.asarray(data['d_imu']['accelY'])
-    accel_z = np.asarray(data['d_imu']['accelZ'])
+    accel_x = np.asarray(data["d_imu"]["accelX"])
+    accel_y = np.asarray(data["d_imu"]["accelY"])
+    accel_z = np.asarray(data["d_imu"]["accelZ"])
     accel_data = np.column_stack((accel_x, accel_y, accel_z))
 
     imu_accel_spatial_series = SpatialSeries(
         name="IMUAccel",
         description=cfg_get("timeseries", "imu_accel", "description", CFG=cfg),
         data=accel_data,
-        timestamps=rel_times['imu'],
+        timestamps=rel_times["imu"],
         reference_frame=cfg_get("timeseries", "imu_accel", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_accel", "unit", CFG=cfg),
     )
 
-    roll = np.asarray(data['d_imu']['roll'])
-    pitch = np.asarray(data['d_imu']['pitch'])
+    roll = np.asarray(data["d_imu"]["roll"])
+    pitch = np.asarray(data["d_imu"]["pitch"])
     orientation_data = np.column_stack((roll, pitch))
 
     imu_orientation_spatial_series = SpatialSeries(
         name="IMUOrientation",
         description=cfg_get("timeseries", "imu_orientation", "description", CFG=cfg),
         data=orientation_data,
-        timestamps=rel_times['imu'],
+        timestamps=rel_times["imu"],
         reference_frame=cfg_get("timeseries", "imu_orientation", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_orientation", "unit", CFG=cfg),
     )
@@ -340,37 +346,43 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     beh.add(imu_accel_spatial_series)
     beh.add(imu_compass_direction)
 
-    behavior_annotation_data = data['evnts_struct']
-    n = len(behavior_annotation_data['Description'])
+    behavior_annotation_data = data["evnts_struct"]
+    n = len(behavior_annotation_data["Description"])
 
-    description_data = np.array([str(behavior_annotation_data['Description'][i]) for i in range(n)], dtype=str)
-    event_data       = np.array([str(behavior_annotation_data['Event'][i])       for i in range(n)], dtype=str)
-    pupil_frame_data = np.array([int(behavior_annotation_data['PupilFrame'][i])  for i in range(n)], dtype=np.int64)
-    gopro_frame_data = np.array([int(behavior_annotation_data['GoProFrame'][i])  for i in range(n)], dtype=np.int64)
-    np_sample_data   = np.array([int(behavior_annotation_data['NPSample'][i])    for i in range(n)], dtype=np.int64)
-    ntp_data         = np.array([float(behavior_annotation_data['NTP'][i])       for i in range(n)], dtype=np.float64)
-    ntp_relative_data = np.array([
-        (datetime.fromtimestamp(ntplib.ntp_to_system_time(ntp), tz=timezone.utc) - t0_datetime).total_seconds()
-        for ntp in ntp_data
-    ], dtype=np.float64)
+    description_data = np.array([str(behavior_annotation_data["Description"][i]) for i in range(n)], dtype=str)
+    event_data = np.array([str(behavior_annotation_data["Event"][i]) for i in range(n)], dtype=str)
+    pupil_frame_data = np.array([int(behavior_annotation_data["PupilFrame"][i]) for i in range(n)], dtype=np.int64)
+    gopro_frame_data = np.array([int(behavior_annotation_data["GoProFrame"][i]) for i in range(n)], dtype=np.int64)
+    np_sample_data = np.array([int(behavior_annotation_data["NPSample"][i]) for i in range(n)], dtype=np.int64)
+    ntp_data = np.array([float(behavior_annotation_data["NTP"][i]) for i in range(n)], dtype=np.float64)
+    ntp_relative_data = np.array(
+        [
+            (datetime.fromtimestamp(ntplib.ntp_to_system_time(ntp), tz=timezone.utc) - t0_datetime).total_seconds()
+            for ntp in ntp_data
+        ],
+        dtype=np.float64,
+    )
 
     n = len(description_data)
-    assert all(len(x) == n for x in [event_data, pupil_frame_data, gopro_frame_data, np_sample_data, ntp_data, ntp_relative_data])
+    assert all(
+        len(x) == n
+        for x in [event_data, pupil_frame_data, gopro_frame_data, np_sample_data, ntp_data, ntp_relative_data]
+    )
 
     # add behavior/annotations table
     annotation_table = DynamicTable(
-        name="BehaviorAnnotations",
-        description="Annotations of behavioral events",
-        id=list(range(n))
+        name="BehaviorAnnotations", description="Annotations of behavioral events", id=list(range(n))
     )
 
-    annotation_table.add_column(name='Annotation',   description='Annotations and labels of the event',      data=description_data)
-    annotation_table.add_column(name='Event',        description='Event code/label',              data=event_data)
-    annotation_table.add_column(name='PupilFrame',   description='Pupil frame index',             data=pupil_frame_data)
-    annotation_table.add_column(name='GoProFrame',   description='GoPro frame index',             data=gopro_frame_data)
-    annotation_table.add_column(name='NPSample',     description='Neural probe sample index',     data=np_sample_data)
-    annotation_table.add_column(name='NTP',          description='Absolute NTP time (s)',         data=ntp_data)
-    annotation_table.add_column(name='NTPRelative',  description='Time relative to t0 (s)',       data=ntp_relative_data)
+    annotation_table.add_column(
+        name="Annotation", description="Annotations and labels of the event", data=description_data
+    )
+    annotation_table.add_column(name="Event", description="Event code/label", data=event_data)
+    annotation_table.add_column(name="PupilFrame", description="Pupil frame index", data=pupil_frame_data)
+    annotation_table.add_column(name="GoProFrame", description="GoPro frame index", data=gopro_frame_data)
+    annotation_table.add_column(name="NPSample", description="Neural probe sample index", data=np_sample_data)
+    annotation_table.add_column(name="NTP", description="Absolute NTP time (s)", data=ntp_data)
+    annotation_table.add_column(name="NTPRelative", description="Time relative to t0 (s)", data=ntp_relative_data)
 
     beh.add(annotation_table)
 
@@ -388,35 +400,35 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     )
 
     channelmap = cfg_get("channelmap", CFG=cfg)
-    
+
     nwbfile.add_electrode_column(name="label", description="label of electrode")
     for channel_name, channel_data in channelmap.items():
         nwbfile.add_electrode(
-            x=channel_data['x'],
-            y=channel_data['y'],
-            z=channel_data['z'],
+            x=channel_data["x"],
+            y=channel_data["y"],
+            z=channel_data["z"],
             group=electrode_group1,
             label=channel_name,
-            location="MTL",  
-            filtering=channel_data['filtering']
+            location="MTL",
+            filtering=channel_data["filtering"],
         )
-    
+
     all_table_region = nwbfile.create_electrode_table_region(
         region=list(range(len(channelmap))),  # reference row indices 0 to N-1
         description="all electrodes",
     )
-    
+
     lfp_electrical_series = ElectricalSeries(
         name="ElectricalSeries",
         description=cfg_get("lfp", "description", CFG=cfg),
-        data=data['d_np'],
+        data=data["d_np"],
         filtering=cfg_get("lfp", "filtering", CFG=cfg),
         electrodes=all_table_region,
-        timestamps=rel_times['np'],
+        timestamps=rel_times["np"],
     )
-    
+
     lfp = LFP(electrical_series=lfp_electrical_series)
-    
+
     ecephys_module = nwbfile.create_processing_module(
         name="iEEG", description="Processed intracranial electroencephalography data."
     )
@@ -424,22 +436,20 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     ecephys_module.add(lfp)
 
     # compress NWB file
-    backend_configuration = get_default_backend_configuration(nwbfile, backend="hdf5") 
-    backend_configuration.apply_global_compression( 
-        compression_method="gzip", 
-        compression_options={ 
-            "compression_opts": 4
-            }
-        )
-  
+    backend_configuration = get_default_backend_configuration(nwbfile, backend="hdf5")
+    backend_configuration.apply_global_compression(
+        compression_method="gzip", compression_options={"compression_opts": 4}
+    )
+
     with NWBHDF5IO(out_nwb, "w") as io:
         io.write(nwbfile)
 
     print(f"Wrote NWB file to: {out_nwb}")
     return
 
+
 def parse_args() -> argparse.Namespace:
-    
+
     p = argparse.ArgumentParser(description="Convert MATLAB .mat to NWB")
     p.add_argument("--mat", required=True, type=Path, help="Path to input .mat file")
     p.add_argument("--subject", required=True, help="Subject identifier (string)")
@@ -458,9 +468,10 @@ def parse_args() -> argparse.Namespace:
     )
     return p.parse_args()
 
+
 def main():
 
-    print('parsing args')
+    print("parsing args")
 
     args = parse_args()
 
@@ -488,33 +499,26 @@ def main():
     if missing:
         raise SystemExit(f"Missing keys in MAT data: {missing}")
     else:
-        print('All keys found')
+        print("All keys found")
 
     out_path = args.out
     if out_path is None:
         out_path = args.mat.with_suffix("")
         out_path = out_path.parent / f"{out_path.name}_S{args.subject}_W{args.session}.nwb"
     else:
-        print(f'out path: {out_path}')
+        print(f"out path: {out_path}")
 
+    build_nwb(data=mat_data, subject_name=args.subject, session=args.session, out_nwb=out_path, cfg=cfg)
 
-    build_nwb(
-        data=mat_data,
-        subject_name=args.subject,
-        session=args.session,
-        out_nwb=out_path,
-        cfg=cfg
-    )
 
 if __name__ == "__main__":
 
     """
     Example CLI usage
     --------
-    python inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 --config ./config.yaml --out ./InmanWalk-S03-Walk1.nwb
+    python inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 \
+        --config ./config.yaml --out ./InmanWalk-S03-Walk1.nwb
     """
-    print('calling main')
+    print("calling main")
 
     main()
-
-

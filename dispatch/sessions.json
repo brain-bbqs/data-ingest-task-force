@@ -4,6 +4,10 @@
     "kemere": {
       "include": ["sourcedata/raw/*-Session*"],
       "exclude": []
+    },
+    "inman": {
+      "include": ["sourcedata/raw/*"],
+      "exclude": []
     }
   }
 }

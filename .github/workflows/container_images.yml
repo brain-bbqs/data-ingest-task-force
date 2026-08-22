@@ -41,6 +41,9 @@ jobs:
             kemere-r34da059514-ingest:
               - 'labs/kemere/**'
               - '.github/workflows/container_images.yml'
+            inman-r61mh135109-ingest:
+              - 'labs/inman/**'
+              - '.github/workflows/container_images.yml'
             dandi-cli:
               - 'dispatch/**'
               - '.github/workflows/container_images.yml'
@@ -57,6 +60,10 @@ jobs:
              "dockerfile": "labs/kemere/containers/kemere.Dockerfile",
              "context": "labs/kemere",
              "tests": "labs/kemere/tests"},
+            {"image": "inman-r61mh135109-ingest",
+             "dockerfile": "labs/inman/containers/inman.Dockerfile",
+             "context": "labs/inman",
+             "tests": "labs/inman/tests"},
             {"image": "dandi-cli",
              "dockerfile": "dispatch/containers/dandi.Dockerfile",
              "context": "dispatch",

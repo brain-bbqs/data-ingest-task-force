@@ -9,7 +9,7 @@ default_language_version:
 
 # The committed test fixtures (raw inputs and expected BIDS outputs) must stay
 # byte-for-byte identical to what the conversion pipeline produces.
-exclude: ^labs/kemere/tests/(example_raw|expected_output)/
+exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw)/
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks

@@ -5,7 +5,7 @@ session:
   id: ''
   description: ''
   start_time: ''      # in this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
-  lab: ''           
+  lab: ''
   experimenter: ''    # list in Last, First M. style
   institution: ''
   keywords: ''        # key words to describe the experiment, ie olfaction or pose estimation
@@ -82,7 +82,7 @@ lfp:
   filtering: "RNS 4–90 Hz 1st-order Butterworth"
   unit: "V"
 
-channelmap:               
+channelmap:
   F1: {label: "F1",
        x: 1.0, y: 1.0, z: 1.0,
        filtering: "band-pass filtered 300-6000 Hz"

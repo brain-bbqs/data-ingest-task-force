@@ -11,6 +11,7 @@ exclude = [
   "*/__init__.py",
   "labs/kemere/tests/example_raw",
   "labs/kemere/tests/expected_output",
+  "labs/inman/tests/example_raw",
 ]
 
 [tool.ruff.lint]
