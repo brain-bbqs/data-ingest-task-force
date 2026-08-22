@@ -1,0 +1,102 @@
+# Filled-in copy of code/config.yaml used by the integration test. The mock
+# fixture (example_raw/, see generate_fixtures.py) is converted with these
+# values. session.start_time must stay in sync with SESSION_START in
+# generate_fixtures.py.
+
+session:
+  id: 'walk1'
+  description: 'Mock ambulatory walk session for the integration test'
+  start_time: '2024-06-0112:00:00Z'
+  lab: 'Inman Lab'
+  experimenter: 'Thomas, Neha'
+  institution: 'Mock University'
+  keywords: 'navigation, ambulatory, iEEG'
+  notes: ''
+  pharmacology:
+  protocol:
+  related_publications: ''
+  data_collection: ''
+  surgery: ''
+  virus: ''
+  stimulus_notes: ''
+
+subject:
+  id: '3'
+  description: 'Mock participant'
+  species: 'Homo sapiens'
+  genotype: ''
+  strain: ''
+  sex: 'M'
+  age: 'P30Y'
+  weight: ''
+  date_of_birth: ''
+
+timeseries:
+  ambient_light:
+    description: 'Ambient light values recorded over time'
+    unit: 'lumens'
+  kde:
+    description: 'KDE from 20 annotators'
+    unit: 'NA'
+  movement_velocity:
+    description: 'Walking pace / velocity'
+    unit: 'cm/s'
+  gaze_position:
+    description: 'Gaze (x,y) over time'
+    reference_frame: 'Ambulatory - no fixed screen'
+    unit: 'pixels'
+  gaze_fixation:
+    description: 'Fixation indicator (1/0)'
+    unit: 'NA'
+  imu_gyro:
+    description: 'Gyroscope (x,y,z)'
+    reference_frame: 'IMU (Inertial measurement unit) sensor frame'
+    unit: 'deg/s'
+  imu_accel:
+    description: 'Acceleration (x,y,z)'
+    reference_frame: 'IMU (Inertial measurement unit) sensor frame'
+    unit: 'm/s^2'
+  imu_orientation:
+    description: 'Orientation (roll,pitch)'
+    reference_frame: 'IMU (Inertial measurement unit) sensor frame'
+    unit: 'degrees'
+
+device_eyetracker:
+  name: 'Mock Eye Tracker'
+  description: 'Mock eye tracking device for the integration test'
+
+device_imu:
+  name: 'Mock IMU'
+  description: 'Mock inertial measurement unit for the integration test'
+
+device_ieeg:
+  name: 'Mock iEEG Device'
+  description: 'Mock intracranial recording device for the integration test'
+
+electrode_group1:
+  name: 'electrodes group 1'
+  description: 'Mock electrode group'
+  location: 'human medial temporal lobe'
+
+lfp:
+  description: 'LFP data'
+  filtering: 'RNS 4-90 Hz 1st-order Butterworth'
+  unit: 'V'
+
+channelmap:
+  F1: {label: 'F1',
+       x: 1.0, y: 1.0, z: 1.0,
+       filtering: 'band-pass filtered 300-6000 Hz'
+      }
+  F2: {label: 'F2',
+       x: 2.0, y: 2.0, z: 2.0,
+       filtering: 'band-pass filtered 300-6000 Hz'
+      }
+  F3: {label: 'F3',
+       x: 3.0, y: 3.0, z: 3.0,
+       filtering: 'band-pass filtered 300-6000 Hz'
+      }
+  F4: {label: 'F4',
+       x: 4.0, y: 4.0, z: 4.0,
+       filtering: 'band-pass filtered 300-6000 Hz'
+      }

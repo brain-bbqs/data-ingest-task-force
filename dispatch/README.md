@@ -101,6 +101,8 @@ A run is safe to repeat: with nothing new and an unchanged conversion script, ev
 
 Note: Kemere's `incoming_dandiset_id` in `projects.json` is still a placeholder (`000477`) — fill it in with the real assigned id before relying on a cron run against it. (`standardized_dandiset_id` is the real assigned id, `000525`.)
 
+Note: Inman's registration (incoming `000519`, standardized `000526`) is provisional in a different way. Its converter handles one `.mat` walk per invocation, so its `convert_command` currently names a single example session, and its `sessions.json` include pattern is a guess at the incoming layout of `000519`. A batch wrapper over every subject and walk is a planned follow-up. Fill both in before relying on a cron run against it.
+
 ## Tests
 
 ```bash
