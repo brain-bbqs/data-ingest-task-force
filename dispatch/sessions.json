@@ -1,0 +1,9 @@
+{
+  "$schema": "./schema/sessions.schema.json",
+  "labs": {
+    "kemere": {
+      "include": ["sourcedata/raw/*-Session*"],
+      "exclude": []
+    }
+  }
+}

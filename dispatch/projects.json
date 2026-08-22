@@ -1,0 +1,25 @@
+{
+  "$schema": "./schema/projects.schema.json",
+  "projects": [
+    {
+      "lab": "kemere",
+      "incoming_dandiset_id": "000477",
+      "standardized_dandiset_id": "000525",
+      "script_path": "labs/kemere/code/convert_raw_to_bids.py",
+      "dandi_instance": "ember-dandi",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest",
+      "metadata": {
+        "species": "Ovis aries"
+      },
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/kemere/code/convert_raw_to_bids.py",
+        "--raw-dir",
+        "{incoming_dir}/sourcedata/raw",
+        "--bids-dir",
+        "{standardized_dir}/sourcedata/rawbids"
+      ]
+    }
+  ]
+}
