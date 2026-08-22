@@ -6,7 +6,7 @@
 
 session:
   id: ''
-  description: 'Ambulatory navigation walk session (PROVISIONAL description, replace with real metadata)'
+  description: 'Navigation walk session (PROVISIONAL description, replace with real metadata)'
   start_time: '2024-01-0100:00:00Z'      # PROVISIONAL. In this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
   lab: ''
   experimenter: ''    # list in Last, First M. style
