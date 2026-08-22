@@ -6,7 +6,7 @@
       "incoming_dandiset_id": "000477",
       "standardized_dandiset_id": "000525",
       "script_path": "labs/kemere/code/convert_raw_to_bids.py",
-      "dandi_instance": "emberarchive",
+      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest",
       "metadata": {

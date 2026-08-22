@@ -172,7 +172,7 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
         str(incoming_root),
         "-e",
         "refresh",
-        "dandi://emberarchive/000001",
+        "dandi://ember-dandi/000001",
     ]
     assert incoming_root.is_dir()  # created ahead of the mount
 
@@ -194,7 +194,7 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     assert run_cmd[:2] == ["docker", "run"]
     assert f"{standardized_dir}:{standardized_dir}" in run_cmd
     assert "-w" in run_cmd and str(standardized_dir) in run_cmd
-    assert run_cmd[-6:] == ["dandi", "upload", "-i", "emberarchive", "--existing", "refresh"]
+    assert run_cmd[-6:] == ["dandi", "upload", "-i", "ember-dandi", "--existing", "refresh"]
     assert cwd is None  # working directory is set inside the container (-w), not on the host
 
 

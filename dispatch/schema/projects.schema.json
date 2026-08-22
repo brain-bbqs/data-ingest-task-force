@@ -57,8 +57,8 @@
         "dandi_instance": {
           "type": "string",
           "minLength": 1,
-          "default": "emberarchive",
-          "description": "DANDI archive instance name."
+          "default": "ember-dandi",
+          "description": "DANDI archive instance name (per `dandi instance-list`), e.g. ember-dandi / ember-dandi-sandbox."
         },
         "overwrite_flag": {
           "type": ["string", "null"],

@@ -44,7 +44,7 @@ def test_valid_minimal_entry(tmp_path):
     path = write_registry(tmp_path, {"projects": [entry()]})
     (project,) = load_registry(path)
     assert project.lab == "test-lab"
-    assert project.dandi_instance == "emberarchive"  # default
+    assert project.dandi_instance == "ember-dandi"  # default
     assert project.overwrite_flag is None
     assert project.container_image is None  # default: run directly on the runner host
     assert project.metadata == {}  # default: no project-wide placeholders
