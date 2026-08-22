@@ -34,15 +34,16 @@ relative one would reach `docker run -v` as a relative host path, which
 Docker rejects.
 
 Credentials: this script does not manage DANDI or container-registry auth
-itself. `dandi` runs only inside --dandi-image, which must already be
-logged in for every dandi_instance named in projects.json -- either baked
-into the image (not recommended) or, more simply, via a DANDI_API_KEY
-already set in this process's environment. Every docker-run subprocess
-this script starts inherits and forwards that key into its container by
-name only (`docker run -e DANDI_API_KEY`), never as a literal value on the
-argv. `docker` itself must already be logged in for any private image
-(--dandi-image or a project's container_image) this script names
-(`docker login ghcr.io`).
+itself. `dandi` runs only inside --dandi-image; its credentials come from
+this process's own environment, one variable per dandi_instance named in
+projects.json -- dandi-cli's own convention, not this script's: the
+instance name, upper-cased, '-' -> '_', suffixed '_API_KEY' (e.g.
+'ember-dandi' -> EMBER_DANDI_API_KEY; 'dandi' -> DANDI_API_KEY). Every
+docker-run subprocess this script starts forwards the right one of these
+into its container by name only (`docker run -e <NAME>`), never as a
+literal value on the argv. `docker` itself must already be logged in for
+any private image (--dandi-image or a project's container_image) this
+script names (`docker login ghcr.io`).
 """
 
 from __future__ import annotations
@@ -66,6 +67,16 @@ DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:latest"
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def dandi_api_key_env_var(dandi_instance: str) -> str:
+    """The env var name dandi-cli itself looks for a given instance's API
+    key under: the instance name, upper-cased, '-' -> '_', suffixed
+    '_API_KEY' (e.g. 'ember-dandi' -> 'EMBER_DANDI_API_KEY'; 'dandi' ->
+    'DANDI_API_KEY'). There is no single generic DANDI_API_KEY that works
+    for every instance -- dandi-cli only honors that literal name for the
+    default 'dandi' instance itself."""
+    return f"{dandi_instance.upper().replace('-', '_')}_API_KEY"
 
 
 def run(cmd: list[str], *, cwd: Path | None = None, dry_run: bool) -> None:
@@ -111,7 +122,7 @@ def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dr
     cmd = docker_run_prefix(
         image=dandi_image,
         mounts={incoming_dir.parent: ""},
-        forward_env=("DANDI_API_KEY",),
+        forward_env=(dandi_api_key_env_var(project.dandi_instance),),
     ) + ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
     run(cmd, dry_run=dry_run)
 
@@ -125,7 +136,7 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         image=dandi_image,
         mounts={standardized_dir: ""},
         workdir=standardized_dir,
-        forward_env=("DANDI_API_KEY",),
+        forward_env=(dandi_api_key_env_var(project.dandi_instance),),
     ) + ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"]
     run(cmd, dry_run=dry_run)
 
@@ -137,18 +148,20 @@ def containerize(
     repo_root: Path,
     incoming_dir: Path,
     standardized_dir: Path,
+    dandi_instance: str,
 ) -> list[str]:
     """Wrap cmd to run inside a lab's published container image (portable
     Python env only -- ffmpeg, etc. -- not the code or data, which are
     mounted in at run time). Host paths are mounted at identical paths
     inside the container, so cmd's own {repo_root}/{incoming_dir}/
     {standardized_dir}-based tokens (already resolved, absolute) need no
-    rewriting."""
+    rewriting. dandi_instance's API key env var is forwarded too, in case
+    the conversion script itself needs to talk to DANDI."""
     prefix = docker_run_prefix(
         image=image,
         mounts={repo_root: ":ro", incoming_dir: "", standardized_dir: ""},
         workdir=repo_root,
-        forward_env=("DANDI_API_KEY",),
+        forward_env=(dandi_api_key_env_var(dandi_instance),),
     )
     return prefix + cmd
 
@@ -191,6 +204,7 @@ def convert(
             repo_root=repo_root,
             incoming_dir=incoming_dir,
             standardized_dir=standardized_dir,
+            dandi_instance=project.dandi_instance,
         )
     run(cmd, dry_run=dry_run)
 
