@@ -47,8 +47,8 @@ sub-XYZ/
         │   │   ├── eye_tracking (EyeTracking)
         │   │   │   ├── gaze_xy          ← d_gaze_x + d_gaze_y (SpatialSeries)
         │   │   │   └── gaze_fix         ← d_gaze_fix (TimeSeries)
-        │   │   ├── imu_gyro             ← d_imu (gyro x, y,z) (SpatialSeries)
-        │   │   ├── imu_accel            ← d_imu (acceleration x, y,z) (SpatialSeries)
+        │   │   ├── imu_gyro             ← d_imu (gyro x, y,z) (TimeSeries)
+        │   │   ├── imu_accel            ← d_imu (acceleration x, y,z) (TimeSeries)
         │   │   ├── imu_orientation      ← d_imu (roll, pitch) (SpatialSeries)
         │   │   ├── kde                  ← d_kde (TimeSeries)
         │   │   └── xs                   ← d_xs (TimeSeries)
@@ -64,4 +64,4 @@ sub-XYZ/
 
 ### Notes
 
-The script 'inman_to_nwb.py' converts one session into one NWB file. You may need to create a wrapper bash script that calls this for every subject and every session, and creates the desired subject/ session/ and nwb file naming convention structure above.
+The script '_inman_to_nwb.py' converts one session into one NWB file. The wrapper 'batch_convert.py' (run as `python3 -m labs.inman.code.batch_convert` from the repository root) calls it for every `.mat` file found under an incoming directory and creates the subject/ NWB naming structure above, with two DANDI-required deviations from the tree sketch. The session label is `ses-walk<N>` (per-walk dates are not yet available in the metadata config), and each NWB sits directly under `sub-XYZ/` rather than in a `ses-` subfolder (dandi validation rejects nested session folders).

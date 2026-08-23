@@ -14,7 +14,9 @@ registered project (see projects.json):
      the code or data, which are bind-mounted in at the same host paths.
   4. ``dandi upload`` the standardized directory (first fetching just its
      dandiset.yaml, since ``dandi upload`` needs one already on disk to
-     know which dandiset it's uploading to).
+     know which dandiset it's uploading to). Skipped entirely when step 3
+     had nothing to do -- upload's no-op check still re-checksums the whole
+     local dandiset every pass (DANDI_CACHE=ignore), which is not free.
 
 Every external tool this script drives -- dandi and each lab's own
 conversion script -- runs inside a container, not directly on the runner
@@ -279,9 +281,12 @@ def process_project(
     new_sessions = state.new_sessions(discovered)
 
     if not new_sessions and not script_changed:
-        log.info("[%s] nothing new (%d known sessions, script unchanged)", project.lab, len(discovered))
-        if not skip_upload:
-            dandi_upload(project, standardized_dir, dandi_image=dandi_image, dry_run=dry_run)
+        # No upload either: everything already recorded in the manifest was
+        # uploaded by the run that converted it, and re-checking costs a full
+        # local re-checksum of the dandiset (DANDI_CACHE=ignore) every pass.
+        log.info(
+            "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.lab, len(discovered)
+        )
         return
 
     if script_changed:

@@ -112,6 +112,36 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
     assert calls == []  # no conversion, no upload
 
 
+def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, monkeypatch):
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    project = make_project()
+    script_hash = dispatch.hash_file(project.script_abspath(repo_root))
+    state_dir = standardized_root / "000002"
+    state = IngestState(script_sha256=script_hash)
+    state.mark_converted("ses-1", source_path="x", converted_at="t")
+    state.save(state_dir)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
+        skip_download=True,
+        skip_upload=False,
+        dry_run=False,
+    )
+    assert calls == []  # upload enabled, but nothing new -> nothing runs
+
+
 def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"

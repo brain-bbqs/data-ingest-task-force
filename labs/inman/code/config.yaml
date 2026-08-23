@@ -1,13 +1,16 @@
 # If there are any questions about the meaning of certain metadata fields:
 # The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) provides extensive documentation on metadata reqs
 
+# Provisional values below (marked PROVISIONAL) keep the conversion runnable
+# end-to-end on sample uploads. Replace them with the real lab metadata.
+
 session:
   id: ''
-  description: ''
-  start_time: ''      # in this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
+  description: 'Navigation walk session (PROVISIONAL description, replace with real metadata)'
+  start_time: '2024-01-0100:00:00Z'      # PROVISIONAL. In this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
   lab: ''
   experimenter: ''    # list in Last, First M. style
-  institution: ''
+  institution: 'University of Utah'   # PROVISIONAL, confirm with the lab
   keywords: ''        # key words to describe the experiment, ie olfaction or pose estimation
   notes: ''
   pharmacology:
@@ -20,12 +23,12 @@ session:
 
 subject:
   id: ''
-  description: ''
-  species: ''
+  description: 'Human participant in the ambulatory navigation task (PROVISIONAL description)'
+  species: 'Homo sapiens'
   genotype: ''
   strain: ''
-  sex: ''              # required by DANDI, should be one of "M", "F", "O", "U"
-  age: ''              # required by DANDI, should be ISO 8601 duration - for example, P5W3D
+  sex: 'U'             # PROVISIONAL ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
+  age: 'P30Y'          # PROVISIONAL. Required by DANDI, should be ISO 8601 duration - for example, P5W3D
   weight: ''           # In grams
   date_of_birth: ''    # can be used instead of age - should be an ISO 8601 timestamp
 
@@ -82,6 +85,8 @@ lfp:
   filtering: "RNS 4–90 Hz 1st-order Butterworth"
   unit: "V"
 
+# Four entries to match the four iEEG channels in d_np (PROVISIONAL
+# names/coordinates, replace with the real electrode map).
 channelmap:
   F1: {label: "F1",
        x: 1.0, y: 1.0, z: 1.0,
@@ -89,5 +94,13 @@ channelmap:
       }
   F2: {label: "F2",
        x: 2.0, y: 2.0, z: 2.0,
+       filtering: "band-pass filtered 300-6000 Hz"
+      }
+  F3: {label: "F3",
+       x: 3.0, y: 3.0, z: 3.0,
+       filtering: "band-pass filtered 300-6000 Hz"
+      }
+  F4: {label: "F4",
+       x: 4.0, y: 4.0, z: 4.0,
        filtering: "band-pass filtered 300-6000 Hz"
       }

@@ -1,12 +1,12 @@
 """
-inman_to_nwb.py
+_inman_to_nwb.py
 ================================
 Original script developed by Grace Bezold (gbezold1). Some fixes from Neha Thomas (neha-thomas477).
 
 Convert re-structured MATLAB walk session files from the Inman dataset into
 Neurodata Without Borders (NWB) 2.x files.
 
-The script is primarily intended for command-line use via ``python inman_to_nwb.py``.
+The script is primarily intended for command-line use via ``python _inman_to_nwb.py``.
 It parses a single ``.mat`` file that contains synchronized behavioural,
 physiological and environmental recordings, assembles them into an
 :pyclass:`~pynwb.NWBFile`, applies optional HDF5 compression and writes the
@@ -42,6 +42,30 @@ from pynwb.base import DynamicTable
 from pynwb.behavior import BehavioralTimeSeries, CompassDirection, EyeTracking, SpatialSeries, TimeSeries
 from pynwb.ecephys import LFP, ElectricalSeries
 from pynwb.file import Subject
+
+# Data/timing arrays every re-structured walk .mat must carry (see README.md).
+REQUIRED_KEYS = [
+    "d_amb",
+    "ntp_amb",
+    "d_gaze_x",
+    "d_gaze_y",
+    "d_gaze_fix",
+    "ntp_gaze",
+    "d_kde",
+    "ntp_kde",
+    "d_imu",
+    "ntp_imu",
+    "d_np",
+    "ntp_np",
+    "d_xs",
+    "ntp_xs",
+]
+
+# Everything the conversion reads from a .mat file. Restricting read_mat to
+# these avoids parsing unrelated variables the real files also carry (e.g.
+# the original evnts_tbl MATLAB table object, which pymatreader cannot
+# reliably import).
+READ_KEYS = [*REQUIRED_KEYS, "evnts_struct"]
 
 
 def load_cfg(cfg_path: Path):
@@ -177,7 +201,7 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         identifier=f"InmanWalk-Subject{subject_name}-Walk{session}",
         session_start_time=session_start,
         experimenter=cfg_get("session", "experimenter", CFG=cfg),
-        institution=cfg_get("session", "instituition", CFG=cfg),
+        institution=cfg_get("session", "institution", CFG=cfg),
     )
 
     # subject definition
@@ -298,17 +322,19 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         description=cfg_get("device_imu", "description", CFG=cfg),
     )
 
+    # Gyro and acceleration are not spatial positions, so they are plain
+    # TimeSeries -- SpatialSeries only permits spatial units (DANDI rejects
+    # 'deg/s' or 'm/s²' there).
     gyro_x = np.asarray(data["d_imu"]["gyroX"])
     gyro_y = np.asarray(data["d_imu"]["gyroY"])
     gyro_z = np.asarray(data["d_imu"]["gyroZ"])
     gyro_data = np.column_stack((gyro_x, gyro_y, gyro_z))
 
-    imu_gyro_spatial_series = SpatialSeries(
+    imu_gyro_series = TimeSeries(
         name="IMUGyro",
         description=cfg_get("timeseries", "imu_gyro", "description", CFG=cfg),
         data=gyro_data,
         timestamps=rel_times["imu"],
-        reference_frame=cfg_get("timeseries", "imu_gyro", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_gyro", "unit", CFG=cfg),
     )
 
@@ -317,12 +343,11 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
     accel_z = np.asarray(data["d_imu"]["accelZ"])
     accel_data = np.column_stack((accel_x, accel_y, accel_z))
 
-    imu_accel_spatial_series = SpatialSeries(
+    imu_accel_series = TimeSeries(
         name="IMUAccel",
         description=cfg_get("timeseries", "imu_accel", "description", CFG=cfg),
         data=accel_data,
         timestamps=rel_times["imu"],
-        reference_frame=cfg_get("timeseries", "imu_accel", "reference_frame", CFG=cfg),
         unit=cfg_get("timeseries", "imu_accel", "unit", CFG=cfg),
     )
 
@@ -344,8 +369,8 @@ def build_nwb(data, subject_name, session, out_nwb, cfg):
         name="IMUCompassDirection",
     )
 
-    beh.add(imu_gyro_spatial_series)
-    beh.add(imu_accel_spatial_series)
+    beh.add(imu_gyro_series)
+    beh.add(imu_accel_series)
     beh.add(imu_compass_direction)
 
     behavior_annotation_data = data["evnts_struct"]
@@ -478,26 +503,9 @@ def main():
     args = parse_args()
 
     cfg = load_cfg(args.config)
-    mat_data = read_mat(args.mat)
+    mat_data = read_mat(args.mat, variable_names=READ_KEYS)
 
-    required_keys = [
-        "d_amb",
-        "ntp_amb",
-        "d_gaze_x",
-        "d_gaze_y",
-        "d_gaze_fix",
-        "ntp_gaze",
-        "d_kde",
-        "ntp_kde",
-        "d_imu",
-        "ntp_imu",
-        "d_np",
-        "ntp_np",
-        "d_xs",
-        "ntp_xs",
-    ]
-
-    missing = [k for k in required_keys if k not in mat_data]
+    missing = [k for k in REQUIRED_KEYS if k not in mat_data]
     if missing:
         raise SystemExit(f"Missing keys in MAT data: {missing}")
     else:
@@ -518,7 +526,7 @@ if __name__ == "__main__":
     """
     Example CLI usage
     --------
-    python inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 \
+    python _inman_to_nwb.py --mat example_data/RWNApp_RW3_Walk1_restructured.mat --subject 3 --session 1 \
         --config ./config.yaml --out ./InmanWalk-S03-Walk1.nwb
     """
     print("calling main")
