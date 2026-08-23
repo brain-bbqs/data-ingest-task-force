@@ -44,6 +44,9 @@ jobs:
             inman-r61mh135109-ingest:
               - 'labs/inman/**'
               - '.github/workflows/container_images.yml'
+            shepherd-r34da059723-ingest:
+              - 'labs/shepherd/**'
+              - '.github/workflows/container_images.yml'
             dandi-cli:
               - 'dispatch/**'
               - '.github/workflows/container_images.yml'
@@ -64,6 +67,10 @@ jobs:
              "dockerfile": "labs/inman/containers/inman.Dockerfile",
              "context": "labs/inman",
              "tests": "labs/inman/tests"},
+            {"image": "shepherd-r34da059723-ingest",
+             "dockerfile": "labs/shepherd/containers/shepherd.Dockerfile",
+             "context": "labs/shepherd",
+             "tests": "labs/shepherd/tests"},
             {"image": "dandi-cli",
              "dockerfile": "dispatch/containers/dandi.Dockerfile",
              "context": "dispatch",

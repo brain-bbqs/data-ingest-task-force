@@ -103,6 +103,12 @@ Note: Kemere's `incoming_dandiset_id` in `projects.json` is still a placeholder 
 
 Note: Inman's registration (incoming `000519`, standardized `000526`) runs `labs/inman/code/batch_convert.py` (as `python3 -m labs.inman.code.batch_convert`, so its relative import of the core module resolves), which converts every `.mat` walk file found under the incoming dandiset in one invocation (skipping walks whose output NWB already exists, unless dispatch appends `--overwrite`). Its `script_path` deliberately stays pointed at `_inman_to_nwb.py`, since that is where the conversion logic that determines output content lives. The incoming dandiset currently holds a single sample session folder (`sourcedata/raw/sample-1`) with one `.mat` file, which doubles as the end-to-end smoke test for runner runs. The session metadata in `labs/inman/code/config.yaml` is still provisional (marked PROVISIONAL in the file). Replace it with the real lab metadata before treating the standardized output as final.
 
+Note: Shepherd's registration (incoming `000528`, standardized `000529`) is **not yet ready for a real cron run**, and its `convert_command` is a placeholder.
+`labs/shepherd/code/shepherd_to_nwb.py` is a verbatim port of the original conversion work and converts one session per invocation, taking `--subject` and `--session` on the command line, so it cannot process a whole incoming dandiset the way Kemere's and Inman's commands do.
+The committed command names a single `sourcedata/raw/sample-1` session with placeholder subject and session values, mirroring how Inman was first registered before `batch_convert.py` existed.
+Before enabling this project on the runner it needs a batch driver (see `labs/inman/code/batch_convert.py` for the shape of one), real metadata in `labs/shepherd/code/config.yaml`, and the converter's known rough edges fixed — all listed in `labs/shepherd/README.md`.
+Until then, restrict runner runs with `--only kemere --only inman`, or leave `000528` empty so session discovery finds nothing and the conversion step is skipped.
+
 ## Tests
 
 ```bash

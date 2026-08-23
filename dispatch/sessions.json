@@ -8,6 +8,10 @@
     "inman": {
       "include": ["sourcedata/raw/*"],
       "exclude": []
+    },
+    "shepherd": {
+      "include": ["sourcedata/raw/*"],
+      "exclude": []
     }
   }
 }
