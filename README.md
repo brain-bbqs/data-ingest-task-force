@@ -15,6 +15,8 @@ labs/
                          (see labs/kemere/README.md)
   inman/                Inman lab: restructured .mat walk sessions -> NWB
                          (see labs/inman/README.md)
+  shepherd/             Shepherd lab: multicamera rat feeding behavior -> NWB
+                         (see labs/shepherd/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
                          (see dispatch/README.md), including its own
                          containers/dandi.Dockerfile -- the portable dandi

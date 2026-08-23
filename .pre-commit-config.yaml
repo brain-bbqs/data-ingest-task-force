@@ -9,7 +9,11 @@ default_language_version:
 
 # The committed test fixtures (raw inputs and expected BIDS outputs) must stay
 # byte-for-byte identical to what the conversion pipeline produces.
-exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw)/
+#
+# labs/shepherd/code/ is a verbatim port of the original conversion work, kept
+# unformatted and unlinted as original provenance. Drop it from this list in the
+# follow-up that takes ownership of that code (see labs/shepherd/README.md).
+exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw|shepherd/code)/
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks

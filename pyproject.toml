@@ -12,6 +12,9 @@ exclude = [
   "labs/kemere/tests/example_raw",
   "labs/kemere/tests/expected_output",
   "labs/inman/tests/example_raw",
+  # Verbatim port of the original Shepherd conversion work, kept unformatted
+  # and unlinted as original provenance (see labs/shepherd/README.md).
+  "labs/shepherd/code",
 ]
 
 [tool.ruff.lint]

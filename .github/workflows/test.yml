@@ -53,6 +53,23 @@ jobs:
       - name: Run the integration test
         run: python -m pytest labs/inman/tests/ -q
 
+  ShepherdSmoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: "labs/shepherd/envs/.python-version"
+
+      - name: Install test environment
+        run: pip install "./labs/shepherd/envs[test]"
+
+      - name: Run the smoke test
+        run: python -m pytest labs/shepherd/tests/ -q
+
   Dispatch:
     runs-on: ubuntu-latest
     steps:

@@ -40,6 +40,28 @@
         "--config",
         "{repo_root}/labs/inman/code/config.yaml"
       ]
+    },
+    {
+      "lab": "shepherd",
+      "incoming_dandiset_id": "000528",
+      "standardized_dandiset_id": "000529",
+      "script_path": "labs/shepherd/code/shepherd_to_nwb.py",
+      "dandi_instance": "ember-dandi",
+      "container_image": "ghcr.io/brain-bbqs/shepherd-r34da059723-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/shepherd/code/shepherd_to_nwb.py",
+        "--input_folder",
+        "{incoming_dir}/sourcedata/raw/sample-1",
+        "--subject",
+        "XYZ",
+        "--session",
+        "1",
+        "--config",
+        "{repo_root}/labs/shepherd/code/config.yaml",
+        "--out",
+        "{standardized_dir}/sub-XYZ/sub-XYZ_ses-1"
+      ]
     }
   ]
 }

@@ -1,0 +1,46 @@
+# Loose, declarative environment for the Shepherd multicamera-behavior to NWB
+# conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/shepherd.Dockerfile resolves it fresh at
+# build time and the resulting image (by digest) is the reproducibility lock,
+# so there is no lockfile in the repository to keep in sync.
+#
+# The converter also shells out to `ffprobe` to read video duration and frame
+# count. That is an external FFmpeg dependency, a *system* package installed in
+# containers/shepherd.Dockerfile rather than a Python one.
+
+[project]
+name = "shepherd-r34da059723-ingest"
+version = "0.1.0"
+description = "Convert Shepherd-lab multicamera rat feeding-behavior recordings into NWB files."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "natsort",
+  "PyYAML",
+  "hdmf",
+  "pynwb",
+  # DeepLabCutInterface lives behind neuroconv's deeplabcut extra.
+  "neuroconv[deeplabcut]",
+  # The converter imports cv2 to read video frames. The headless build supplies
+  # the same module without the GUI stack, which the container has no use for
+  # and which would otherwise drag in libGL.
+  "opencv-python-headless",
+]
+
+[project.optional-dependencies]
+# The converter's own dependencies double as the test runtime. The test extra
+# only adds the runner itself.
+test = [
+  "pytest>=7",
+]
+
+# The package carries no importable modules; installing it only realises the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
