@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schemas/projects.schema.json",
   "title": "dispatch project registry",
-  "description": "One entry per lab: which dandisets it maps incoming -> standardized, and how to run its conversion script. See ../README.md for the full field reference.",
+  "description": "One entry per project: which dandisets it maps incoming -> standardized, and how to run its conversion script. A lab running several projects names each one with 'project'. See ../README.md for the full field reference.",
   "type": "object",
   "required": ["projects"],
   "additionalProperties": false,
@@ -33,7 +33,13 @@
         "lab": {
           "type": "string",
           "minLength": 1,
-          "description": "Must match both the labs/<lab>/ directory and its sessions.json key."
+          "description": "Must match the labs/<lab>/ directory. Alone, it is also the project's sessions.json key and --only value; with 'project' set, that key becomes '<lab>/<project>'."
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/]+$",
+          "description": "Optional project name, for a lab contributing more than one data collection (e.g. 'in-lab'). Must match the labs/<lab>/<project>/ directory. When set, the project is keyed '<lab>/<project>' in sessions.json and --only. Omit for a lab with a single project."
         },
         "incoming_dandiset_id": {
           "$ref": "#/$defs/sixDigitDandisetId",

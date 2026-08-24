@@ -1,10 +1,14 @@
-"""Per-lab session discovery spec (dispatch/sessions.json).
+"""Per-project session discovery spec (dispatch/sessions.json).
+
+Entries are keyed by the project key registry.Project.key builds: the lab
+name for a lab with a single project ("kemere"), "<lab>/<project>" for a lab
+running several ("suthana/in-lab").
 
 Kept separate from projects.json's dandiset/command config because
 discovering "what counts as a session" doesn't reduce to a single glob in
-general -- a lab may need multiple include patterns (several raw subtrees)
-and exclusions (stray non-session directories), and that shape can evolve
-independently of a project's dandiset ids or conversion command.
+general -- a project may need multiple include patterns (several raw
+subtrees) and exclusions (stray non-session directories), and that shape can
+evolve independently of its dandiset ids or conversion command.
 """
 
 from __future__ import annotations
@@ -33,11 +37,11 @@ def load_session_specs(path: Path) -> dict[str, SessionSpec]:
         raise SessionSpecError(f"{path} defines no labs")
 
     specs: dict[str, SessionSpec] = {}
-    for lab, raw in raw_labs.items():
+    for project_key, raw in raw_labs.items():
         include = raw.get("include")
         if not include or not isinstance(include, list):
-            raise SessionSpecError(f"sessions.json entry for lab {lab!r} needs a non-empty 'include' list")
-        specs[lab] = SessionSpec(include=list(include), exclude=list(raw.get("exclude", [])))
+            raise SessionSpecError(f"sessions.json entry for {project_key!r} needs a non-empty 'include' list")
+        specs[project_key] = SessionSpec(include=list(include), exclude=list(raw.get("exclude", [])))
     return specs
 
 
@@ -47,8 +51,8 @@ def discover_sessions(incoming_dir: Path, spec: SessionSpec) -> list[Path]:
     ignored); the session id is its basename (Path.name).
 
     Exclude patterns are matched against either the basename or the path
-    relative to incoming_dir, so a lab can exclude by name ("*-ignore*") or
-    by location ("sourcedata/raw/tmp-*").
+    relative to incoming_dir, so a project can exclude by name ("*-ignore*")
+    or by location ("sourcedata/raw/tmp-*").
     """
     matched: dict[str, Path] = {}
     for pattern in spec.include:

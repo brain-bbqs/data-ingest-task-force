@@ -3,9 +3,9 @@
 registered project (see projects.json):
 
   1. ``dandi download`` the incoming dandiset into ``<incoming-root>/<id>``.
-  2. Diff its sessions (dispatch/sessions.json's spec for the lab) against
-     the project's manifest to find sessions that haven't been converted yet
-     with the current script.
+  2. Diff its sessions (dispatch/sessions.json's spec for the project)
+     against the project's manifest to find sessions that haven't been
+     converted yet with the current script.
   3. If there's new work (or the conversion script itself changed), run the
      lab's conversion command, writing into ``<standardized-root>/<id>``.
      If the project names a container_image, the command runs inside it
@@ -150,7 +150,7 @@ def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dr
 
 def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
     if not dry_run and not standardized_dir.is_dir():
-        log.info("[%s] no standardized output yet at %s, skipping upload", project.lab, standardized_dir)
+        log.info("[%s] no standardized output yet at %s, skipping upload", project.key, standardized_dir)
         return
     run(["docker", "pull", dandi_image], dry_run=dry_run)
     forward_env = (dandi_api_key_env_var(project.dandi_instance),)
@@ -260,19 +260,19 @@ def process_project(
 ) -> None:
     incoming_dir = incoming_root / project.incoming_dandiset_id
     standardized_dir = standardized_root / project.standardized_dandiset_id
-    log.info("=== %s: %s -> %s ===", project.lab, project.incoming_dandiset_id, project.standardized_dandiset_id)
+    log.info("=== %s: %s -> %s ===", project.key, project.incoming_dandiset_id, project.standardized_dandiset_id)
 
     if not skip_download:
         dandi_download(project, incoming_dir, dandi_image=dandi_image, dry_run=dry_run)
     else:
-        log.info("[%s] --skip-download set, using existing local copy", project.lab)
+        log.info("[%s] --skip-download set, using existing local copy", project.key)
 
     state = IngestState.load(standardized_dir)
 
     script_path = project.script_abspath(repo_root)
     current_script_hash = hash_file(script_path) if script_path.is_file() else None
     if current_script_hash is None:
-        log.warning("[%s] conversion script not found at %s, cannot hash it", project.lab, script_path)
+        log.warning("[%s] conversion script not found at %s, cannot hash it", project.key, script_path)
     script_changed = current_script_hash is not None and current_script_hash != state.script_sha256
 
     discovered_paths = [] if dry_run and not incoming_dir.is_dir() else discover_sessions(incoming_dir, session_spec)
@@ -285,20 +285,20 @@ def process_project(
         # uploaded by the run that converted it, and re-checking costs a full
         # local re-checksum of the dandiset (DANDI_CACHE=ignore) every pass.
         log.info(
-            "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.lab, len(discovered)
+            "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.key, len(discovered)
         )
         return
 
     if script_changed:
         log.info(
             "[%s] conversion script changed (%s -> %s); reprocessing all %d discovered session(s)",
-            project.lab,
+            project.key,
             state.script_sha256,
             current_script_hash,
             len(discovered),
         )
     else:
-        log.info("[%s] %d new session(s): %s", project.lab, len(new_sessions), ", ".join(new_sessions))
+        log.info("[%s] %d new session(s): %s", project.key, len(new_sessions), ", ".join(new_sessions))
 
     convert(
         project,
@@ -323,7 +323,7 @@ def process_project(
     if not dry_run:
         state.save(standardized_dir)
     else:
-        log.info("[%s] [dry-run] would write state for %d session(s)", project.lab, len(touched))
+        log.info("[%s] [dry-run] would write state for %d session(s)", project.key, len(touched))
 
     if not skip_upload:
         dandi_upload(project, standardized_dir, dandi_image=dandi_image, dry_run=dry_run)
@@ -373,7 +373,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--only",
         action="append",
         default=None,
-        help="Restrict to this lab name (repeatable). Default: all registered projects.",
+        help="Restrict to this project key (repeatable): a lab name, or '<lab>/<project>' for a lab "
+        "running several projects. Default: all registered projects.",
     )
     parser.add_argument(
         "--skip-download",
@@ -411,18 +412,18 @@ def main(argv: list[str] | None = None) -> int:
     session_specs = load_session_specs(sessions_path)
     if args.only:
         wanted = set(args.only)
-        projects = [p for p in projects if p.lab in wanted]
-        missing = wanted - {p.lab for p in projects}
+        projects = [p for p in projects if p.key in wanted]
+        missing = wanted - {p.key for p in projects}
         if missing:
-            log.error("--only named unknown lab(s): %s", ", ".join(sorted(missing)))
+            log.error("--only named unknown project(s): %s", ", ".join(sorted(missing)))
             return 2
 
     failures = []
     for project in projects:
-        spec = session_specs.get(project.lab)
+        spec = session_specs.get(project.key)
         if spec is None:
-            log.error("[%s] no entry in %s; skipping", project.lab, sessions_path)
-            failures.append(project.lab)
+            log.error("[%s] no entry in %s; skipping", project.key, sessions_path)
+            failures.append(project.key)
             continue
         try:
             process_project(
@@ -437,8 +438,8 @@ def main(argv: list[str] | None = None) -> int:
                 dry_run=args.dry_run,
             )
         except Exception:
-            log.exception("[%s] failed; continuing with remaining projects", project.lab)
-            failures.append(project.lab)
+            log.exception("[%s] failed; continuing with remaining projects", project.key)
+            failures.append(project.key)
 
     if failures:
         log.error("failed project(s): %s", ", ".join(failures))

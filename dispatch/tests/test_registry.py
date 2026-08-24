@@ -104,3 +104,53 @@ def test_empty_projects_raises(tmp_path):
     path = write_registry(tmp_path, {"projects": []})
     with pytest.raises(RegistryError, match="no projects"):
         load_registry(path)
+
+
+def test_project_key_is_the_lab_when_no_project_is_named(tmp_path):
+    path = write_registry(tmp_path, {"projects": [entry()]})
+    (project,) = load_registry(path)
+    assert project.project is None
+    assert project.key == "test-lab"
+
+
+def test_project_key_combines_lab_and_project_when_named(tmp_path):
+    path = write_registry(tmp_path, {"projects": [entry(project="in-lab")]})
+    (project,) = load_registry(path)
+    assert project.project == "in-lab"
+    assert project.key == "test-lab/in-lab"
+
+
+def test_one_lab_may_register_several_projects(tmp_path):
+    path = write_registry(
+        tmp_path,
+        {
+            "projects": [
+                entry(project="in-lab", incoming_dandiset_id="000001", standardized_dandiset_id="000002"),
+                entry(project="at-home", incoming_dandiset_id="000003", standardized_dandiset_id="000004"),
+            ]
+        },
+    )
+    projects = load_registry(path)
+    assert [p.key for p in projects] == ["test-lab/in-lab", "test-lab/at-home"]
+
+
+def test_duplicate_project_key_raises(tmp_path):
+    path = write_registry(
+        tmp_path,
+        {
+            "projects": [
+                entry(project="in-lab", incoming_dandiset_id="000001", standardized_dandiset_id="000002"),
+                entry(project="in-lab", incoming_dandiset_id="000003", standardized_dandiset_id="000004"),
+            ]
+        },
+    )
+    with pytest.raises(RegistryError, match="registered more than once"):
+        load_registry(path)
+
+
+@pytest.mark.parametrize("bad_project", ["", "in/lab", 7])
+def test_malformed_project_raises(tmp_path, bad_project):
+    path = write_registry(tmp_path, {"projects": [entry(project=bad_project)]})
+    with pytest.raises(RegistryError, match="project"):
+        load_registry(path)
+
