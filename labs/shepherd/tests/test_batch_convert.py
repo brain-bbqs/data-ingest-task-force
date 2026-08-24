@@ -45,7 +45,7 @@ def test_sanitize_label(text, expected):
 
 
 def test_discover_sessions(tmp_path):
-    raw_dir = tmp_path / "incoming" / "sourcedata" / "raw"
+    raw_dir = tmp_path / "incoming" / "sourcedata" / "raw" / "sessions"
     (raw_dir / "sample-1").mkdir(parents=True)
     (raw_dir / "sample-2").mkdir()
     (raw_dir / "notes.txt").write_text("not a session")
@@ -56,6 +56,15 @@ def test_discover_sessions(tmp_path):
 
 
 def test_discover_sessions_missing_raw_dir(tmp_path):
+    assert batch_convert.discover_sessions(tmp_path / "incoming") == []
+
+
+def test_discover_sessions_ignores_unrelated_raw_data(tmp_path):
+    """Pre-existing, differently-shaped data directly under sourcedata/raw/
+    (not sourcedata/raw/sessions/) must not be picked up as a session."""
+    raw_dir = tmp_path / "incoming" / "sourcedata" / "raw"
+    (raw_dir / "000300" / "sub-MSN06").mkdir(parents=True)
+
     assert batch_convert.discover_sessions(tmp_path / "incoming") == []
 
 
@@ -78,7 +87,7 @@ def test_is_complete_requires_both_files(tmp_path):
 @pytest.fixture()
 def sample_incoming(tmp_path):
     incoming = tmp_path / "incoming"
-    (incoming / "sourcedata" / "raw" / "sample-1").mkdir(parents=True)
+    (incoming / "sourcedata" / "raw" / "sessions" / "sample-1").mkdir(parents=True)
     return incoming
 
 
@@ -134,7 +143,7 @@ def test_convert_batch_reconverts_incomplete_pair(sample_incoming, tmp_path, mon
 
 
 def test_convert_batch_continues_past_failures(sample_incoming, tmp_path, monkeypatch, capsys):
-    (sample_incoming / "sourcedata" / "raw" / "sample-2").mkdir()
+    (sample_incoming / "sourcedata" / "raw" / "sessions" / "sample-2").mkdir()
 
     def flaky_build_nwb(*, input_file, subject_name, out_nwb, cfg):
         if "sample1" in subject_name:

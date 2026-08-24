@@ -20,7 +20,8 @@ labs/shepherd/
   code/                 Conversion code, ported from the original work
     shepherd_to_nwb.py    one session folder -> raw + processed NWB files
     batch_convert.py       loops shepherd_to_nwb.build_nwb over an incoming
-                            dandiset's sourcedata/raw/ -- what dispatch drives
+                            dandiset's sourcedata/raw/sessions/ -- what
+                            dispatch drives
     config.yaml            metadata template consumed by the converter
     README.md               the original conversion notes (data layout, NWB tree)
   containers/           The pinned, reproducible runtime (shepherd.Dockerfile)
@@ -48,8 +49,11 @@ their exclusions in the same change.
 
 `code/batch_convert.py` is what dispatch actually drives (see
 `dispatch/README.md`). It loops `shepherd_to_nwb.build_nwb` over every session
-folder discovered under an incoming dandiset's `sourcedata/raw/`, without
-editing `shepherd_to_nwb.py` itself, and gives dispatch the same
+folder discovered under an incoming dandiset's `sourcedata/raw/sessions/`
+(nested one level below `sourcedata/raw/` because that directory currently
+holds data in a different, pre-existing shape this converter cannot read;
+see the rough edge below), without editing `shepherd_to_nwb.py` itself, and
+gives dispatch the same
 skip-unless-`--overwrite` behavior the other three labs already have: an
 already-converted session (both its `_desc-raw.nwb` and `_desc-processed.nwb`
 present) is left alone on an ordinary pass, and only fully reconverted when
@@ -94,9 +98,16 @@ correct.
   file, which assumes the TTL camera exposure channel is that row and that the
   video starts when the digital acquisition does.
 - There is no established naming convention yet for real session folders under
-  `sourcedata/raw/`, so `batch_convert.py` falls back to the folder's own name
-  as the subject label and a fixed session number. Real per-session metadata
-  (start time, subject fields) needs a real convention to key off of.
+  `sourcedata/raw/sessions/`, so `batch_convert.py` falls back to the folder's
+  own name as the subject label and a fixed session number. Real per-session
+  metadata (start time, subject fields) needs a real convention to key off of.
+- The dandiset currently registered for Shepherd (`000528`) holds
+  `sourcedata/raw/000300/sub-*/...` (`.avi` videos alongside already-built
+  `.nwb` files), not the `digital`/`analog`/`videos`/`pose_estimation` layout
+  this converter expects. That data predates this driver and is not real
+  input for it, so discovery is nested one level deeper, under
+  `sourcedata/raw/sessions/`, which is empty for now. Real Shepherd sessions
+  need to be uploaded there before this project converts anything.
 
 ## The environment
 

@@ -2,10 +2,10 @@
 """Batch driver for the Shepherd session-to-NWB conversion.
 
 Discovers every session folder under an incoming directory tree's
-``sourcedata/raw/`` (one folder per session, each holding ``digital/``,
-``analog/``, ``videos/``, and ``pose_estimation/`` subfolders -- see
-``code/README.md``) and runs ``shepherd_to_nwb.build_nwb`` on each, writing
-the results into the standardized output tree::
+``sourcedata/raw/sessions/`` (one folder per session, each holding
+``digital/``, ``analog/``, ``videos/``, and ``pose_estimation/`` subfolders
+-- see ``code/README.md``) and runs ``shepherd_to_nwb.build_nwb`` on each,
+writing the results into the standardized output tree::
 
     <output>/
       sub-<subject>/
@@ -23,6 +23,16 @@ Matching the original hard-coded example (folder ``sample-1`` ->
 ``--subject XYZ --session 1``), each session folder's sanitized name becomes
 the subject label and the session is fixed at "1" -- one folder is one
 session. This is a placeholder pending the lab's real naming convention.
+
+Discovery looks under ``sourcedata/raw/sessions/`` rather than directly under
+``sourcedata/raw/`` because the dandiset currently registered for Shepherd
+holds data in a different, pre-existing shape (per-subject video/NWB files,
+not the ``digital``/``analog``/``videos``/``pose_estimation`` layout above).
+That data is left alone under ``sourcedata/raw/`` and is not real input for
+this converter, so nesting discovery one level down means it currently finds
+zero sessions -- the same "no data yet" state as a freshly registered
+project -- until real Shepherd sessions are uploaded into
+``sourcedata/raw/sessions/``.
 
 ``config.yaml`` supplies one global ``session_start_time`` and one global set
 of subject metadata (species/age/sex) for every session, a known rough edge
@@ -75,13 +85,15 @@ def sanitize_label(text, /):
 
 
 def discover_sessions(incoming_dir, /):
-    """Every session folder under *incoming_dir*'s ``sourcedata/raw/`` as
-    ``(session_dir, subject)``.
+    """Every session folder under *incoming_dir*'s ``sourcedata/raw/sessions/``
+    as ``(session_dir, subject)``.
 
     There is no established naming convention for real session folders yet,
-    so each folder's sanitized name becomes the subject label.
+    so each folder's sanitized name becomes the subject label. Nested one
+    level below ``sourcedata/raw/`` because that directory currently holds
+    data in a different, pre-existing shape that this converter cannot read.
     """
-    raw_dir = incoming_dir / "sourcedata" / "raw"
+    raw_dir = incoming_dir / "sourcedata" / "raw" / "sessions"
     if not raw_dir.is_dir():
         return []
     sessions = []
@@ -103,7 +115,7 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     cfg = load_cfg(config_path)
     sessions = discover_sessions(incoming_dir)
     if not sessions:
-        print(f"No session folders found under {incoming_dir / 'sourcedata' / 'raw'}")
+        print(f"No session folders found under {incoming_dir / 'sourcedata' / 'raw' / 'sessions'}")
         return 0
 
     skipped = 0
