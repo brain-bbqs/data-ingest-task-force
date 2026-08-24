@@ -174,7 +174,11 @@ def add_electrodes(*, nwbfile, cfg, ieeg_channels):
     ieeg_device = nwbfile.create_device(**cfg["device_ieeg"])
     ieeg_group = nwbfile.create_electrode_group(device=ieeg_device, **cfg["electrode_group_ieeg"])
     for index in range(IEEG_CHANNEL_COUNT):
-        nwbfile.add_electrode(group=ieeg_group, label=f"iEEG {index}", location=ieeg_channels[index])
+        # An empty config entry means "no channel at this position" (see
+        # config.yaml), but pynwb requires a non-empty location for every
+        # electrode row, so the placeholder row still needs one.
+        location = ieeg_channels[index] or "none"
+        nwbfile.add_electrode(group=ieeg_group, label=f"iEEG {index}", location=location)
     ieeg_region = nwbfile.create_electrode_table_region(
         region=list(range(IEEG_CHANNEL_COUNT)),
         description="iEEG electrodes",

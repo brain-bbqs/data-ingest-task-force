@@ -25,6 +25,7 @@ from pathlib import Path
 import h5py
 import numpy
 import pynwb
+import pynwb.testing.mock.file
 import pytest
 import yaml
 
@@ -154,6 +155,21 @@ def test_ieeg_electrode_locations_come_from_the_subject_entry(nwbfile, cfg):
     expected = cfg["subjects"][generate_fixtures.SUBJECT_ID]["ieeg_channels"]
     locations = list(nwbfile.electrodes["location"][:IEEG_CHANNEL_COUNT])
     assert locations == expected
+
+
+@pytest.mark.parametrize("subject_id", ["R095", "R133"])
+def test_empty_ieeg_channel_entries_get_a_placeholder_location(cfg, subject_id):
+    """An empty ieeg_channels entry still occupies a row (see config.yaml),
+    but pynwb rejects an empty location outright, so it must become some
+    non-empty placeholder rather than reach add_electrode as-is."""
+    ieeg_channels = cfg["subjects"][subject_id]["ieeg_channels"]
+    assert "" in ieeg_channels, "fixture must exercise the empty-entry case"
+
+    mock_nwbfile = pynwb.testing.mock.file.mock_NWBFile()
+    _suthana_in_lab_to_nwb.add_electrodes(nwbfile=mock_nwbfile, cfg=cfg, ieeg_channels=ieeg_channels)
+
+    locations = list(mock_nwbfile.electrodes["location"][:IEEG_CHANNEL_COUNT])
+    assert locations == [channel or "none" for channel in ieeg_channels]
 
 
 @pytest.mark.parametrize(
