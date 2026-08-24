@@ -41,9 +41,9 @@ ENV VIRTUAL_ENV=/opt/venv \
 RUN python3 -m venv "${VIRTUAL_ENV}"
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
-# The converter needs no Python packages; the `test` extra (pytest + PyAV) is
-# installed so this same image can also run the integration test against
-# mounted code.
+# The converter needs one Python package (tqdm); the `test` extra (pytest +
+# PyAV) is installed alongside it so this same image can also run the
+# integration test against mounted code.
 COPY envs/pyproject.toml /tmp/build/pyproject.toml
 RUN pip install "/tmp/build[test]" \
     && rm -rf /tmp/build

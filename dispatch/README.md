@@ -85,6 +85,8 @@ Useful flags: `--only <lab>` (repeatable, restrict to specific projects), `--ski
 
 A run is safe to repeat: with nothing new and an unchanged conversion script, every project is a no-op — download refresh, then straight to the next project, no conversion and no upload.
 
+Projects are processed one at a time, but each lab's converter parallelizes over the sessions in its own dandiset (one worker per CPU by default) and prints a tqdm progress bar as they complete. To cap that, add `--jobs <n>` to the project's `convert_command` in `projects.json`.
+
 ## Credentials
 
 `dispatch.py` does not manage DANDI or container-registry credentials itself:
