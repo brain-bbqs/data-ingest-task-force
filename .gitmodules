@@ -1,0 +1,5 @@
+[submodule ".agents/vendor/claude-skills"]
+	path = .agents/vendor/claude-skills
+	url = https://github.com/catalystneuro/claude-skills
+	branch = main
+	shallow = true
