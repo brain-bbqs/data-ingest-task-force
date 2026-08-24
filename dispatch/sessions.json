@@ -1,5 +1,5 @@
 {
-  "$schema": "./schema/sessions.schema.json",
+  "$schema": "./schemas/sessions.schema.json",
   "labs": {
     "kemere": {
       "include": ["sourcedata/raw/*-Session*"],

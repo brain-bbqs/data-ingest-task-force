@@ -1,5 +1,5 @@
 {
-  "$schema": "./schema/projects.schema.json",
+  "$schema": "./schemas/projects.schema.json",
   "projects": [
     {
       "lab": "kemere",

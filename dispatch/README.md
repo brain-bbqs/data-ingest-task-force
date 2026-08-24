@@ -27,7 +27,7 @@ dispatch/
   state.py           Per-project manifest (.ingest_state.json) read/write
   projects.json      The project registry: dandiset ids + conversion command, one entry per lab
   sessions.json       The session-discovery registry: one entry per lab
-  schema/            JSON Schemas for both registry files (editor validation, see below)
+  schemas/           JSON Schemas for both registry files (editor validation, see below)
   containers/        dandi.Dockerfile -- the portable dandi CLI runtime the
                        download/upload steps run inside (see container_images.yml)
   envs/              Python env declaration (pytest) for dispatch.py itself
@@ -64,7 +64,7 @@ A session's id is its directory's basename.
 
 ### Schemas, and editing the registry outside this repo
 
-Both files carry a `"$schema"` pointer (`dispatch/schema/projects.schema.json` / `sessions.schema.json`) so editors with JSON Schema support (VS Code's built-in one, for example) give inline validation and autocomplete while you edit — required fields, the six-digit dandiset id pattern, unknown-field typos, etc.
+Both files carry a `"$schema"` pointer (`dispatch/schemas/projects.schema.json` / `sessions.schema.json`) so editors with JSON Schema support (VS Code's built-in one, for example) give inline validation and autocomplete while you edit — required fields, the six-digit dandiset id pattern, unknown-field typos, etc.
 `dispatch/tests/test_schema.py` validates the committed files against these schemas in CI, and exercises each schema against a few known-bad shapes so a schema edit that silently stops catching something gets caught too.
 
 `dispatch.py --registry`/`--sessions` accept any path, not just these committed files — a self-hosted runner can point them at a `projects.json`/`sessions.json` living outside the repo (e.g. on the runner host) so the registry can be edited without a commit/PR.

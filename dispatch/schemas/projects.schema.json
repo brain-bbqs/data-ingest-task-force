@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schema/projects.schema.json",
+  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schemas/projects.schema.json",
   "title": "dispatch project registry",
   "description": "One entry per lab: which dandisets it maps incoming -> standardized, and how to run its conversion script. See ../README.md for the full field reference.",
   "type": "object",

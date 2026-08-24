@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schema/sessions.schema.json",
+  "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schemas/sessions.schema.json",
   "title": "dispatch session-discovery registry",
   "description": "One entry per lab (keyed by the same 'lab' name used in projects.json), describing how to discover its session directories. See ../README.md for the full field reference.",
   "type": "object",
