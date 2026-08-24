@@ -20,6 +20,10 @@
 - Favor defining one-word names for CLI flags, then map those onto longer, more explicit keyword arguments at the API level.
 - Keep inline comments sparse. Only explain non-obvious "why", not "what" the code does. Prefer self-documenting code and clear names over narration; do not annotate routine logic.
 
+## Skills
+
+- Reusable agent skills live in `.agents/skills/` (`.claude/skills` is a symlink to it, see `AGENTS.md`). When a task matches a skill's description, read its `SKILL.md` and follow it, even if automatic skill discovery did not surface it.
+
 ## Tests
 
 - To the best of your ability, ensure tests are passing before pushing

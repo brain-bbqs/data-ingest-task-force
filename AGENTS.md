@@ -3,7 +3,7 @@
 Instructions for AI coding agents working in this repository, whatever the tool (Claude Code, Codex, or others).
 
 - `CLAUDE.md` at the repo root holds the repository-wide conventions: commit and PR rules, code style, and test rules. They apply to every agent and every tool, not only Claude. Read it before making changes.
-- Reusable agent skills live under `.claude/skills/`, one directory per skill, in the open [Agent Skills](https://agentskills.io) format: a `SKILL.md` with `name` and `description` frontmatter, plus a `references/` directory where needed. The path is where Claude Code discovers project skills, but the files are plain markdown any tool can follow. If your tool does not discover them automatically, read the `SKILL.md` whose description matches the task and follow it, loading its reference files when it says to.
+- Reusable agent skills live under `.agents/skills/`, one directory per skill, in the open [Agent Skills](https://agentskills.io) format: a `SKILL.md` with `name` and `description` frontmatter, plus a `references/` directory where needed. Codex discovers repository skills at that path natively. `.claude/skills` is a symlink to the same directory so Claude Code picks them up too. Any other tool can simply read the `SKILL.md` whose description matches the task and follow it, loading its reference files when it says to.
 
 ## The new-conversion skills
 

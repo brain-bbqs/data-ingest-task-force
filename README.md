@@ -28,8 +28,9 @@ dispatch/               Cron entrypoint driving all labs' conversions
 docs/                   Repository documentation (CI, see docs/README.md)
 pyproject.toml          Repository-wide tooling (ruff)
 .github/workflows/      CI: container build/test/publish + daily dev-env tests
-.claude/skills/         Agent skills for setting up a new conversion
-                         (portable SKILL.md format, see AGENTS.md)
+.agents/skills/         Agent skills for setting up a new conversion
+                         (portable SKILL.md format, see AGENTS.md;
+                         .claude/skills is a symlink to it)
 AGENTS.md               Entry point for AI coding agents, whatever the tool
 ```
 
@@ -46,13 +47,13 @@ See "Starting a new conversion" below to have an AI agent do all of this from a 
 
 ## Starting a new conversion
 
-Agent skills for the whole workflow live in `.claude/skills/` (portable [Agent Skills](https://agentskills.io) format, usable from Claude Code, Codex, and other tools; see `AGENTS.md`). They cover intake, choosing the data standard, drafting the expected output, scaffolding the lab codebase, and registration in dispatch and CI.
+Agent skills for the whole workflow live in `.agents/skills/` (portable [Agent Skills](https://agentskills.io) format; Codex discovers them there natively, and `.claude/skills` symlinks to the same files for Claude Code; see `AGENTS.md`). They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI.
 
 To start one, give your agent the default prompt below, filled in:
 
 ```text
 Please set up a new conversion for the <lab> lab, working through the
-new-conversion skills in .claude/skills/ in order: lab-intake, then
+new-conversion skills in .agents/skills/ in order: lab-intake, then
 lab-conversion-plan, then stop for my review of the plan before running
 lab-scaffold and lab-register.
 
