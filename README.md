@@ -47,7 +47,7 @@ See "Starting a new conversion" below to have an AI agent do all of this from a 
 
 ## Starting a new conversion
 
-Agent skills for the whole workflow live in `.agents/skills/` (portable [Agent Skills](https://agentskills.io) format; Codex discovers them there natively, and `.claude/skills` symlinks to the same files for Claude Code; see `AGENTS.md`). They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI. The set is meant to improve with use: the closing lab-lessons skill folds what each conversion taught back into the skills themselves.
+Agent skills for the whole workflow live in `.agents/skills/`. They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI. The set is meant to improve with use: the closing lab-lessons skill folds what each conversion taught back into the skills themselves.
 
 To start one, give your agent the default prompt below, filled in:
 
