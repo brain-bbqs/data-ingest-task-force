@@ -10,7 +10,7 @@
       "exclude": []
     },
     "shepherd": {
-      "include": ["sourcedata/raw/*"],
+      "include": ["sourcedata/raw/sessions/*"],
       "exclude": []
     },
     "suthana/in-lab": {
