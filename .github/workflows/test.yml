@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version-file: "labs/kemere/envs/.python-version"
+          python-version: "3.13"
 
       - name: Install test environment
         run: pip install "./labs/kemere/envs[test]"
@@ -45,7 +45,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version-file: "labs/inman/envs/.python-version"
+          python-version: "3.13"
 
       - name: Install test environment
         run: pip install "./labs/inman/envs[test]"
@@ -62,7 +62,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version-file: "labs/shepherd/envs/.python-version"
+          python-version: "3.13"
 
       - name: Install test environment
         run: pip install "./labs/shepherd/envs[test]"
@@ -79,7 +79,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version-file: "labs/suthana/in-lab/envs/.python-version"
+          python-version: "3.13"
 
       - name: Install test environment
         run: pip install "./labs/suthana/in-lab/envs[test]"
