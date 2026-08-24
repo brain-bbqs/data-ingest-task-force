@@ -102,11 +102,13 @@ table, unused counters were dropped, and event rows are sorted by time.
 
 ## The environment
 
-The Python environment is declared in `envs/pyproject.toml` and the interpreter
-is pinned in `envs/.python-version` (3.13). The converter's dependencies
-(numpy, pandas, h5py, pynwb, hdmf, neuroconv, PyYAML, tqdm) are all Python
-packages. There are no system-level dependencies: the raw `.mat` files are
-MATLAB v7.3, which is HDF5, so h5py reads them without a MATLAB runtime.
+The Python environment is declared in `envs/pyproject.toml`. The interpreter
+version (3.13) is pinned by `containers/suthana-in-lab.Dockerfile`'s base
+image and by the CI test job, not by a file in `envs/`. The converter's
+dependencies (numpy, pandas, h5py, pynwb, hdmf, neuroconv, PyYAML, tqdm) are
+all Python packages. There are no system-level dependencies: the raw `.mat`
+files are MATLAB v7.3, which is HDF5, so h5py reads them without a MATLAB
+runtime.
 
 The declaration is intentionally *not* pinned.
 `containers/suthana-in-lab.Dockerfile` resolves it fresh at build time and the

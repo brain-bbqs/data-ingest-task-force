@@ -28,8 +28,9 @@ repo root.)
 
 ## The environment
 
-The Python environment is declared in `envs/pyproject.toml` and the interpreter
-is pinned in `envs/.python-version` (3.13). The converter itself
+The Python environment is declared in `envs/pyproject.toml`. The interpreter
+version (3.13) is pinned by `containers/kemere.Dockerfile`'s base image and by
+the CI test job, not by a file in `envs/`. The converter itself
 (`code/convert_raw_to_bids.py`) needs one Python package, **tqdm**, for its
 session progress bar. Its other dependency is the external **FFmpeg** toolchain
 (`ffprobe`), a system package.

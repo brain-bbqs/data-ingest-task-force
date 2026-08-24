@@ -36,10 +36,11 @@ repo root.)
 
 ## The environment
 
-The Python environment is declared in `envs/pyproject.toml` and the
-interpreter is pinned in `envs/.python-version` (3.13). The converter's
-dependencies (pynwb, neuroconv, scipy, pymatreader, ntplib, PyYAML) are all
-Python packages. There are no system-level dependencies.
+The Python environment is declared in `envs/pyproject.toml`. The interpreter
+version (3.13) is pinned by `containers/inman.Dockerfile`'s base image and by
+the CI test job, not by a file in `envs/`. The converter's dependencies
+(pynwb, neuroconv, scipy, pymatreader, ntplib, PyYAML) are all Python
+packages. There are no system-level dependencies.
 
 The declaration is intentionally *not* pinned. `containers/inman.Dockerfile`
 resolves it fresh at build time and the resulting image (by digest) is the
