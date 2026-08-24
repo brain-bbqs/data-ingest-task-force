@@ -47,20 +47,17 @@
       "standardized_dandiset_id": "000529",
       "script_path": "labs/shepherd/code/shepherd_to_nwb.py",
       "dandi_instance": "ember-dandi",
+      "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/shepherd-r34da059723-ingest:latest",
       "convert_command": [
         "python3",
-        "{repo_root}/labs/shepherd/code/shepherd_to_nwb.py",
-        "--input_folder",
-        "{incoming_dir}/sourcedata/raw/sample-1",
-        "--subject",
-        "XYZ",
-        "--session",
-        "1",
+        "{repo_root}/labs/shepherd/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/shepherd/code/config.yaml",
-        "--out",
-        "{standardized_dir}/sub-XYZ/sub-XYZ_ses-1"
+        "{repo_root}/labs/shepherd/code/config.yaml"
       ]
     },
     {

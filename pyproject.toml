@@ -14,7 +14,8 @@ exclude = [
   "labs/inman/tests/example_raw",
   # Verbatim port of the original Shepherd conversion work, kept unformatted
   # and unlinted as original provenance (see labs/shepherd/README.md).
-  "labs/shepherd/code",
+  # batch_convert.py alongside it is new code and is linted normally.
+  "labs/shepherd/code/shepherd_to_nwb.py",
 ]
 
 [tool.ruff.lint]
