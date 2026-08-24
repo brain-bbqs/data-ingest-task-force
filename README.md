@@ -62,7 +62,7 @@ lab-scaffold and lab-register.
 - Project name: <only if this lab will contribute more than one data collection>
 - Incoming dandiset: <six-digit id or https://dandi.emberarchive.org/dandiset/... URL>
 - Standardized output dandiset: <six-digit id or URL>
-- Data standard: <NWB | BIDS (BEP047) | unsure, propose one>
+- Data standard: <NWB | BIDS (BEP047) | propose options for my decision>
 - Associated papers: <DOIs or links, or "none">
 - Source data tree: <verbatim `tree` output of one or more example sessions>
 - Metadata: <subject, session, device, and electrode details, or attach files>

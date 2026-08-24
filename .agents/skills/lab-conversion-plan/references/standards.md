@@ -6,6 +6,8 @@ Contents: decision guide, NWB targets, BIDS (BEP047) targets, DANDI requirements
 
 ## Decision guide
 
+The choice of standard belongs to the requester. Use this table to understand the implications of their choice, and to shape a recommendation for them to rule on when they left the choice open.
+
 | The data is mostly | Target | Precedent |
 | --- | --- | --- |
 | Neural recordings (iEEG, EEG, extracellular ephys), with or without behavior | NWB | `labs/inman/`, `labs/suthana/in-lab/` |

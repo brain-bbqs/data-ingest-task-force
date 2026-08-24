@@ -10,7 +10,7 @@ Instructions for AI coding agents working in this repository, whatever the tool 
 Setting up a new lab or project runs through four skills, in order:
 
 1. `lab-intake` normalizes the provided description (papers, source-data tree, metadata, target standard, dandiset ids, prior scripts) into a structured intake record, and starts the verbatim prompt record under `labs/<lab>/prompts/`.
-2. `lab-conversion-plan` chooses or confirms the data standard (NWB, or BIDS BEP047) and drafts the source-to-output mapping plus an example of how the expected output appears, for human sign-off.
+2. `lab-conversion-plan` pins down the requester's data-standard decision (NWB, or BIDS BEP047) and drafts the source-to-output mapping plus an example of how the expected output appears, for sign-off before any code is written. The requester owns the strategy. The plan exists so the scripts get written correctly.
 3. `lab-scaffold` builds the self-contained `labs/<lab>/` codebase following the established layout.
 4. `lab-register` wires the lab into the dispatch registries, CI, and the READMEs.
 

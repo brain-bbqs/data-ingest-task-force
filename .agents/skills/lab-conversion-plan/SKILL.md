@@ -1,21 +1,24 @@
 ---
 name: lab-conversion-plan
-description: Turn a completed lab intake into a reviewable conversion plan for a BRAIN-BBQS dataset. Chooses or confirms the target data standard (NWB, or BIDS BEP047 for raw behavioral audio and video), maps every source file to its standardized destination, and drafts an example of how the expected output appears. Use it after lab-intake for any new lab or project, and also standalone whenever someone asks which standard fits some data or what the standardized output of a conversion would look like. The plan needs human sign-off before lab-scaffold builds anything.
+description: Turn a completed lab intake into a reviewable conversion plan for a BRAIN-BBQS dataset, so the agent writing the conversion scripts implements the requester's decisions well. The requester owns the strategy, above all which data standard to target (NWB, or BIDS BEP047 for raw behavioral audio and video). This skill pins that decision down, maps every source file to its standardized destination, and drafts an example of how the expected output appears. Use it after lab-intake for any new lab or project, and also standalone when someone asks what the standardized output of a conversion would look like. The plan needs the requester's sign-off before lab-scaffold builds anything.
 ---
 
 # Lab conversion plan
 
 Produce the document a human signs off on before any scaffolding happens: which standard, how every source file maps into it, and what the output will look like. The kemere setup log (`labs/kemere/prompts/initial.md`) is the model for all three parts.
 
+The plan exists for the coding agent, not the requester. Its purpose is to make the eventual conversion scripts correct: every mapping row, identity rule, and metadata field written down here is one the code will not have to guess at. It is not a vehicle for the agent to steer strategy. The requester is the main specification for what the conversion should be, above all which standard it targets.
+
 Work from the intake record. If there is no intake yet, run the lab-intake skill first.
 
-## Step 1: Settle the standard
+## Step 1: Pin down the standard decision
 
-Read `references/standards.md` for how this repository uses NWB and BIDS, and for the decision guide.
+The target standard is the requester's decision. Treat the standard the intake names as the specification, and read `references/standards.md` to understand what implementing it entails.
 
-If the intake names a standard, verify the fit rather than assuming it. Raise a mismatch as a question for the requester, not a silent override. If no standard is named, propose one with a short justification.
+- Standard named in the intake: adopt it. If the data seems to fit it badly, raise that as a question alongside the plan. The requester's call stands.
+- No standard named: propose one as a recommendation, with a short justification grounded in the decision guide and the precedent labs, and mark it clearly as awaiting the requester's decision at sign-off. Do not build past the plan on an unconfirmed proposal.
 
-Settle the output granularity at the same time. One NWB file per session is the default. Precedented variations exist for good reasons: a raw plus processed pair per session (shepherd), one file per subject-walk (inman). Note which one applies and why.
+Pin down the output granularity the same way. One NWB file per session is the default. Precedented variations exist for good reasons: a raw plus processed pair per session (shepherd), one file per subject-walk (inman). Note which one applies and why, and flag it for sign-off when it is a real choice rather than a consequence of the data.
 
 ## Step 2: Map every source file
 
@@ -60,4 +63,4 @@ For NWB targets this list is the skeleton of the lab's future `code/config.yaml`
 
 ## Step 5: Get sign-off
 
-Assemble steps 1 through 4 into one plan and present it for review, open questions first. Do not run lab-scaffold until the requester approves. Quote the approval and any corrections into `labs/<lab>/prompts/initial.md` as further `## Request N` sections, so the record explains why the lab looks the way it does.
+Assemble steps 1 through 4 into one plan and present it for review, open questions first and any standard or granularity recommendation clearly marked as the requester's to decide. Do not run lab-scaffold until the requester approves. Quote the approval and any corrections into `labs/<lab>/prompts/initial.md` as further `## Request N` sections, so the record explains why the lab looks the way it does.
