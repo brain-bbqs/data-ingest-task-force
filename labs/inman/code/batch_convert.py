@@ -34,6 +34,7 @@ python3 -m labs.inman.code.batch_convert --input ember-incoming/000519 \\
 
 import argparse
 import concurrent.futures
+import multiprocessing
 import os
 import re
 import sys
@@ -154,8 +155,12 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
         print(f"Converting {len(pending)} walk file(s) across {worker_count} worker(s)", flush=True)
         # Each walk is an independent read-then-write of one .mat file, so
         # separate processes sidestep the GIL that would otherwise serialize
-        # the NWB assembly.
-        with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count) as executor:
+        # the NWB assembly. They are started with "spawn" rather than the
+        # Linux default: forking an interpreter that has already loaded the
+        # HDF5 stack copies its threads' locks into the child, where they can
+        # deadlock.
+        spawn_context = multiprocessing.get_context("spawn")
+        with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count, mp_context=spawn_context) as executor:
             futures = {}
             for mat_path, subject, walk, out_nwb in pending:
                 future = executor.submit(
