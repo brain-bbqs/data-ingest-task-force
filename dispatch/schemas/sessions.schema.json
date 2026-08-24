@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/brain-bbqs/data-ingest-task-force/dispatch/schemas/sessions.schema.json",
   "title": "dispatch session-discovery registry",
-  "description": "One entry per lab (keyed by the same 'lab' name used in projects.json), describing how to discover its session directories. See ../README.md for the full field reference.",
+  "description": "One entry per project, keyed by its projects.json key: the 'lab' name alone, or '<lab>/<project>' when that entry also sets 'project'. Describes how to discover the project's session directories. See ../README.md for the full field reference.",
   "type": "object",
   "required": ["labs"],
   "additionalProperties": false,
@@ -11,6 +11,7 @@
     "labs": {
       "type": "object",
       "minProperties": 1,
+      "propertyNames": { "pattern": "^[^/]+(/[^/]+)?$" },
       "additionalProperties": { "$ref": "#/$defs/sessionSpec" }
     }
   },

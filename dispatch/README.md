@@ -1,12 +1,12 @@
 # dispatch
 
 Cron entrypoint for the `ember-incoming` → `ember-standardized` ingest pipeline, invoked on a schedule by the self-hosted runner in [`data-ingest-runner`](https://github.com/CodyCBakerPhD/data-ingest-runner) (see that repo's `.github/workflows/cron_ingest.yml`).
-It is repo-level infra, not a lab — it doesn't do any conversion itself, it just drives each registered lab's own conversion script.
+It is repo-level infra, not a lab — it doesn't do any conversion itself, it just drives each registered project's own conversion script.
 
 ## What one run does, per registered project
 
 1. `dandi download` the project's incoming dandiset (from its `dandi_instance`, default `ember-dandi`) into `<ember-incoming>/<incoming_dandiset_id>/`. Runs inside `--dandi-image` (`docker pull` + `docker run`), not directly on the runner host.
-2. Discover its sessions (per `sessions.json`'s spec for the lab) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
+2. Discover its sessions (per `sessions.json`'s spec for the project) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
 3. If there are new sessions, **or** the conversion script's contents have changed since the manifest was last written (sha256, so any edit forces a full reprocess via `overwrite_flag`), run the lab's conversion command.
    If the project names a `container_image`, this step runs inside it (`docker pull` + `docker run`) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
 4. `dandi upload` the standardized directory, also inside `--dandi-image` — first fetching just that dandiset's `dandiset.yaml` (not a full download), since `dandi upload` needs one already on disk to know which dandiset it's uploading to, and one only lands there on its own when `standardized_dandiset_id` happens to equal `incoming_dandiset_id`. This step is skipped entirely when step 3 had nothing to do — upload's no-op check still re-checksums the whole local dandiset every pass (`DANDI_CACHE=ignore` disables the digest cache), a cost that grows with the dandiset. The tradeoff: if a run converts sessions but dies before its upload finishes, the next pass will not retry that upload on its own (the manifest already records the sessions). Recover by re-uploading manually, or by touching the conversion script so the hash change forces a reprocess + upload.
@@ -15,7 +15,8 @@ Every external tool dispatch drives runs in a container, not directly on the run
 
 Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
 
-Each lab needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
+Each project needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
+Most labs contribute a single project and are keyed by the lab name alone. A lab running several data collections names each one with the optional `project` field, and the pair keys it everywhere dispatch refers to it (`--only`, `sessions.json`, log lines): `suthana/in-lab`.
 
 ## Layout
 
@@ -25,8 +26,8 @@ dispatch/
   registry.py       Loads + validates projects.json
   sessions.py        Loads + validates sessions.json, discovers sessions on disk
   state.py           Per-project manifest (.ingest_state.json) read/write
-  projects.json      The project registry: dandiset ids + conversion command, one entry per lab
-  sessions.json       The session-discovery registry: one entry per lab
+  projects.json      The project registry: dandiset ids + conversion command, one entry per project
+  sessions.json       The session-discovery registry: one entry per project
   schemas/           JSON Schemas for both registry files (editor validation, see below)
   containers/        dandi.Dockerfile -- the portable dandi CLI runtime the
                        download/upload steps run inside (see container_images.yml)
@@ -35,13 +36,14 @@ dispatch/
 ```
 
 `sessions.json` is deliberately a separate file from `projects.json`.
-Session discovery doesn't reduce to a single glob in general — a lab may need several raw subtrees (multiple `include` patterns) or exclusions (stray non-session directories) — and that shape can evolve independently of a project's dandiset ids or conversion command.
+Session discovery doesn't reduce to a single glob in general — a project may need several raw subtrees (multiple `include` patterns) or exclusions (stray non-session directories) — and that shape can evolve independently of its dandiset ids or conversion command.
 
 ### `projects.json` fields
 
 | Field | Meaning |
 | --- | --- |
-| `lab` | Must match both the `labs/<lab>/` directory and its `sessions.json` key. |
+| `lab` | Must match the `labs/<lab>/` directory. Alone, it is also the project's `sessions.json` key and `--only` value; with `project` set, that key becomes `<lab>/<project>`. |
+| `project` | Optional project name, for a lab contributing more than one data collection (e.g. `in-lab`). Must match the `labs/<lab>/<project>/` directory. Omit for a lab with a single project. |
 | `incoming_dandiset_id` | Six-digit dandiset id on the ember archive holding the raw upload. |
 | `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere). |
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
@@ -53,7 +55,7 @@ Session discovery doesn't reduce to a single glob in general — a lab may need 
 
 ### `sessions.json` fields
 
-Keyed by lab name, under a top-level `"labs"` object. Each entry has:
+Keyed by project key, under a top-level `"labs"` object — the `lab` name alone, or `<lab>/<project>` when that `projects.json` entry also sets `project`. Each entry has:
 
 | Field | Meaning |
 | --- | --- |
@@ -81,11 +83,11 @@ python3 dispatch/dispatch.py --dry-run   # or drop --dry-run to actually run
 
 `--incoming-root`/`--standardized-root` default to `ember-incoming`/`ember-standardized` siblings of `--repo-root`, created as needed — no path required for the common case. Pass them explicitly to put the data somewhere else. Whatever is supplied or defaulted is always resolved to an absolute path before use (a relative one would reach `docker run -v` as a relative host path, which Docker rejects).
 
-Useful flags: `--only <lab>` (repeatable, restrict to specific projects), `--skip-download`, `--skip-upload`, `--dry-run` (log every action, touch nothing), `--repo-root` (defaults to this checkout), `--registry` (defaults to `dispatch/projects.json`), `--sessions` (defaults to `dispatch/sessions.json`), `--dandi-image` (defaults to `ghcr.io/brain-bbqs/dandi-cli:latest`, this repo's own `dispatch/containers/dandi.Dockerfile`).
+Useful flags: `--only <project key>` (repeatable, restrict to specific projects — a lab name, or `<lab>/<project>`), `--skip-download`, `--skip-upload`, `--dry-run` (log every action, touch nothing), `--repo-root` (defaults to this checkout), `--registry` (defaults to `dispatch/projects.json`), `--sessions` (defaults to `dispatch/sessions.json`), `--dandi-image` (defaults to `ghcr.io/brain-bbqs/dandi-cli:latest`, this repo's own `dispatch/containers/dandi.Dockerfile`).
 
 A run is safe to repeat: with nothing new and an unchanged conversion script, every project is a no-op — download refresh, then straight to the next project, no conversion and no upload.
 
-Projects are processed one at a time, but each lab's converter parallelizes over the sessions in its own dandiset (one worker per CPU by default) and prints a tqdm progress bar as they complete. To cap that, add `--jobs <n>` to the project's `convert_command` in `projects.json`.
+Projects are processed one at a time, but each project's converter parallelizes over the sessions in its own dandiset (one worker per CPU by default) and prints a tqdm progress bar as they complete. To cap that, add `--jobs <n>` to the project's `convert_command` in `projects.json`.
 
 ## Credentials
 
@@ -96,8 +98,8 @@ Projects are processed one at a time, but each lab's converter parallelizes over
 
 ## Adding a project
 
-1. Add an entry to `projects.json` (see the field reference above). If the lab publishes a container image (see its own `containers/<lab>.Dockerfile` and `.github/workflows/container_images.yml`), set `container_image` to it so the conversion step doesn't need its runtime dependencies installed directly on the runner host.
-2. Add a matching entry (same `lab` key) to `sessions.json` describing how to discover its sessions.
+1. Add an entry to `projects.json` (see the field reference above). Set `project` if the lab already has, or will have, more than one. If the project publishes a container image (see its own `containers/<name>.Dockerfile` and `.github/workflows/container_images.yml`), set `container_image` to it so the conversion step doesn't need its runtime dependencies installed directly on the runner host.
+2. Add a matching entry (same project key) to `sessions.json` describing how to discover its sessions.
 3. Make sure `convert_command` uses `{repo_root}` / `{incoming_dir}` / `{standardized_dir}` to reach the right paths.
 4. If reprocessing on a script change should pass a flag (like Kemere's `--overwrite`), set `overwrite_flag`; otherwise the script's own default behavior on already-existing output applies.
 
@@ -109,7 +111,13 @@ Note: Shepherd's registration (incoming `000528`, standardized `000529`) is **no
 `labs/shepherd/code/shepherd_to_nwb.py` is a verbatim port of the original conversion work and converts one session per invocation, taking `--subject` and `--session` on the command line, so it cannot process a whole incoming dandiset the way Kemere's and Inman's commands do.
 The committed command names a single `sourcedata/raw/sample-1` session with placeholder subject and session values, mirroring how Inman was first registered before `batch_convert.py` existed.
 Before enabling this project on the runner it needs a batch driver (see `labs/inman/code/batch_convert.py` for the shape of one), real metadata in `labs/shepherd/code/config.yaml`, and the converter's known rough edges fixed — all listed in `labs/shepherd/README.md`.
-Until then, restrict runner runs with `--only kemere --only inman`, or leave `000528` empty so session discovery finds nothing and the conversion step is skipped.
+Until then, restrict runner runs with `--only kemere --only inman --only suthana/in-lab`, or leave `000528` empty so session discovery finds nothing and the conversion step is skipped.
+
+Note: Suthana's registration (incoming `000530`, standardized `000531`) is this repository's first entry to name a `project` (`in-lab`), so its key is `suthana/in-lab` rather than a bare lab name.
+It runs `labs/suthana/in-lab/code/batch_convert.py`, which converts every `.mat` file found under the incoming dandiset in one invocation (skipping subjects whose output NWB already exists, unless dispatch appends `--overwrite`).
+Its `script_path` deliberately stays pointed at `_suthana_in_lab_to_nwb.py`, since that is where the conversion logic that determines output content lives.
+An empty incoming dandiset is fine: the batch driver reports that it found no `.mat` files and exits 0, so the first pass converts nothing and succeeds rather than failing the run.
+The institution in `labs/suthana/in-lab/code/config.yaml` is still marked PROVISIONAL (the original conversion says Duke University, while the lab is at UCLA). Confirm it with the lab before treating the standardized output as final.
 
 ## Tests
 

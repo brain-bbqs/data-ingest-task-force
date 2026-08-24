@@ -62,3 +62,15 @@ def test_discover_sessions_applies_exclude_by_relative_path(tmp_path):
 
     spec = SessionSpec(include=["raw/*"], exclude=["raw/tmp-*"])
     assert [p.name for p in discover_sessions(tmp_path, spec)] == ["ses-1"]
+
+
+def test_load_session_specs_accepts_a_lab_slash_project_key(tmp_path):
+    path = tmp_path / "sessions.json"
+    path.write_text(json.dumps({"labs": {"test-lab/in-lab": {"include": ["raw/*"]}}}))
+    specs = load_session_specs(path)
+    assert specs["test-lab/in-lab"].include == ["raw/*"]
+
+
+def test_load_session_specs_reads_the_committed_suthana_in_lab_entry():
+    specs = load_session_specs(Path(__file__).resolve().parents[1] / "sessions.json")
+    assert specs["suthana/in-lab"].include == ["sourcedata/raw/*"]

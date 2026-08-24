@@ -74,11 +74,12 @@ correct.
 
 ## The environment
 
-The Python environment is declared in `envs/pyproject.toml` and the interpreter
-is pinned in `envs/.python-version` (3.13). Most dependencies are Python packages
-(numpy, pynwb, hdmf, neuroconv with its `deeplabcut` extra, opencv, natsort,
-PyYAML). The one system-level dependency is FFmpeg, whose `ffprobe` the converter
-shells out to for video duration and frame count.
+The Python environment is declared in `envs/pyproject.toml`. The interpreter
+version (3.13) is pinned by `containers/shepherd.Dockerfile`'s base image and
+by the CI test job, not by a file in `envs/`. Most dependencies are Python
+packages (numpy, pynwb, hdmf, neuroconv with its `deeplabcut` extra, opencv,
+natsort, PyYAML). The one system-level dependency is FFmpeg, whose `ffprobe`
+the converter shells out to for video duration and frame count.
 
 The declaration is intentionally *not* pinned. `containers/shepherd.Dockerfile`
 resolves it fresh at build time and the resulting image (by digest) is the

@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""Batch driver for the Suthana in-lab .mat-to-NWB conversion.
+
+Discovers every aligned ``.mat`` file under an incoming directory tree (one
+per subject) and runs ``_suthana_in_lab_to_nwb.convert_subject`` on each,
+writing the results into the standardized output tree described in
+``code/README.md``::
+
+    <output>/
+      sub-<paper id>/
+        sub-<paper id>_ses-inlab_behavior+ecephys.nwb
+
+The de-identified paper id (S1..S5) comes from the config entry for the
+subject id stored inside the ``.mat`` file, not from its filename, so a
+renamed upload still lands in the right place.
+
+Each subject's segment start times come from a companion
+``Trajectories_runtimes.csv``. The one beside the ``.mat`` file wins; failing
+that, the single copy found anywhere under the incoming tree is used.
+
+Outputs that already exist are skipped unless ``--overwrite`` is given.
+Dispatch (``dispatch/projects.json``) relies on this. It re-runs this script
+whenever new sessions appear in the incoming dandiset, and appends
+``--overwrite`` when the core conversion script has changed.
+
+Subjects are converted in parallel, one worker process per CPU by default
+(``--jobs`` overrides that), with a tqdm bar tracking completions.
+
+A failed subject does not stop the batch. The remaining subjects are still
+converted and the exit code reports whether any failed.
+
+Example CLI usage (from the repository root)
+--------------------------------------------
+python3 labs/suthana/in-lab/code/batch_convert.py \\
+    --input ember-incoming/000530 --output ember-standardized/000531 \\
+    --config labs/suthana/in-lab/code/config.yaml
+"""
+
+import argparse
+import concurrent.futures
+import multiprocessing
+import os
+import sys
+import traceback
+from pathlib import Path
+
+import h5py
+import tqdm
+
+# The usual relative import of the sibling module is not available here: the
+# project directory is "in-lab", and a hyphen cannot appear in a Python
+# package name, so labs/suthana/in-lab/code/ is not an importable package
+# path. Putting this file's own directory on sys.path imports the sibling by
+# name instead. It runs again in every "spawn" worker, which re-imports this
+# module, so the pool sees the same path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _suthana_in_lab_to_nwb import (  # noqa: E402
+    RUNTIMES_FILENAME,
+    convert_subject,
+    load_cfg,
+    read_subject_id,
+)
+
+SESSION_LABEL = "inlab"
+
+
+def find_runtimes(*, mat_path, incoming_dir):
+    """The segment start times CSV that applies to *mat_path*.
+
+    Prefers a copy beside the ``.mat`` file, then falls back to one found
+    anywhere under the incoming tree.
+    """
+    beside = mat_path.parent / RUNTIMES_FILENAME
+    if beside.is_file():
+        return beside
+    candidates = sorted(incoming_dir.rglob(RUNTIMES_FILENAME))
+    if not candidates:
+        raise FileNotFoundError(f"no {RUNTIMES_FILENAME} found beside {mat_path} or under {incoming_dir}")
+    return candidates[0]
+
+
+def paper_id_for(*, mat_path, cfg):
+    """The de-identified subject label the .mat file's own Subject_ID maps to."""
+    with h5py.File(mat_path, "r") as mat_file:
+        subject_id = read_subject_id(mat_file)
+    if subject_id not in cfg["subjects"]:
+        raise ValueError(f"{mat_path} names subject {subject_id!r}, which config.yaml does not describe")
+    paper_id = cfg["subjects"][subject_id]["paper_id"]
+    return paper_id
+
+
+def output_path(*, standardized_dir, paper_id):
+    # DANDI layout keeps assets directly under sub-<paper_id>/ (a ses-
+    # subfolder fails dandi validation with NON_DANDI_FOLDERNAME).
+    nwb_path = standardized_dir / f"sub-{paper_id}" / f"sub-{paper_id}_ses-{SESSION_LABEL}_behavior+ecephys.nwb"
+    return nwb_path
+
+
+def discover_subjects(incoming_dir, /):
+    """Every aligned ``.mat`` file under *incoming_dir*, in a stable order."""
+    mat_paths = sorted(incoming_dir.rglob("*.mat"))
+    return mat_paths
+
+
+def resolve_worker_count(*, requested, task_count):
+    """How many worker processes to run *task_count* conversions across.
+
+    ``requested`` of ``None`` means one worker per CPU. The count is always
+    capped at the number of tasks, so a single subject never spawns a pool
+    of idle workers.
+    """
+    available = requested if requested is not None else os.cpu_count() or 1
+    worker_count = max(1, min(available, task_count))
+    return worker_count
+
+
+def convert_one(*, mat_path, runtimes_path, out_nwb, config_path):
+    # The config is re-read per worker rather than passed in: "spawn" workers
+    # pickle their arguments, and re-reading a small YAML file costs less
+    # than shipping the parsed structure to every process.
+    convert_subject(
+        mat_path=mat_path,
+        runtimes_path=runtimes_path,
+        out_nwb=out_nwb,
+        cfg=load_cfg(config_path),
+    )
+
+
+def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False, max_workers=None):
+    cfg = load_cfg(config_path)
+    mat_paths = discover_subjects(incoming_dir)
+    if not mat_paths:
+        print(f"No .mat files found under {incoming_dir}")
+        return 0
+
+    skipped = 0
+    failed = []
+    pending = []
+    for mat_path in mat_paths:
+        try:
+            paper_id = paper_id_for(mat_path=mat_path, cfg=cfg)
+            runtimes_path = find_runtimes(mat_path=mat_path, incoming_dir=incoming_dir)
+        except Exception as error:
+            print(f"FAILED: {mat_path}: {error}", file=sys.stderr, flush=True)
+            failed.append(mat_path)
+            continue
+        out_nwb = output_path(standardized_dir=standardized_dir, paper_id=paper_id)
+        if out_nwb.is_file() and not overwrite:
+            print(f"Exists, skipping (use --overwrite): {out_nwb}", flush=True)
+            skipped += 1
+            continue
+        pending.append((mat_path, runtimes_path, paper_id, out_nwb))
+
+    converted = 0
+    if pending:
+        worker_count = resolve_worker_count(requested=max_workers, task_count=len(pending))
+        print(f"Converting {len(pending)} subject file(s) across {worker_count} worker(s)", flush=True)
+        # Each subject is an independent read-then-write of one .mat file, so
+        # separate processes sidestep the GIL that would otherwise serialize
+        # the NWB assembly. They are started with "spawn" rather than the
+        # Linux default: forking an interpreter that has already loaded the
+        # HDF5 stack copies its threads' locks into the child, where they can
+        # deadlock.
+        spawn_context = multiprocessing.get_context("spawn")
+        with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count, mp_context=spawn_context) as executor:
+            futures = {}
+            for mat_path, runtimes_path, paper_id, out_nwb in pending:
+                future = executor.submit(
+                    convert_one,
+                    mat_path=mat_path,
+                    runtimes_path=runtimes_path,
+                    out_nwb=out_nwb,
+                    config_path=config_path,
+                )
+                futures[future] = (mat_path, paper_id, out_nwb)
+            completed = concurrent.futures.as_completed(futures)
+            for future in tqdm.tqdm(completed, total=len(futures), desc="Converting subjects", unit="subject"):
+                mat_path, paper_id, out_nwb = futures[future]
+                try:
+                    future.result()
+                except Exception as error:
+                    traceback.print_exception(error)
+                    print(f"FAILED: {mat_path}: {error}", file=sys.stderr, flush=True)
+                    failed.append(mat_path)
+                    continue
+                converted += 1
+                tqdm.tqdm.write(f"Converted {mat_path} (subject {paper_id}) -> {out_nwb}")
+
+    print(
+        f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(mat_paths)} subject file(s)",
+        flush=True,
+    )
+    exit_code = 1 if failed else 0
+    return exit_code
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Convert every Suthana in-lab .mat file under a directory to NWB")
+    parser.add_argument("--input", required=True, type=Path, help="Incoming directory holding the aligned .mat files")
+    parser.add_argument("--output", required=True, type=Path, help="Standardized output directory for NWB files")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path(__file__).parent / "config.yaml",
+        help="YAML config (default: config.yaml next to this script)",
+    )
+    parser.add_argument("--overwrite", action="store_true", help="Reconvert subjects whose output NWB already exists")
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="Worker processes to convert across (default: one per CPU)",
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    exit_code = convert_batch(
+        incoming_dir=args.input,
+        standardized_dir=args.output,
+        config_path=args.config,
+        overwrite=args.overwrite,
+        max_workers=args.jobs,
+    )
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

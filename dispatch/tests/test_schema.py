@@ -63,3 +63,32 @@ def test_sessions_schema_rejects_unknown_property():
     bad = {"labs": {"test-lab": {"include": ["raw/*"], "typo_field": True}}}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(instance=bad, schema=schema)
+
+
+def test_projects_schema_accepts_a_project_name():
+    schema = load("schemas/projects.schema.json")
+    good = load("projects.json")
+    good["projects"][0]["project"] = "in-lab"
+    jsonschema.validate(instance=good, schema=schema)
+
+
+@pytest.mark.parametrize("bad_project", ["", "in/lab"])
+def test_projects_schema_rejects_a_malformed_project_name(bad_project):
+    schema = load("schemas/projects.schema.json")
+    bad = load("projects.json")
+    bad["projects"][0]["project"] = bad_project
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=bad, schema=schema)
+
+
+def test_sessions_schema_accepts_a_lab_slash_project_key():
+    schema = load("schemas/sessions.schema.json")
+    good = {"labs": {"suthana/in-lab": {"include": ["sourcedata/raw/*"]}}}
+    jsonschema.validate(instance=good, schema=schema)
+
+
+def test_sessions_schema_rejects_a_key_with_too_many_segments():
+    schema = load("schemas/sessions.schema.json")
+    bad = {"labs": {"suthana/in-lab/extra": {"include": ["sourcedata/raw/*"]}}}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=bad, schema=schema)
