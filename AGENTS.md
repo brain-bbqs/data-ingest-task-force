@@ -7,11 +7,12 @@ Instructions for AI coding agents working in this repository, whatever the tool 
 
 ## The new-conversion skills
 
-Setting up a new lab or project runs through four skills, in order:
+Setting up a new lab or project runs through these skills, in order:
 
 1. `lab-intake` normalizes the provided description (papers, source-data tree, metadata, target standard, dandiset ids, prior scripts) into a structured intake record, and starts the verbatim prompt record under `labs/<lab>/prompts/`.
 2. `lab-conversion-plan` pins down the requester's data-standard decision (NWB, or BIDS BEP047) and drafts the source-to-output mapping plus an example of how the expected output appears, for sign-off before any code is written. The requester owns the strategy. The plan exists so the scripts get written correctly.
 3. `lab-scaffold` builds the self-contained `labs/<lab>/` codebase following the established layout.
 4. `lab-register` wires the lab into the dispatch registries, CI, and the READMEs.
+5. `lab-lessons` closes the loop: what the conversion taught gets generalized back into these skills, with strategy-level changes marked for the requester's sign-off. The skill set is expected to improve with every conversion.
 
 The top-level `README.md` section "Starting a new conversion" holds the default prompt developers use to kick this off.

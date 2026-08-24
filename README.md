@@ -47,7 +47,7 @@ See "Starting a new conversion" below to have an AI agent do all of this from a 
 
 ## Starting a new conversion
 
-Agent skills for the whole workflow live in `.agents/skills/` (portable [Agent Skills](https://agentskills.io) format; Codex discovers them there natively, and `.claude/skills` symlinks to the same files for Claude Code; see `AGENTS.md`). They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI.
+Agent skills for the whole workflow live in `.agents/skills/` (portable [Agent Skills](https://agentskills.io) format; Codex discovers them there natively, and `.claude/skills` symlinks to the same files for Claude Code; see `AGENTS.md`). They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI. The set is meant to improve with use: the closing lab-lessons skill folds what each conversion taught back into the skills themselves.
 
 To start one, give your agent the default prompt below, filled in:
 
@@ -55,7 +55,8 @@ To start one, give your agent the default prompt below, filled in:
 Please set up a new conversion for the <lab> lab, working through the
 new-conversion skills in .agents/skills/ in order: lab-intake, then
 lab-conversion-plan, then stop for my review of the plan before running
-lab-scaffold and lab-register.
+lab-scaffold and lab-register. Finish with lab-lessons, encoding anything
+this conversion taught back into the skills.
 
 - Lab / PI: <PI name, institution>
 - Grant award number: <e.g. R34DA059514>

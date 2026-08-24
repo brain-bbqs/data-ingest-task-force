@@ -60,3 +60,5 @@ python3 dispatch/dispatch.py --dry-run --only <project key>
 ```
 
 The dispatch tests validate both registry files against their JSON Schemas. The dry run proves the new entry loads, templates its command, and touches nothing. Then run `pre-commit` on everything changed, and hand the branch back with the readiness state stated plainly.
+
+Before handing back, run the lab-lessons skill. If this conversion taught anything the skills should know, this is when it gets encoded.

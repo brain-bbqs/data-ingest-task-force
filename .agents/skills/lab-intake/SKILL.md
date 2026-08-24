@@ -5,7 +5,7 @@ description: Normalize a new BRAIN-BBQS lab or project description into a struct
 
 # Lab intake
 
-Turn a free-form description of a new lab's data into a structured intake record, record the request verbatim, and surface what is still missing. This is the first of the four new-conversion skills. The chain is lab-intake, then lab-conversion-plan, then lab-scaffold, then lab-register.
+Turn a free-form description of a new lab's data into a structured intake record, record the request verbatim, and surface what is still missing. This is the first of the new-conversion skills. The chain is lab-intake, then lab-conversion-plan, then lab-scaffold, then lab-register, with lab-lessons feeding what the conversion taught back into the skills at the end.
 
 Nothing in this skill converts data or writes conversion code. Its products are the started `prompts/` record, the filled intake record, and an honest list of open questions.
 
