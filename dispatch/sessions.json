@@ -12,6 +12,10 @@
     "shepherd": {
       "include": ["sourcedata/raw/*"],
       "exclude": []
+    },
+    "suthana/in-lab": {
+      "include": ["sourcedata/raw/*"],
+      "exclude": []
     }
   }
 }

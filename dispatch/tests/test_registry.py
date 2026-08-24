@@ -154,3 +154,11 @@ def test_malformed_project_raises(tmp_path, bad_project):
     with pytest.raises(RegistryError, match="project"):
         load_registry(path)
 
+
+def test_load_registry_reads_the_committed_suthana_in_lab_project():
+    projects = load_registry(Path(__file__).resolve().parents[1] / "projects.json")
+    suthana = next(p for p in projects if p.key == "suthana/in-lab")
+    assert suthana.lab == "suthana"
+    assert suthana.project == "in-lab"
+    assert suthana.incoming_dandiset_id == "000530"
+    assert suthana.standardized_dandiset_id == "000531"

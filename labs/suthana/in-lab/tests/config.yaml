@@ -1,0 +1,179 @@
+# Filled-in metadata the integration test converts with.
+#
+# A copy of code/config.yaml with the provisional values replaced by concrete
+# ones and the scalp montage cut to the 63 mock channel labels the fixture
+# writes, so the test asserts on values it fully controls.
+
+session:
+  description: 'In lab data'
+  experimenter:
+    - 'Seeber, Martin'
+  lab: 'Suthana Lab'
+  institution: 'Test Institution'
+  experiment_description: >-
+    The ability to form episodic memories and later imagine them is integral to the human experience,
+    influencing our recollection of the past and envisioning of the future. While rodent studies suggest
+    the medial temporal lobe, especially the hippocampus, is involved in these functions, its role in
+    human imagination remains uncertain. In human participants, imaginations can be explicitly instructed
+    and reported. Here we investigate hippocampal theta oscillations during real-world and imagined
+    navigation using motion capture and intracranial electroencephalographic recordings from individuals
+    with chronically implanted medial temporal lobe electrodes. Our results revealed intermittent theta
+    dynamics, particularly within the hippocampus, encoding spatial information and partitioning
+    navigational routes into linear segments during real-world navigation. During imagined navigation,
+    theta dynamics exhibited similar patterns despite the absence of external cues. A statistical model
+    successfully reconstructed real-world and imagined positions, providing insights into the neural
+    mechanisms underlying human navigation and imagination, with implications for understanding memory
+    in real-world settings. Each subject's file has different non-contiguous segments that make up a
+    single experiment.
+  keywords:
+    - 'human spatial navigation'
+    - 'imagined navigation'
+    - 'ieeg'
+    - 'scalp EEG'
+    - 'medial temporal lobe'
+    - 'hippocampus'
+  related_publications:
+    - 'https://doi.org/10.1038/s41562-025-02119-3'
+
+# Segment start times in Trajectories_runtimes.csv are wall-clock local times
+# with no zone attached. This is the zone they are read in.
+timezone: 'America/Los_Angeles'
+
+# Recorded dates are shifted by a random-looking offset so a session start
+# time cannot be traced back to a real clinical recording date. Unlike the
+# original script, the offset is derived deterministically from the subject
+# id and `seed`, so re-running the conversion reproduces the same timestamps
+# rather than inventing new ones on every pass. Relative timing within a
+# subject is untouched: every segment of a subject shifts by the same amount.
+#
+# Changing `seed` re-shifts every subject. Set `enabled: false` to write the
+# real recording times.
+deidentification:
+  enabled: true
+  seed: 'integration-test'
+  max_day_offset: 365
+  max_second_offset: 43200
+
+# One entry per raw subject id, as stored in the .mat file's Subject_ID.
+# `paper_id` is the de-identified label used for the NWB subject and the
+# sub-<id>/ output folder.
+#
+# `ieeg_channels` are the bipolar medial temporal lobe channels, in order, as
+# the localization table of the paper reports them. An empty entry means that
+# subject has no channel at that position; it still occupies a row in the
+# electrode table so channel indices line up with the recorded data.
+subjects:
+  R056:
+    paper_id: 'S1'
+    age: 'P36Y'
+    sex: 'M'
+    ieeg_channels: ['Left HP/HP', 'Left HP/Sub', 'Right HP/HP', 'Right HP/Sub']
+  R095:
+    paper_id: 'S2'
+    age: 'P45Y'
+    sex: 'M'
+    ieeg_channels: ['Left HP/PRC', 'Left PRC/PHC', 'Right PHC/Fs', '']
+  R133:
+    paper_id: 'S3'
+    age: 'P24Y'
+    sex: 'F'
+    ieeg_channels: ['Left HP/PRC', '', 'Right HP/PRC', 'Right PRC/PHC']
+  R106:
+    paper_id: 'S4'
+    age: 'P39Y'
+    sex: 'M'
+    ieeg_channels: ['Left Amy/HP', 'Left HP/HP', 'Right Tp/PRC', 'Right PRC/HP']
+  R124:
+    paper_id: 'S5'
+    age: 'P30Y'
+    sex: 'F'
+    ieeg_channels: ['Left HP/HP', 'Left HP/HP', 'Right HP/HP', 'Right HP/PHC']
+
+subject:
+  species: 'Homo sapiens'
+
+device_ieeg:
+  name: 'iEEG array'
+  description: >-
+    every participant had two depth electrode leads, each comprising four electrode contacts spaced at
+    intervals of 10 mm. We selected specific contacts in each individual on the basis of their location
+    in the MTL to record from up to four bipolar channels in each participant. The localization of each
+    of the two contacts forming a bipolar channel (chan 1 and 2) is specified for various MTL regions,
+    including the hippocampus (HP), perirhinal cortex (PRC), parahippocampal cortex (PHC), subiculum
+    (Sub), Fusiform gyrus (Fs), temporal pole (Tp) and amygdala (Amy)
+  manufacturer: 'Neuropace'
+  model_number: '320'
+  model_name: 'RNS System'
+
+device_scalp_eeg:
+  name: 'scalp EEG array'
+  description: 'A 63-channel array'
+  manufacturer: 'ANT Neuro'
+  model_name: 'eego sports system'
+
+electrode_group_ieeg:
+  name: 'iEEG_group'
+  description: 'electrode group for iEEG array'
+  location: 'Medial temporal lobe'
+
+electrode_group_scalp_eeg:
+  name: 'sEEG electrode group'
+  description: 'electrode group for scalp EEG array'
+  location: 'Scalp'
+
+# The 63-channel montage, in acquisition order. Row i of the scalp EEG data
+# is this list's entry i.
+scalp_eeg_channels: ['ch00', 'ch01', 'ch02', 'ch03', 'ch04', 'ch05', 'ch06', 'ch07', 'ch08', 'ch09', 'ch10', 'ch11', 'ch12', 'ch13', 'ch14', 'ch15', 'ch16', 'ch17', 'ch18', 'ch19', 'ch20', 'ch21', 'ch22', 'ch23', 'ch24', 'ch25', 'ch26', 'ch27', 'ch28', 'ch29', 'ch30', 'ch31', 'ch32', 'ch33', 'ch34', 'ch35', 'ch36', 'ch37', 'ch38', 'ch39', 'ch40', 'ch41', 'ch42', 'ch43', 'ch44', 'ch45', 'ch46', 'ch47', 'ch48', 'ch49', 'ch50', 'ch51', 'ch52', 'ch53', 'ch54', 'ch55', 'ch56', 'ch57', 'ch58', 'ch59', 'ch60', 'ch61', 'ch62']
+
+behavior:
+  gaze:
+    description: 'The position of the gaze measured in pixels.'
+    reference_frame: 'world camera resolution is 1088 x 1080 pixels'
+    unit: 'pixels'
+  head_rotation:
+    reference_frame: 'straight ahead'
+    unit: 'radians'
+  position:
+    reference_frame: '(0,0) is bottom left corner'
+    unit: 'meters'
+  beep_events:
+    description: >-
+      The object (first, second, or third) the participant was closest to when a beep was played. This is
+      related to the button_events table, which holds the response of the participant to the beep event.
+      During the third walking segment of each left or right route (following the second turn), an
+      auditory cue was introduced through a wireless loudspeaker after random delays. The participants
+      were then instructed to determine which object they were closest to by pressing the appropriate
+      left, middle or right button on a wireless handheld mouse, corresponding to the first, second or
+      third object on their route.
+  button_events:
+    description: >-
+      Response of the participant to the beep event during the learning phase of the navigation task. The
+      participants were tasked with traversing two routes within an indoor room (measuring 14.6 x 13.5
+      square meters), each route featuring four turns. Initially, these route shapes were displayed on a
+      tablet screen, and precise tracking of participants' walking patterns was achieved through motion
+      capture technology. At the beginning of each recording, participants learned to walk along these
+      patterns without any visible cues indicating the route's shapes or the positions of the turns.
+      After each walking trial, feedback was provided by overlaying their real movement trajectories onto
+      the prescribed ideal routes displayed on a tablet interface, allowing them to improve their
+      behaviour in the next trial. This initial learning phase included six life-size paper cut-out
+      objects (three per route) positioned along the path. During the third walking segment of each left
+      or right route (following the second turn), an auditory cue was introduced through a wireless
+      loudspeaker after random delays. The participants were then instructed to determine which object
+      they were closest to by pressing the appropriate left, middle or right button on a wireless
+      handheld mouse, corresponding to the first, second or third object on their route. A second
+      auditory cue signalled the accuracy of their response after the button press. This learning phase
+      concluded once participants demonstrated consistent proficiency in navigating these routes.
+
+ecephys:
+  ieeg:
+    # Stored samples are microvolts; NWB requires volts, so the conversion
+    # factor is applied rather than rescaling the data itself.
+    conversion: 1.0e-6
+  scalp_eeg:
+    conversion: 1.0e-6
+
+# gzip level applied to every dataset in the written file (1 fastest, 9
+# smallest).
+compression:
+  method: 'gzip'
+  level: 4

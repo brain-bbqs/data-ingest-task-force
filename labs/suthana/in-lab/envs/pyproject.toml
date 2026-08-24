@@ -1,0 +1,47 @@
+# Loose, declarative environment for the Suthana in-lab navigation to NWB
+# conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/suthana-in-lab.Dockerfile resolves it
+# fresh at build time and the resulting image (by digest) is the
+# reproducibility lock, so there is no lockfile in the repository to keep in
+# sync.
+#
+# There are no system-level dependencies. The raw .mat files are MATLAB v7.3,
+# which is HDF5, so h5py reads them directly without a MATLAB runtime.
+
+[project]
+name = "suthana-in-lab-r61mh135106-ingest"
+version = "0.1.0"
+description = "Convert Suthana-lab in-lab navigation recordings (iEEG, scalp EEG, motion capture) into NWB files."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  # The raw files are MATLAB v7.3 (HDF5), read directly rather than through
+  # a .mat-specific reader, because the conversion has to follow the object
+  # references MATLAB uses to store cell arrays.
+  "h5py",
+  "PyYAML",
+  "hdmf",
+  "pynwb",
+  "neuroconv",
+  # Progress bar for the batch driver.
+  "tqdm",
+]
+
+[project.optional-dependencies]
+# The converter's own dependencies double as the test runtime. The test extra
+# only adds the runner itself.
+test = [
+  "pytest>=7",
+]
+
+# The package carries no importable modules; installing it only realises the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

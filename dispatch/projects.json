@@ -62,6 +62,26 @@
         "--out",
         "{standardized_dir}/sub-XYZ/sub-XYZ_ses-1"
       ]
+    },
+    {
+      "lab": "suthana",
+      "project": "in-lab",
+      "incoming_dandiset_id": "000530",
+      "standardized_dandiset_id": "000531",
+      "script_path": "labs/suthana/in-lab/code/_suthana_in_lab_to_nwb.py",
+      "dandi_instance": "ember-dandi",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/suthana-in-lab-r61mh135106-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/suthana/in-lab/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/suthana/in-lab/code/config.yaml"
+      ]
     }
   ]
 }
