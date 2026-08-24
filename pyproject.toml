@@ -27,5 +27,5 @@ relative-imports-order = "closest-to-furthest"
 
 [tool.pytest.ini_options]
 markers = [
-  "ai_generated: test authored (fully or mostly) by an AI coding agent, see CLAUDE.md",
+  "ai_generated: test authored (fully or mostly) by an AI coding agent, see AGENTS.md",
 ]

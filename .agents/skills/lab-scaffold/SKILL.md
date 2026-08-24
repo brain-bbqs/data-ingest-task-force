@@ -33,7 +33,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 
 ## Repository conventions that apply here
 
-- Everything in the repo `CLAUDE.md`: keyword-only arguments, import style, sparse comments, assertion order, the `ai_generated` pytest marker, `pytest.mark.parametrize` where it reduces duplication.
+- Everything in the repo `AGENTS.md`: keyword-only arguments, import style, sparse comments, assertion order, the `ai_generated` pytest marker, `pytest.mark.parametrize` where it reduces duplication.
 - Run `pre-commit run --files <new files>` and the lab's pytest suite before handing off. Formatting is black + ruff at line length 120, configured at the repo root.
 - Committed fixtures that must stay byte-exact get excluded from the formatters in `.pre-commit-config.yaml` and from ruff in the root `pyproject.toml`. Follow the existing exclusion patterns in both files.
 - Unconfirmed metadata stays visibly `PROVISIONAL` in `config.yaml` and gets a "replace before treating output as final" note in the lab README.

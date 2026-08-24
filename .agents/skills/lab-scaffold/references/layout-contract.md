@@ -30,7 +30,7 @@ When the driver imports the core module with a relative import, dispatch invokes
 
 `dispatch/dispatch.py` runs the conversion per project on a schedule. The driver must behave so that repeated runs are safe:
 
-- Accept `--input <incoming dandiset dir>`, `--output <standardized dir>`, and `--config <path>` (NWB labs), or equivalent explicit flags. Dispatch fills them via `{incoming_dir}`, `{standardized_dir}`, `{repo_root}` placeholders. Favor one-word flag names, mapped onto longer keyword arguments at the API level (repo `CLAUDE.md`).
+- Accept `--input <incoming dandiset dir>`, `--output <standardized dir>`, and `--config <path>` (NWB labs), or equivalent explicit flags. Dispatch fills them via `{incoming_dir}`, `{standardized_dir}`, `{repo_root}` placeholders. Favor one-word flag names, mapped onto longer keyword arguments at the API level (repo `AGENTS.md`).
 - Skip work whose output already exists, unless `--overwrite` is passed. Dispatch appends the project's `overwrite_flag` automatically when the hashed `script_path` changes, which is how a code edit forces a full reprocess.
 - Exit 0 on an empty incoming dandiset, reporting that nothing was found. New projects are registered before real data arrives (suthana precedent), and the first cron pass must succeed, not fail.
 - Report, do not swallow: print what was discovered, converted, skipped, and ignored. tqdm progress bars over sessions are the house pattern.
@@ -86,7 +86,7 @@ Golden-file pattern (kemere is the fullest example):
 - Deterministic stand-ins for system tools the sandbox may lack (kemere ships a PyAV-backed `ffprobe` shim).
 - For a verbatim port whose rough edges block a real end-to-end run, fall back to shepherd's pattern: an environment smoke test (imports resolve, required binaries on PATH, CLI parses) plus unit tests of the new driver with the ported entry point stubbed. State in the lab README why there is no integration test yet.
 
-Repo `CLAUDE.md` applies: mark AI-authored tests with the `ai_generated` marker and parametrize where it reduces duplication. Fixture directories that formatters would mangle get excluded in `.pre-commit-config.yaml` and the root `pyproject.toml`.
+Repo `AGENTS.md` applies: mark AI-authored tests with the `ai_generated` marker and parametrize where it reduces duplication. Fixture directories that formatters would mangle get excluded in `.pre-commit-config.yaml` and the root `pyproject.toml`.
 
 ## `prompts/`
 
