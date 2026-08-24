@@ -28,6 +28,9 @@ dispatch/               Cron entrypoint driving all labs' conversions
 docs/                   Repository documentation (CI, see docs/README.md)
 pyproject.toml          Repository-wide tooling (ruff)
 .github/workflows/      CI: container build/test/publish + daily dev-env tests
+.claude/skills/         Agent skills for setting up a new conversion
+                         (portable SKILL.md format, see AGENTS.md)
+AGENTS.md               Entry point for AI coding agents, whatever the tool
 ```
 
 ## Adding a lab
@@ -38,3 +41,32 @@ Give the Dockerfile a lab-specific name, and register the image in `.github/work
 A lab contributing more than one distinct data collection nests one self-contained directory per project instead, as `labs/suthana/in-lab/` does.
 Everything above applies unchanged one level down, and the project's dispatch entry names both parts (`"lab": "suthana"`, `"project": "in-lab"`), which keys it `suthana/in-lab` in `dispatch/sessions.json` and in `dispatch.py --only`.
 Labs with a single project stay flat. See `dispatch/README.md` for the field reference.
+
+See "Starting a new conversion" below to have an AI agent do all of this from a description of the lab's data.
+
+## Starting a new conversion
+
+Agent skills for the whole workflow live in `.claude/skills/` (portable [Agent Skills](https://agentskills.io) format, usable from Claude Code, Codex, and other tools; see `AGENTS.md`). They cover intake, choosing the data standard, drafting the expected output, scaffolding the lab codebase, and registration in dispatch and CI.
+
+To start one, give your agent the default prompt below, filled in:
+
+```text
+Please set up a new conversion for the <lab> lab, working through the
+new-conversion skills in .claude/skills/ in order: lab-intake, then
+lab-conversion-plan, then stop for my review of the plan before running
+lab-scaffold and lab-register.
+
+- Lab / PI: <PI name, institution>
+- Grant award number: <e.g. R34DA059514>
+- Project name: <only if this lab will contribute more than one data collection>
+- Incoming dandiset: <six-digit id or https://dandi.emberarchive.org/dandiset/... URL>
+- Standardized output dandiset: <six-digit id or URL>
+- Data standard: <NWB | BIDS (BEP047) | unsure, propose one>
+- Associated papers: <DOIs or links, or "none">
+- Source data tree: <verbatim `tree` output of one or more example sessions>
+- Metadata: <subject, session, device, and electrode details, or attach files>
+- Expected output example: <attach or describe, or "draft one for my review">
+- Prior conversion code: <attach scripts + original author names for credit, or "none">
+```
+
+Fields you cannot fill yet are fine to leave as "unknown". The intake skill asks about anything that blocks planning and carries the rest forward as `PROVISIONAL`.
