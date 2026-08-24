@@ -30,8 +30,9 @@ repo root.)
 
 The Python environment is declared in `envs/pyproject.toml` and the interpreter
 is pinned in `envs/.python-version` (3.13). The converter itself
-(`code/convert_raw_to_bids.py`) is **standard-library only** — its one real
-dependency is the external **FFmpeg** toolchain (`ffprobe`), a system package.
+(`code/convert_raw_to_bids.py`) needs one Python package, **tqdm**, for its
+session progress bar. Its other dependency is the external **FFmpeg** toolchain
+(`ffprobe`), a system package.
 
 The declaration is intentionally *not* pinned. `containers/kemere.Dockerfile`
 resolves it fresh at build time and the resulting image (by digest) is the
@@ -70,9 +71,13 @@ Requires Python ≥ 3.10 and FFmpeg on `PATH` (`brew install ffmpeg` /
 `apt install ffmpeg`).
 
 ```bash
+pip install "./envs"
 python3 code/convert_raw_to_bids.py \
     --raw-dir sourcedata/raw --bids-dir sourcedata/rawbids --species "Ovis aries"
 ```
+
+Sessions are converted in parallel, one worker thread per CPU by default, and
+`--jobs` sets that count explicitly. A tqdm bar reports completions.
 
 For iterating on the environment outside the container, `uv` is a convenient
 option: `uv run --with-requirements envs/pyproject.toml ...`.

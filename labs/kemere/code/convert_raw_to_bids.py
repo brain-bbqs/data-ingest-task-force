@@ -30,8 +30,13 @@ and is converted to::
             sub-multi_ses-<label>_acq-<label>_recording-<camera>_image.png (+ .json)
 
 Media metadata for the JSON sidecars is obtained with ``ffprobe`` (part of
-FFmpeg). Only ``ffprobe`` is required at runtime; no Python packages beyond the
-standard library are used.
+FFmpeg). ``ffprobe`` and ``tqdm`` (progress reporting) are the only runtime
+requirements.
+
+Sessions are converted in parallel, one worker thread per CPU by default
+(``--jobs`` overrides that), with a tqdm bar tracking completions. The work is
+dominated by ``ffprobe`` calls and file copies, so threads keep the pipe full
+without the cost of separate processes.
 
 References
 ----------
@@ -45,14 +50,19 @@ from __future__ import annotations
 
 import argparse
 import ast
+import concurrent.futures
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import tqdm
 
 __version__ = "0.1.0"
 
@@ -604,6 +614,18 @@ def write_text(path: Path, text: str, dry_run: bool) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def resolve_worker_count(*, requested: int | None, task_count: int) -> int:
+    """How many worker threads to spread *task_count* sessions across.
+
+    ``requested`` of ``None`` means one worker per CPU. The count is always
+    capped at the number of tasks, so a single session never spawns a pool of
+    idle workers.
+    """
+    available = requested if requested is not None else os.cpu_count() or 1
+    worker_count = max(1, min(available, task_count))
+    return worker_count
+
+
 @dataclass
 class Converter:
     raw_dir: Path
@@ -620,6 +642,7 @@ class Converter:
     overwrite: bool = False
     dry_run: bool = False
     verbose: bool = False
+    max_workers: int | None = None
 
     warnings: list[str] = field(default_factory=list)
     scans: dict[str, list[tuple[str, str]]] = field(default_factory=dict)
@@ -628,14 +651,20 @@ class Converter:
     # Filename-uniqueness sets keyed by session label, so distinct raw folders
     # that resolve to the same session label cannot clobber one another.
     _used_by_label: dict[str, set] = field(default_factory=dict)
+    # Guards the aggregates above, which worker threads share.
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     # -- logging ----------------------------------------------------------- #
     def log(self, message: str) -> None:
-        print(message)
+        tqdm.tqdm.write(message)
 
     def vlog(self, message: str) -> None:
         if self.verbose:
-            print(message)
+            tqdm.tqdm.write(message)
+
+    def record_warnings(self, messages, /) -> None:
+        with self._lock:
+            self.warnings.extend(messages)
 
     # -- ffprobe (with skip-metadata escape hatch) ------------------------- #
     def probe(self, path: Path) -> dict | None:
@@ -646,6 +675,19 @@ class Converter:
     # -- discovery --------------------------------------------------------- #
     def session_dirs(self) -> list[Path]:
         return sorted(p for p in self.raw_dir.iterdir() if p.is_dir())
+
+    def session_groups(self) -> list[list[Path]]:
+        """Session directories bucketed by the session label they resolve to.
+
+        Distinct raw folders can collapse onto one label, and those share a
+        filename-uniqueness set and a scans table. Keeping them together in a
+        single group means one worker handles them in order, so parallel
+        conversion cannot reorder the disambiguating ``acq`` entities.
+        """
+        groups: dict[str, list[Path]] = {}
+        for session_dir in self.session_dirs():
+            groups.setdefault(derive_session_label(session_dir.name).label, []).append(session_dir)
+        return list(groups.values())
 
     def media_files(self, session_dir: Path) -> list[Path]:
         files = []
@@ -658,12 +700,17 @@ class Converter:
         return files
 
     # -- per-file conversion ---------------------------------------------- #
-    def convert_session(self, session_dir: Path) -> None:
+    def convert_session_group(self, session_dirs, /) -> None:
+        for session_dir in session_dirs:
+            self.convert_session(session_dir)
+
+    def convert_session(self, session_dir: Path, /) -> None:
         info = derive_session_label(session_dir.name)
         ses_label = info.label
         beh_dir = self.bids_dir / f"sub-{self.subject}" / f"ses-{ses_label}" / DATATYPE
-        self.scans.setdefault(ses_label, [])
-        used_stems = self._used_by_label.setdefault(ses_label, set())
+        with self._lock:
+            self.scans.setdefault(ses_label, [])
+            used_stems = self._used_by_label.setdefault(ses_label, set())
 
         self.log(f"Session {session_dir.name!r} -> ses-{ses_label}")
 
@@ -684,7 +731,8 @@ class Converter:
             if path.is_file() and path.suffix.lower() not in (
                 VIDEO_EXTENSIONS | IMAGE_EXTENSIONS | AUDIO_EXTENSIONS | {".settings"}
             ):
-                self.skipped_files.append(path)
+                with self._lock:
+                    self.skipped_files.append(path)
 
     def _unique_stem(self, entities: dict, suffix: str, used: set[str], disambiguator: str) -> str:
         """Build a filename stem that is unique within the session.
@@ -724,13 +772,15 @@ class Converter:
 
         settings_block = self._settings_for(media_path)
         if probe is not None:
+            media_warnings: list[str] = []
             result = build_media_sidecar(
                 probe,
                 device_position=device_position,
                 device_override=self.device,
-                warnings=self.warnings,
+                warnings=media_warnings,
                 media_path=media_path,
             )
+            self.record_warnings(media_warnings)
             suffix, sidecar = result.suffix, result.sidecar
             acq_time = format_creation_time(probe)
         else:
@@ -813,17 +863,18 @@ class Converter:
         dst = beh_dir / f"{stem}{ext}"
         json_dst = beh_dir / f"{stem}.json"
         if dst.exists() and not self.overwrite:
-            self.warnings.append(f"exists, skipped (use --overwrite): {dst}")
+            self.record_warnings([f"exists, skipped (use --overwrite): {dst}"])
             return
         place_file(src, dst, self.link_mode, self.dry_run)
         write_json(json_dst, sidecar, self.dry_run)
-        self.converted += 1
         self.vlog(f"  {src.relative_to(self.raw_dir)}  ->  {dst.relative_to(self.bids_dir)}")
 
         # scans entry: participant-relative path (includes ses-<label>/).
         rel = dst.relative_to(self.bids_dir / f"sub-{self.subject}").as_posix()
         when = acq_time or (f"{info.iso_date}T00:00:00" if info.iso_date else "n/a")
-        self.scans[info.label].append((rel, when))
+        with self._lock:
+            self.converted += 1
+            self.scans[info.label].append((rel, when))
 
     # -- dataset-level files ---------------------------------------------- #
     def write_dataset_files(self) -> None:
@@ -901,13 +952,19 @@ class Converter:
         if not self.raw_dir.is_dir():
             self.log(f"ERROR: raw directory not found: {self.raw_dir}")
             return 2
-        sessions = self.session_dirs()
-        if not sessions:
+        groups = self.session_groups()
+        if not groups:
             self.log(f"ERROR: no session directories under {self.raw_dir}")
             return 2
 
-        for session_dir in sessions:
-            self.convert_session(session_dir)
+        worker_count = resolve_worker_count(requested=self.max_workers, task_count=len(groups))
+        session_count = sum(len(group) for group in groups)
+        self.log(f"Converting {session_count} session(s) across {worker_count} worker(s)")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = [executor.submit(self.convert_session_group, group) for group in groups]
+            completed = concurrent.futures.as_completed(futures)
+            for future in tqdm.tqdm(completed, total=len(futures), desc="Converting sessions", unit="session"):
+                future.result()
 
         self.write_dataset_files()
         self.write_scans()
@@ -918,11 +975,13 @@ class Converter:
             self.log(
                 f"Ignored {len(self.skipped_files)} non-media file(s) " f"(e.g. notes.txt, *.srt, *.pv, *.results)."
             )
-            for path in self.skipped_files:
+            # Sorted, not in completion order, so the summary reads the same
+            # however the workers interleaved.
+            for path in sorted(self.skipped_files):
                 self.vlog(f"  ignored: {path.relative_to(self.raw_dir)}")
         if self.warnings:
             self.log(f"{len(self.warnings)} warning(s):")
-            for warning in self.warnings:
+            for warning in sorted(self.warnings):
                 self.log(f"  - {warning}")
         if self.dry_run:
             self.log("(dry run: no files were written)")
@@ -979,6 +1038,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Author for dataset_description.json (repeatable).",
     )
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output files.")
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="Sessions to convert in parallel (default: one per CPU, capped at the number of sessions).",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Report actions without writing anything.")
     parser.add_argument("--verbose", "-v", action="store_true", help="Print per-file mapping details.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -1002,6 +1067,7 @@ def main(argv: list[str] | None = None) -> int:
         overwrite=args.overwrite,
         dry_run=args.dry_run,
         verbose=args.verbose,
+        max_workers=args.jobs,
     )
     try:
         return converter.run()

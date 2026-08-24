@@ -5,7 +5,8 @@ Discovery and identity parsing are covered as pure unit tests. The batch
 run itself is exercised end-to-end on a mock incoming tree built from the
 committed fixture (``tests/example_raw/``), mirroring the current layout of
 the incoming dandiset (one session folder, e.g. ``sample-1/``, holding one
-``.mat`` file).
+``.mat`` file). Copies of that fixture under several folder names stand in
+for the multi-walk trees the parallel conversion needs.
 
 Run with::
 
@@ -139,6 +140,59 @@ def test_convert_batch_removes_legacy_nested_output(sample_incoming, tmp_path):
     assert not legacy_nwb.exists()
     assert not legacy_dir.exists()
     assert (standardized / "sub-3" / "sub-3_ses-walk1_behavior+ecephys.nwb").is_file()
+
+
+@pytest.mark.parametrize(
+    ("requested", "task_count", "expected_workers"),
+    [
+        (None, 1, 1),
+        (4, 2, 2),
+        (2, 8, 2),
+        (0, 8, 1),
+        (-1, 8, 1),
+    ],
+)
+def test_resolve_worker_count(requested, task_count, expected_workers):
+    worker_count = batch_convert.resolve_worker_count(requested=requested, task_count=task_count)
+    assert worker_count == expected_workers
+
+
+def test_convert_batch_parallel_over_walks(tmp_path):
+    incoming = tmp_path / "incoming"
+    walks = [(3, 1), (3, 2), (4, 1)]
+    for subject, walk in walks:
+        session_dir = incoming / f"sample-{subject}-{walk}"
+        session_dir.mkdir(parents=True)
+        shutil.copy2(EXAMPLE_MAT, session_dir / f"RWNApp_RW{subject}_Walk{walk}_restructured.mat")
+
+    standardized = tmp_path / "standardized"
+    exit_code = batch_convert.convert_batch(
+        incoming_dir=incoming, standardized_dir=standardized, config_path=CONFIG, max_workers=3
+    )
+    assert exit_code == 0
+
+    for subject, walk in walks:
+        out_nwb = batch_convert.output_path(standardized_dir=standardized, subject=str(subject), walk=walk)
+        assert out_nwb.is_file()
+        with pynwb.NWBHDF5IO(out_nwb, "r") as io:
+            assert io.read().identifier == f"InmanWalk-Subject{subject}-Walk{walk}"
+
+
+def test_convert_batch_parallel_reports_a_failed_walk(sample_incoming, tmp_path, capsys):
+    bad_dir = sample_incoming / "sample-2"
+    bad_dir.mkdir()
+    (bad_dir / "RWNApp_RW9_Walk9_restructured.mat").write_bytes(b"not a mat file")
+
+    standardized = tmp_path / "standardized"
+    exit_code = batch_convert.convert_batch(
+        incoming_dir=sample_incoming, standardized_dir=standardized, config_path=CONFIG, max_workers=2
+    )
+    assert exit_code == 1
+
+    # The healthy walk still converts: one worker's failure does not cancel it.
+    assert (standardized / "sub-3" / "sub-3_ses-walk1_behavior+ecephys.nwb").is_file()
+    captured = capsys.readouterr()
+    assert "FAILED" in captured.err
 
 
 def test_convert_batch_empty_input(tmp_path, capsys):

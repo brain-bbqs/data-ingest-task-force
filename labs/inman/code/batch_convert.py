@@ -20,6 +20,9 @@ Dispatch (``dispatch/projects.json``) relies on this. It re-runs this script
 whenever new sessions appear in the incoming dandiset, and appends
 ``--overwrite`` when the core conversion script has changed.
 
+Walk files are converted in parallel, one worker process per CPU by
+default (``--jobs`` overrides that), with a tqdm bar tracking completions.
+
 A failed file does not stop the batch. The remaining files are still
 converted and the exit code reports whether any failed.
 
@@ -30,12 +33,15 @@ python3 -m labs.inman.code.batch_convert --input ember-incoming/000519 \\
 """
 
 import argparse
+import concurrent.futures
+import os
 import re
 import sys
 import traceback
 from pathlib import Path
 
 import pymatreader
+import tqdm
 
 from ._inman_to_nwb import READ_KEYS, REQUIRED_KEYS, build_nwb, load_cfg
 
@@ -111,16 +117,27 @@ def convert_walk(*, mat_path, subject, walk, out_nwb, cfg):
     build_nwb(data=data, subject_name=subject, session=walk, out_nwb=out_nwb, cfg=cfg)
 
 
-def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False):
+def resolve_worker_count(*, requested, task_count):
+    """How many worker processes to run *task_count* conversions across.
+
+    ``requested`` of ``None`` means one worker per CPU. The count is always
+    capped at the number of tasks, so a single walk never spawns a pool of
+    idle workers.
+    """
+    available = requested if requested is not None else os.cpu_count() or 1
+    worker_count = max(1, min(available, task_count))
+    return worker_count
+
+
+def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False, max_workers=None):
     cfg = load_cfg(config_path)
     walks = discover_walks(incoming_dir)
     if not walks:
         print(f"No .mat files found under {incoming_dir}")
         return 0
 
-    converted = 0
     skipped = 0
-    failed = []
+    pending = []
     for mat_path, subject, walk in walks:
         remove_legacy_output(standardized_dir=standardized_dir, subject=subject, walk=walk)
         out_nwb = output_path(standardized_dir=standardized_dir, subject=subject, walk=walk)
@@ -128,15 +145,35 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
             print(f"Exists, skipping (use --overwrite): {out_nwb}", flush=True)
             skipped += 1
             continue
-        print(f"Converting {mat_path} (subject {subject}, walk {walk}) -> {out_nwb}", flush=True)
-        try:
-            convert_walk(mat_path=mat_path, subject=subject, walk=walk, out_nwb=out_nwb, cfg=cfg)
-        except Exception as error:
-            traceback.print_exc()
-            print(f"FAILED: {mat_path}: {error}", file=sys.stderr, flush=True)
-            failed.append(mat_path)
-            continue
-        converted += 1
+        pending.append((mat_path, subject, walk, out_nwb))
+
+    converted = 0
+    failed = []
+    if pending:
+        worker_count = resolve_worker_count(requested=max_workers, task_count=len(pending))
+        print(f"Converting {len(pending)} walk file(s) across {worker_count} worker(s)", flush=True)
+        # Each walk is an independent read-then-write of one .mat file, so
+        # separate processes sidestep the GIL that would otherwise serialize
+        # the NWB assembly.
+        with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count) as executor:
+            futures = {}
+            for mat_path, subject, walk, out_nwb in pending:
+                future = executor.submit(
+                    convert_walk, mat_path=mat_path, subject=subject, walk=walk, out_nwb=out_nwb, cfg=cfg
+                )
+                futures[future] = (mat_path, subject, walk, out_nwb)
+            completed = concurrent.futures.as_completed(futures)
+            for future in tqdm.tqdm(completed, total=len(futures), desc="Converting walks", unit="walk"):
+                mat_path, subject, walk, out_nwb = futures[future]
+                try:
+                    future.result()
+                except Exception as error:
+                    traceback.print_exception(error)
+                    print(f"FAILED: {mat_path}: {error}", file=sys.stderr, flush=True)
+                    failed.append(mat_path)
+                    continue
+                converted += 1
+                tqdm.tqdm.write(f"Converted {mat_path} (subject {subject}, walk {walk}) -> {out_nwb}")
 
     print(f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(walks)} walk file(s)", flush=True)
     exit_code = 1 if failed else 0
@@ -154,6 +191,12 @@ def parse_args():
         help="YAML config (default: config.yaml next to this script)",
     )
     parser.add_argument("--overwrite", action="store_true", help="Reconvert walks whose output NWB already exists")
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="Walk files to convert in parallel (default: one per CPU, capped at the number of walks)",
+    )
     arguments = parser.parse_args()
     return arguments
 
@@ -165,6 +208,7 @@ def main():
         standardized_dir=args.output,
         config_path=args.config,
         overwrite=args.overwrite,
+        max_workers=args.jobs,
     )
     return exit_code
 

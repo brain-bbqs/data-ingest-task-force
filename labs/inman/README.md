@@ -91,7 +91,9 @@ the filename (e.g. `RWNApp_RW3_Walk1_restructured.mat` is subject 3, walk 1,
 with a folder-name fallback for files that don't match), and writes
 `sub-<subject>/sub-<subject>_ses-walk<N>_behavior+ecephys.nwb` under
 `--output` (assets sit directly under `sub-<subject>/`, per DANDI layout). Walks whose output already exists are skipped unless
-`--overwrite` is passed. This is the entry point dispatch runs (see
+`--overwrite` is passed. Walks are converted in parallel, one worker process
+per CPU by default, and `--jobs` sets that count explicitly. A tqdm bar
+reports completions. This is the entry point dispatch runs (see
 `dispatch/projects.json` and the Inman note in `dispatch/README.md`):
 
 ```bash
