@@ -47,7 +47,7 @@ See "Starting a new conversion" below to have an AI agent do all of this from a 
 
 ## Starting a new conversion
 
-Agent skills for the whole workflow live in `.agents/skills/`. They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI. The set is meant to improve with use: the closing lab-lessons skill folds what each conversion taught back into the skills themselves.
+Agent skills for the whole workflow live in `.agents/skills/`. They cover intake, planning the conversion against the data standard you pick, scaffolding the lab codebase, and registration in dispatch and CI. The set is meant to improve with use: the closing lab-lessons skill folds what each conversion taught back into the skills themselves. External NWB know-how comes from the [catalystneuro/claude-skills](https://github.com/catalystneuro/claude-skills) submodule. After cloning, run `git submodule update --init` to populate it, with `--remote` to fetch the latest instead of the committed pin (see `AGENTS.md`).
 
 To start one, give your agent the default prompt below, filled in:
 

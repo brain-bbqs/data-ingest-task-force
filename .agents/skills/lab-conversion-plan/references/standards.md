@@ -32,6 +32,7 @@ Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, i
 - A stream suffix like `behavior+ecephys` in the filename describes the modalities inside (inman precedent).
 - Metadata comes from the lab's `code/config.yaml`. The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) documents the field requirements. `labs/inman/code/config.yaml` is the house pattern, including `PROVISIONAL` markers on unconfirmed values.
 - Common containers: `TimeSeries` under `acquisition` for raw streams, `ElectricalSeries` with device / electrode-group / electrode-table plumbing for neural channels, `ImageSeries` for video, pose via the `ndx-pose` extension or neuroconv's DLC interface, and `processing/behavior` modules for derived signals.
+- Deeper NWB know-how lives in the vendored `nwb-convert` skill (`.agents/skills/nwb-convert`, a symlink into the `catalystneuro/claude-skills` submodule). Refresh it first (`git submodule update --init --remote`), and consult its knowledge files for interface selection, synchronization, and metadata detail. Where its workflow differs from this repository's layout, the lab skills win (see the external-skills section of `AGENTS.md`).
 
 ## BIDS (BEP047) targets
 

@@ -27,6 +27,9 @@ Route these elsewhere instead of accumulating them:
 | Registration or operational state | The notes in `dispatch/README.md` |
 | Narrative of what happened and why | The lab's `prompts/` log, verbatim |
 | Already documented in a canonical repo file | A pointer to that file, not a copy |
+| General NWB conversion know-how, nothing BBQS-specific | Upstream `catalystneuro/claude-skills` (PR there), then bump the submodule pin here |
+
+Bumping the `.agents/vendor/claude-skills` submodule pin to a newer upstream that proved useful is itself a closing-out step. Commit the bump on its own so the review shows it.
 
 ## How to edit
 

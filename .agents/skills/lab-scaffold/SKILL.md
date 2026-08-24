@@ -25,7 +25,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 ## Build order
 
 1. `code/config.yaml` from the plan's metadata skeleton, every unconfirmed value marked `PROVISIONAL`.
-2. The core converter, implementing the plan's mapping and identity rules exactly. Out-of-scope files are reported, not silently skipped.
+2. The core converter, implementing the plan's mapping and identity rules exactly. Out-of-scope files are reported, not silently skipped. For NWB converters, first refresh and read the vendored `nwb-convert` skill (`.agents/skills/nwb-convert`, see the external-skills section of `AGENTS.md`) for NeuroConv and PyNWB practice. Its repo-generation workflow does not apply here, the layout contract does.
 3. The batch driver that dispatch will run (skip it only if the core converter already processes a whole incoming dandiset in one invocation, as kemere's does).
 4. `envs/pyproject.toml`, then the Dockerfile that resolves it.
 5. Tests with committed `example_raw/` and `expected_output/` fixtures, plus `generate_fixtures.py`.

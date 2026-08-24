@@ -16,3 +16,10 @@ Setting up a new lab or project runs through these skills, in order:
 5. `lab-lessons` closes the loop: what the conversion taught gets generalized back into these skills, with strategy-level changes marked for the requester's sign-off. The skill set is expected to improve with every conversion.
 
 The top-level `README.md` section "Starting a new conversion" holds the default prompt developers use to kick this off.
+
+## External skills
+
+- `.agents/vendor/claude-skills` is a git submodule of [catalystneuro/claude-skills](https://github.com/catalystneuro/claude-skills), tracking `main` (shallow). Only its `nwb-convert` skill is exposed to discovery, via the `.agents/skills/nwb-convert` symlink. It carries deep NWB conversion know-how (NeuroConv and PyNWB usage, data inspection, synchronization, metadata phases).
+- A fresh clone starts with the submodule empty. Initialize it with `git submodule update --init`, or fetch the latest upstream `main` with `git submodule update --init --remote`. Refresh before relying on nwb-convert, since the committed pin is only where it was last bumped.
+- Refreshing with `--remote` changes the recorded pin in the working tree. Commit that bump deliberately, on its own or as part of closing out a conversion, not as a stowaway in an unrelated commit.
+- External skills are guidance, not authority. Where nwb-convert's instructions differ from this repository's conventions (for example, it builds standalone pip-installable repos, while conversions here live in `labs/<lab>/`), this file and the lab skills win.
