@@ -64,6 +64,9 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Install test environment
         run: pip install "./labs/shepherd/envs[test]"
 
