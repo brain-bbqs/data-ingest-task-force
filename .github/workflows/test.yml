@@ -1,14 +1,16 @@
 name: Python dev environment tests
 
 # Installs each suite's loose environment with pip directly on the runner and
-# runs the tests there. This exercises the uncontainerized developer setup
-# only. The PR gate is container_images.yml, which runs these same suites
-# inside a fresh build of each image before it can publish.
+# runs the tests there. This exercises the uncontainerized developer setup.
+# container_images.yml runs these same suites inside a fresh build of each
+# image before it can publish, but only for images whose paths a PR touches,
+# so this workflow is what gates the dev-environment setup itself on every PR.
 
 permissions:
   contents: read
 
 on:
+  pull_request:
   workflow_dispatch:
   # Callable so the scheduled run (daily_tests.yml) exercises exactly this
   # suite rather than a drifting copy of it.
@@ -63,6 +65,9 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Install test environment
         run: pip install "./labs/shepherd/envs[test]"
