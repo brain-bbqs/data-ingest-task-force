@@ -75,7 +75,9 @@ def warn_if_refresh_cannot_skip(directory: Path, /) -> bool:
     if error_seconds is None:
         return True
     if error_seconds <= DANDI_REFRESH_TOLERANCE_SECONDS:
-        log.debug("%s preserves sub-second mtimes (error %.1e s), refresh can skip unchanged assets", directory, error_seconds)
+        log.debug(
+            "%s preserves sub-second mtimes (error %.1e s), refresh can skip unchanged assets", directory, error_seconds
+        )
         return True
     log.warning(
         "%s loses %.6f s of mtime precision, more than the %.0e s `dandi download -e refresh` allows; "
