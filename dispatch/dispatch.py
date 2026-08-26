@@ -2,6 +2,10 @@
 """Cron entrypoint that drives one pass of the ingest pipeline for every
 registered project (see projects.json):
 
+  0. ``dandi ls`` the incoming dandiset over the API (metadata only, no
+     content) and fingerprint the asset listing. If it matches the one the
+     manifest recorded and the conversion script is unchanged, nothing
+     upstream can be new, so the pass stops here without downloading.
   1. ``dandi download`` the incoming dandiset into ``<incoming-root>/<id>``.
   2. Diff its sessions (dispatch/sessions.json's spec for the project)
      against the project's manifest to find sessions that haven't been
@@ -18,9 +22,16 @@ registered project (see projects.json):
      had nothing to do -- upload's no-op check still re-checksums the whole
      local dandiset every pass (DANDI_CACHE=ignore), which is not free.
 
+Step 0 matters more than it looks. ``dandi download -e refresh`` only skips
+an asset already on disk when the local mtime matches the archive's record
+to within a microsecond, which no filesystem that truncates mtimes can
+manage -- there, every pass re-downloads the whole dandiset before step 2
+gets to say there was nothing to do. See fsprobe.py, which reports whether
+--incoming-root is such a filesystem.
+
 Every external tool this script drives -- dandi and each lab's own
 conversion script -- runs inside a container, not directly on the runner
-host: steps 1 and 4 run in --dandi-image (default: this repo's published
+host: steps 0, 1 and 4 run in --dandi-image (default: this repo's published
 dandi-cli image), and step 3 runs in the project's own container_image.
 The runner host itself only needs `python3` (to run this orchestrator)
 and `docker` (to run everything it drives).
@@ -53,6 +64,8 @@ script names (`docker login ghcr.io`).
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import logging
 import os
 import subprocess
@@ -60,6 +73,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from fsprobe import warn_if_refresh_cannot_skip
 from registry import Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
 from state import IngestState, hash_file
@@ -90,6 +104,15 @@ def run(cmd: list[str], *, cwd: Path | None = None, dry_run: bool) -> None:
         return
     log.info("running: %s%s", printable, f"  (cwd={cwd})" if cwd else "")
     subprocess.run(cmd, cwd=cwd, check=True)
+
+
+def run_captured(cmd: list[str], /) -> str:
+    """Run cmd and return its stdout. Unlike run(), this is only ever used for
+    read-only queries, so it has no dry-run branch: a dry run still wants the
+    answer, it just must not act on it."""
+    log.info("running: %s", " ".join(cmd))
+    completed = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    return completed.stdout
 
 
 def docker_run_prefix(
@@ -132,6 +155,80 @@ def docker_run_prefix(
 # compute digest: ... func_code.py"). Disabling it costs nothing here and
 # sidesteps that race, so every dandi invocation sets DANDI_CACHE=ignore.
 DANDI_CACHE_ENV = {"DANDI_CACHE": "ignore"}
+
+
+def remote_listing_fingerprint_from_output(stdout: str, /) -> str | None:
+    """sha256 of the asset records in ``dandi ls --format json_lines`` output.
+
+    Only (path, size, modified, asset_id) go into the digest, so a dandi-cli
+    upgrade that adds an unrelated field to the listing does not invalidate
+    every project's manifest at once. Assets are sorted first, since the API
+    makes no ordering promise and a reshuffle is not a change.
+
+    Returns None if a line could not be parsed, which the caller must treat as
+    "unknown", never as "unchanged".
+    """
+    assets = []
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            return None
+        # The listing leads with a dandiset-level record, which carries no
+        # asset_id. Only per-asset records say whether there is new data.
+        if isinstance(record, dict) and "asset_id" in record:
+            assets.append(
+                (
+                    str(record.get("path", "")),
+                    str(record.get("size", "")),
+                    str(record.get("modified", "")),
+                    str(record["asset_id"]),
+                )
+            )
+
+    digest = hashlib.sha256()
+    for asset in sorted(assets):
+        digest.update("\0".join(asset).encode() + b"\n")
+    fingerprint = digest.hexdigest()
+    return fingerprint
+
+
+def remote_listing_fingerprint(project: Project, *, dandi_image: str) -> str | None:
+    """Fingerprint the incoming dandiset's asset listing, fetched over the API
+    without downloading any content.
+
+    An unchanged fingerprint proves no asset was added, removed, resized, or
+    replaced upstream, which is exactly the precondition for a pass having
+    nothing to do.
+
+    Returns None if the listing could not be fetched or parsed. That is
+    deliberately not an error: the caller then falls back to downloading and
+    diffing on disk, which is slower but never wrong.
+    """
+    url = f"dandi://{project.dandi_instance}/{project.incoming_dandiset_id}"
+    cmd = docker_run_prefix(
+        image=dandi_image,
+        mounts={},
+        forward_env=(dandi_api_key_env_var(project.dandi_instance),),
+        literal_env=DANDI_CACHE_ENV,
+    ) + ["dandi", "ls", "--recursive", "--format", "json_lines", url]
+    try:
+        stdout = run_captured(cmd)
+    except (subprocess.CalledProcessError, OSError) as error:
+        # OSError covers docker being absent outright, which must degrade to a
+        # normal download rather than take the whole project down with it.
+        log.warning("[%s] could not list %s (%s); falling back to a full download", project.key, url, error)
+        return None
+
+    fingerprint = remote_listing_fingerprint_from_output(stdout)
+    if fingerprint is None:
+        log.warning("[%s] unparsable `dandi ls` output; falling back to a full download", project.key)
+        return None
+    log.info("[%s] incoming listing fingerprint %s", project.key, fingerprint[:12])
+    return fingerprint
 
 
 def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
@@ -262,11 +359,6 @@ def process_project(
     standardized_dir = standardized_root / project.standardized_dandiset_id
     log.info("=== %s: %s -> %s ===", project.key, project.incoming_dandiset_id, project.standardized_dandiset_id)
 
-    if not skip_download:
-        dandi_download(project, incoming_dir, dandi_image=dandi_image, dry_run=dry_run)
-    else:
-        log.info("[%s] --skip-download set, using existing local copy", project.key)
-
     state = IngestState.load(standardized_dir)
 
     script_path = project.script_abspath(repo_root)
@@ -274,6 +366,28 @@ def process_project(
     if current_script_hash is None:
         log.warning("[%s] conversion script not found at %s, cannot hash it", project.key, script_path)
     script_changed = current_script_hash is not None and current_script_hash != state.script_sha256
+
+    # Ask the archive what it holds before pulling any of it. `dandi download`
+    # costs the full size of the dandiset on every pass whenever refresh's
+    # mtime check cannot skip (see fsprobe.py), so the listing is the only
+    # cheap way to establish that a pass has nothing to do.
+    #
+    # Only when this pass would actually download. Under --skip-download the
+    # incoming copy is whatever is on disk, which the archive says nothing
+    # about, so gating on it would ignore sessions put there by hand.
+    fingerprint = None if skip_download else remote_listing_fingerprint(project, dandi_image=dandi_image)
+    if fingerprint is not None and fingerprint == state.remote_listing_sha256 and not script_changed:
+        log.info(
+            "[%s] incoming dandiset unchanged since %s and script unchanged, skipping download",
+            project.key,
+            state.last_run_at or "the last pass",
+        )
+        return
+
+    if not skip_download:
+        dandi_download(project, incoming_dir, dandi_image=dandi_image, dry_run=dry_run)
+    else:
+        log.info("[%s] --skip-download set, using existing local copy", project.key)
 
     discovered_paths = [] if dry_run and not incoming_dir.is_dir() else discover_sessions(incoming_dir, session_spec)
     session_paths_by_id = {p.name: p for p in discovered_paths}
@@ -287,6 +401,15 @@ def process_project(
         log.info(
             "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.key, len(discovered)
         )
+        # Record the listing even though nothing was converted, or the download
+        # this pass just paid for would be paid again every pass: the gate above
+        # has nothing to compare against until a fingerprint lands here.
+        if fingerprint is not None and fingerprint != state.remote_listing_sha256:
+            state.remote_listing_sha256 = fingerprint
+            if not dry_run:
+                state.save(standardized_dir)
+            else:
+                log.info("[%s] [dry-run] would record the incoming listing fingerprint", project.key)
         return
 
     if script_changed:
@@ -318,6 +441,10 @@ def process_project(
         )
     if current_script_hash is not None:
         state.script_sha256 = current_script_hash
+    if not skip_download:
+        # Left alone under --skip-download: no listing was fetched, and the
+        # recorded one still describes the copy the last real pass downloaded.
+        state.remote_listing_sha256 = fingerprint
     state.last_run_at = converted_at
     touched = discovered if script_changed else new_sessions
     if not dry_run:
@@ -405,6 +532,9 @@ def main(argv: list[str] | None = None) -> int:
     log.info("repo_root=%s", args.repo_root)
     log.info("incoming_root=%s", args.incoming_root)
     log.info("standardized_root=%s", args.standardized_root)
+    # Probes only a directory that already exists, so a dry run stays free of
+    # side effects and a first-ever pass simply says nothing.
+    warn_if_refresh_cannot_skip(args.incoming_root)
 
     registry_path = args.registry or (args.repo_root / "dispatch" / "projects.json")
     sessions_path = args.sessions or (args.repo_root / "dispatch" / "sessions.json")

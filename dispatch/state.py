@@ -1,6 +1,12 @@
 """Conversion-state manifest: tracks which sessions of a project have already
-been converted, and with which revision of the conversion script, so cron runs
-only redo work that's actually new.
+been converted, with which revision of the conversion script, and against
+which revision of the incoming dandiset, so cron runs only redo work that's
+actually new.
+
+``remote_listing_sha256`` fingerprints the incoming dandiset's asset listing
+as of the last pass (see remote_listing_fingerprint in dispatch.py). It is
+what lets a pass rule out new work without downloading anything: an identical
+listing means no asset was added, resized, or replaced upstream.
 
 One manifest lives at ``<standardized_dir>/.ingest_state.json`` per project
 (next to the standardized/converted output, so it travels with it). It is
@@ -25,6 +31,7 @@ class IngestState:
     script_sha256: str | None = None
     converted_sessions: dict[str, dict] = field(default_factory=dict)
     last_run_at: str | None = None
+    remote_listing_sha256: str | None = None
 
     @classmethod
     def load(cls, standardized_dir: Path) -> "IngestState":
@@ -36,6 +43,7 @@ class IngestState:
             script_sha256=payload.get("script_sha256"),
             converted_sessions=payload.get("converted_sessions", {}),
             last_run_at=payload.get("last_run_at"),
+            remote_listing_sha256=payload.get("remote_listing_sha256"),
         )
 
     def save(self, standardized_dir: Path) -> None:
@@ -45,6 +53,7 @@ class IngestState:
             "script_sha256": self.script_sha256,
             "converted_sessions": self.converted_sessions,
             "last_run_at": self.last_run_at,
+            "remote_listing_sha256": self.remote_listing_sha256,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 

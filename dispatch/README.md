@@ -5,15 +5,24 @@ It is repo-level infra, not a lab — it doesn't do any conversion itself, it ju
 
 ## What one run does, per registered project
 
+0. `dandi ls` the project's incoming dandiset over the API and fingerprint the asset listing (sha256 of every asset's path, size, modification time and id). Metadata only, no content, so it costs a couple of seconds regardless of dandiset size. If the fingerprint matches the one in the manifest **and** the conversion script is unchanged, nothing upstream can be new and the pass stops here without downloading anything. A listing that cannot be fetched or parsed counts as unknown, not as unchanged, and falls through to the download.
 1. `dandi download` the project's incoming dandiset (from its `dandi_instance`, default `ember-dandi`) into `<ember-incoming>/<incoming_dandiset_id>/`. Runs inside `--dandi-image` (`docker pull` + `docker run`), not directly on the runner host.
 2. Discover its sessions (per `sessions.json`'s spec for the project) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
 3. If there are new sessions, **or** the conversion script's contents have changed since the manifest was last written (sha256, so any edit forces a full reprocess via `overwrite_flag`), run the lab's conversion command.
    If the project names a `container_image`, this step runs inside it (`docker pull` + `docker run`) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
 4. `dandi upload` the standardized directory, also inside `--dandi-image` — first fetching just that dandiset's `dandiset.yaml` (not a full download), since `dandi upload` needs one already on disk to know which dandiset it's uploading to, and one only lands there on its own when `standardized_dandiset_id` happens to equal `incoming_dandiset_id`. This step is skipped entirely when step 3 had nothing to do — upload's no-op check still re-checksums the whole local dandiset every pass (`DANDI_CACHE=ignore` disables the digest cache), a cost that grows with the dandiset. The tradeoff: if a run converts sessions but dies before its upload finishes, the next pass will not retry that upload on its own (the manifest already records the sessions). Recover by re-uploading manually, or by touching the conversion script so the hash change forces a reprocess + upload.
 
-Every external tool dispatch drives runs in a container, not directly on the runner host — steps 1 and 4 in `--dandi-image` (default: this repo's own `dispatch/containers/dandi.Dockerfile`, published as `ghcr.io/brain-bbqs/dandi-cli`), step 3 in the project's own `container_image`. The runner host itself only needs `python3` (to run `dispatch.py` — see the top-level docstring for why that part stays native) and `docker`.
+Every external tool dispatch drives runs in a container, not directly on the runner host — steps 0, 1 and 4 in `--dandi-image` (default: this repo's own `dispatch/containers/dandi.Dockerfile`, published as `ghcr.io/brain-bbqs/dandi-cli`), step 3 in the project's own `container_image`. The runner host itself only needs `python3` (to run `dispatch.py` — see the top-level docstring for why that part stays native) and `docker`.
 
-Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
+Every dandi invocation (steps 0, 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
+
+### Why step 0 exists
+
+`dandi download -e refresh` is supposed to leave assets already on disk alone. It only does so when the local file's mtime matches the archive's record to within **one microsecond** (`dandi.utils.is_same_time`, `tolerance=1e-6`), and dandi sets that mtime itself with `os.utime(path, (time.time(), mtime.timestamp()))`.
+
+That comparison survives only on a filesystem that stores the sub-second part of an mtime. ext4 and XFS (nanosecond) round-trip it exactly. A filesystem that truncates mtimes to whole seconds — a mounted Windows volume, FAT, exFAT — reads back a value up to a full second off, six orders of magnitude past the tolerance. Every asset then looks stale on every pass and the entire dandiset re-downloads, forever, before step 2 gets to say there was nothing to do.
+
+`fsprobe.py` measures this once per run against `--incoming-root` and logs a warning naming the problem when the filesystem cannot support refresh. Step 0's fingerprint makes the no-op case cheap either way, but the warning is worth acting on: when a pass *does* have real work, step 1 still re-transfers everything.
 
 Each project needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
 Most labs contribute a single project and are keyed by the lab name alone. A lab running several data collections names each one with the optional `project` field, and the pair keys it everywhere dispatch refers to it (`--only`, `sessions.json`, log lines): `suthana/in-lab`.
@@ -118,6 +127,15 @@ It runs `labs/suthana/in-lab/code/batch_convert.py`, which converts every `.mat`
 Its `script_path` deliberately stays pointed at `_suthana_in_lab_to_nwb.py`, since that is where the conversion logic that determines output content lives.
 An empty incoming dandiset is fine: the batch driver reports that it found no `.mat` files and exits 0, so the first pass converts nothing and succeeds rather than failing the run.
 The institution in `labs/suthana/in-lab/code/config.yaml` is still marked PROVISIONAL (the original conversion says Duke University, while the lab is at UCLA). Confirm it with the lab before treating the standardized output as final.
+
+## Why did a run take so long with nothing to do?
+
+Each project logs which branch it took:
+
+- `incoming dandiset unchanged since <t> and script unchanged, skipping download` — the intended steady state, a few seconds per project.
+- `nothing new (N known sessions, script unchanged), skipping upload` — the listing moved (an asset was added, replaced, or re-uploaded) but no new *session* came of it, so the download was paid and nothing else was. The fingerprint is banked, so the next pass skips the download too.
+- `conversion script changed (<old> -> <new>); reprocessing all N discovered session(s)` — someone edited the file named by `script_path`. Expected after a merge that touches a conversion script, once.
+- `<incoming-root> loses N s of mtime precision ...` — the filesystem cannot support `dandi download -e refresh`, so any pass that does reach step 1 re-transfers the whole dandiset. See "Why step 0 exists" above.
 
 ## Tests
 
