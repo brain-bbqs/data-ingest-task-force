@@ -93,6 +93,7 @@ def load_registry(path: Path) -> list[Project]:
 
     projects: list[Project] = []
     seen_incoming: set[str] = set()
+    seen_standardized: set[str] = set()
     seen_keys: set[str] = set()
     for index, raw in enumerate(raw_projects):
         _validate_raw(raw, index=index)
@@ -100,10 +101,20 @@ def load_registry(path: Path) -> list[Project]:
         if incoming_id in seen_incoming:
             raise RegistryError(f"projects.json: incoming_dandiset_id {incoming_id!r} is registered more than once")
         seen_incoming.add(incoming_id)
+        standardized_id = str(raw["standardized_dandiset_id"])
+        # Two projects sharing one standardized dandiset would also share its
+        # conversion manifest, each pass overwriting the other's record of what
+        # is already converted, so both would reconvert and reupload forever.
+        if standardized_id in seen_standardized:
+            raise RegistryError(
+                f"projects.json: standardized_dandiset_id {standardized_id!r} is registered more than once; "
+                "projects sharing one would clobber each other's .ingest_state.json manifest"
+            )
+        seen_standardized.add(standardized_id)
         project = Project(
             lab=raw["lab"],
             incoming_dandiset_id=incoming_id,
-            standardized_dandiset_id=str(raw["standardized_dandiset_id"]),
+            standardized_dandiset_id=standardized_id,
             script_path=raw["script_path"],
             convert_command=list(raw["convert_command"]),
             project=raw.get("project"),

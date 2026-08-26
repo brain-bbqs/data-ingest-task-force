@@ -35,6 +35,12 @@ def make_project(**overrides) -> Project:
     return Project(**defaults)
 
 
+def seed_stale_manifest(standardized_root: Path, /) -> None:
+    """Record a hash no script matches, so the next pass reads as a script
+    change and dispatch appends the overwrite flag."""
+    IngestState(script_sha256="stale-hash").save(standardized_root / "000002")
+
+
 def make_repo(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
     script = repo_root / "labs" / "test-lab" / "code" / "convert.py"
@@ -72,12 +78,14 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
     assert str(repo_root / "labs" / "test-lab" / "code" / "convert.py") in cmd
     assert str(incoming_root / "000001") in cmd
     assert str(standardized_root / "000002") in cmd
-    # First-ever run: no manifest yet, so "script hash changed" is trivially
-    # true (None -> real hash) and dispatch reprocesses with --overwrite.
-    assert "--overwrite" in cmd
+    # First-ever run: every discovered session is new, but with no recorded
+    # hash to compare against there is no script change to force a reprocess,
+    # so the converter is left to skip any output that already exists.
+    assert "--overwrite" not in cmd
 
     state = IngestState.load(standardized_root / "000002")
     assert set(state.converted_sessions) == {"ses-1"}
+    assert state.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
     assert state.converted_sessions["ses-1"]["source_path"] == str(incoming_root / "000001" / "raw" / "ses-1")
     assert state.script_sha256 is not None
 
@@ -173,6 +181,133 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
 
     reloaded = IngestState.load(state_dir)
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
+
+
+def test_second_pass_over_unchanged_input_is_a_no_op(tmp_path, monkeypatch):
+    """The steady state a cron run is supposed to reach: pass one converts and
+    uploads, every later pass over the same input and script does nothing."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+
+    def one_pass() -> list[list[str]]:
+        calls.clear()
+        dispatch.process_project(
+            project,
+            repo_root=repo_root,
+            incoming_root=incoming_root,
+            standardized_root=standardized_root,
+            session_spec=SESSION_SPEC,
+            dandi_image=DANDI_IMAGE,
+            skip_download=True,
+            skip_upload=False,
+            dry_run=False,
+        )
+        return [cmd for cmd, _ in calls]
+
+    first = one_pass()
+    assert any(cmd[0] == "python3" for cmd in first)  # converted
+    assert any(cmd[:2] == ["docker", "pull"] for cmd in first)  # and uploaded
+
+    assert one_pass() == []
+    assert one_pass() == []
+
+
+def test_first_pass_with_nothing_discovered_records_the_hash_baseline(tmp_path, monkeypatch):
+    """An empty incoming dandiset converts nothing, but still needs its hash
+    baselined -- otherwise every later pass repeats this one."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
+        skip_download=True,
+        skip_upload=False,
+        dry_run=False,
+    )
+    assert calls == []
+
+    state = IngestState.load(standardized_root / "000002")
+    assert state.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
+    assert state.converted_sessions == {}
+
+
+def test_lost_manifest_converts_without_forcing_a_reprocess(tmp_path, monkeypatch):
+    """A manifest that vanished with the runner's standardized directory must
+    not read as a script change: the sessions are converted again, but without
+    the overwrite flag, so the lab's converter skips what it already built."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+    (standardized_root / "000002").mkdir(parents=True)  # output survives, manifest does not
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+    dispatch.process_project(
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
+        skip_download=True,
+        skip_upload=True,
+        dry_run=False,
+    )
+    assert len(calls) == 1
+    assert "--overwrite" not in calls[0][0]
+
+
+def test_script_edited_after_a_baseline_forces_a_reprocess(tmp_path, monkeypatch):
+    """The case the overwrite flag exists for, end to end: a baseline pass,
+    then an edit to the conversion script, then a forced reprocess."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project()
+    kwargs = dict(
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        dandi_image=DANDI_IMAGE,
+        skip_download=True,
+        skip_upload=True,
+        dry_run=False,
+    )
+    dispatch.process_project(project, **kwargs)
+    assert "--overwrite" not in calls[0][0]
+
+    project.script_abspath(repo_root).write_text("# v2\n")
+    calls.clear()
+    dispatch.process_project(project, **kwargs)
+    assert len(calls) == 1
+    assert "--overwrite" in calls[0][0]
 
 
 def test_dandi_api_key_env_var_follows_dandi_clis_own_naming():
@@ -299,6 +434,7 @@ def test_process_project_runs_conversion_in_container_when_configured(tmp_path, 
     calls = []
     monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
 
+    seed_stale_manifest(standardized_root)
     project = make_project(container_image="ghcr.io/example/test-lab-ingest:latest")
     dispatch.process_project(
         project,
@@ -334,6 +470,7 @@ def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
 
+    seed_stale_manifest(standardized_root)
     project = make_project(
         convert_command=["python3", "{repo_root}/labs/test-lab/code/convert.py"],
         metadata={"species": "Mus musculus", "some_key": "some-value"},

@@ -32,6 +32,18 @@ def test_save_then_load_round_trips(tmp_path):
     assert reloaded.last_run_at == "2026-08-06T00:00:00+00:00"
 
 
+def test_save_replaces_an_existing_manifest_without_leaving_temporary_files(tmp_path):
+    first = IngestState(script_sha256="deadbeef")
+    first.mark_converted("ses-1", source_path="x", converted_at="t")
+    first.save(tmp_path)
+
+    second = IngestState(script_sha256="cafef00d")
+    second.save(tmp_path)
+
+    assert IngestState.load(tmp_path).script_sha256 == "cafef00d"
+    assert [path.name for path in tmp_path.iterdir()] == [STATE_FILENAME]
+
+
 def test_new_sessions_excludes_already_converted():
     state = IngestState()
     state.mark_converted("ses-1", source_path="x", converted_at="t")

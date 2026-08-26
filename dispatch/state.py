@@ -4,14 +4,22 @@ only redo work that's actually new.
 
 One manifest lives at ``<standardized_dir>/.ingest_state.json`` per project
 (next to the standardized/converted output, so it travels with it). It is
-plain JSON, not uploaded to DANDI (see the upload step in dispatch.py, which
-excludes dotfiles).
+plain JSON, and stays local to the runner: dandi-cli skips dotfiles when
+uploading, so it never becomes an asset of the standardized dandiset.
+
+Because it is local-only, a manifest is lost whenever the runner's
+standardized directory is. Losing it does not mean redoing the work: with no
+recorded script hash, dispatch treats the pass as a baseline rather than as a
+script change, so each lab's converter still skips outputs that already exist
+(see process_project in dispatch.py).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -27,7 +35,7 @@ class IngestState:
     last_run_at: str | None = None
 
     @classmethod
-    def load(cls, standardized_dir: Path) -> "IngestState":
+    def load(cls, standardized_dir: Path, /) -> "IngestState":
         path = standardized_dir / STATE_FILENAME
         if not path.is_file():
             return cls()
@@ -38,7 +46,13 @@ class IngestState:
             last_run_at=payload.get("last_run_at"),
         )
 
-    def save(self, standardized_dir: Path) -> None:
+    def save(self, standardized_dir: Path, /) -> None:
+        """Write the manifest, replacing any existing one atomically.
+
+        A write interrupted partway (the runner is reclaimed mid-pass, the
+        disk fills) would otherwise leave a truncated manifest behind, and a
+        manifest dispatch cannot parse costs a full reconversion.
+        """
         path = standardized_dir / STATE_FILENAME
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -46,7 +60,14 @@ class IngestState:
             "converted_sessions": self.converted_sessions,
             "last_run_at": self.last_run_at,
         }
-        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        handle, temporary_path = tempfile.mkstemp(dir=path.parent, prefix=f"{STATE_FILENAME}.", suffix=".tmp")
+        try:
+            with os.fdopen(handle, "w") as file:
+                file.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            os.replace(temporary_path, path)
+        except BaseException:
+            Path(temporary_path).unlink(missing_ok=True)
+            raise
 
     def mark_converted(self, session_id: str, *, source_path: str, converted_at: str) -> None:
         self.converted_sessions[session_id] = {
@@ -54,12 +75,12 @@ class IngestState:
             "converted_at": converted_at,
         }
 
-    def new_sessions(self, discovered_session_ids: list[str]) -> list[str]:
+    def new_sessions(self, discovered_session_ids: list[str], /) -> list[str]:
         """Sessions discovered on disk that have no manifest record yet."""
         return [sid for sid in discovered_session_ids if sid not in self.converted_sessions]
 
 
-def hash_file(path: Path) -> str:
+def hash_file(path: Path, /) -> str:
     """sha256 of a single file's contents, used to etag a conversion script."""
     digest = hashlib.sha256()
     digest.update(path.read_bytes())

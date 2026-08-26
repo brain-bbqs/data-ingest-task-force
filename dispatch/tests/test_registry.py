@@ -100,6 +100,33 @@ def test_duplicate_incoming_id_raises(tmp_path):
         load_registry(path)
 
 
+def test_duplicate_standardized_id_raises(tmp_path):
+    # Sharing one standardized dandiset means sharing its .ingest_state.json,
+    # so each project would erase the other's record of converted sessions.
+    path = write_registry(
+        tmp_path,
+        {
+            "projects": [
+                entry(lab="a", incoming_dandiset_id="000001", standardized_dandiset_id="000009"),
+                entry(lab="b", incoming_dandiset_id="000002", standardized_dandiset_id="000009"),
+            ]
+        },
+    )
+    with pytest.raises(RegistryError, match="standardized_dandiset_id"):
+        load_registry(path)
+
+
+def test_incoming_id_may_equal_its_own_standardized_id(tmp_path):
+    # Kemere's shape: raw and standardized data sharing one dandiset is fine,
+    # it is two *projects* sharing a standardized id that is not.
+    path = write_registry(
+        tmp_path,
+        {"projects": [entry(incoming_dandiset_id="000001", standardized_dandiset_id="000001")]},
+    )
+    projects = load_registry(path)
+    assert projects[0].standardized_dandiset_id == "000001"
+
+
 def test_empty_projects_raises(tmp_path):
     path = write_registry(tmp_path, {"projects": []})
     with pytest.raises(RegistryError, match="no projects"):

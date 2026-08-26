@@ -8,6 +8,7 @@ It is repo-level infra, not a lab — it doesn't do any conversion itself, it ju
 1. `dandi download` the project's incoming dandiset (from its `dandi_instance`, default `ember-dandi`) into `<ember-incoming>/<incoming_dandiset_id>/`. Runs inside `--dandi-image` (`docker pull` + `docker run`), not directly on the runner host.
 2. Discover its sessions (per `sessions.json`'s spec for the project) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
 3. If there are new sessions, **or** the conversion script's contents have changed since the manifest was last written (sha256, so any edit forces a full reprocess via `overwrite_flag`), run the lab's conversion command.
+   A project with no hash recorded yet is a baseline pass, not a script change: that happens on a project's first run, and again if the manifest is ever lost with the runner's standardized directory. The conversion still runs for every discovered session, but without `overwrite_flag`, so each lab's converter skips the outputs it already has instead of rebuilding them. The hash is recorded either way, so the next real edit is detected.
    If the project names a `container_image`, this step runs inside it (`docker pull` + `docker run`) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
 4. `dandi upload` the standardized directory, also inside `--dandi-image` — first fetching just that dandiset's `dandiset.yaml` (not a full download), since `dandi upload` needs one already on disk to know which dandiset it's uploading to, and one only lands there on its own when `standardized_dandiset_id` happens to equal `incoming_dandiset_id`. This step is skipped entirely when step 3 had nothing to do — upload's no-op check still re-checksums the whole local dandiset every pass (`DANDI_CACHE=ignore` disables the digest cache), a cost that grows with the dandiset. The tradeoff: if a run converts sessions but dies before its upload finishes, the next pass will not retry that upload on its own (the manifest already records the sessions). Recover by re-uploading manually, or by touching the conversion script so the hash change forces a reprocess + upload.
 
@@ -45,7 +46,7 @@ Session discovery doesn't reduce to a single glob in general — a project may n
 | `lab` | Must match the `labs/<lab>/` directory. Alone, it is also the project's `sessions.json` key and `--only` value; with `project` set, that key becomes `<lab>/<project>`. |
 | `project` | Optional project name, for a lab contributing more than one data collection (e.g. `in-lab`). Must match the `labs/<lab>/<project>/` directory. Omit for a lab with a single project. |
 | `incoming_dandiset_id` | Six-digit dandiset id on the ember archive holding the raw upload. |
-| `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere). |
+| `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere), but must be unique across projects. Two projects sharing one would also share its `.ingest_state.json`, each pass erasing the other's record of what is already converted. |
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
 | `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`, plus any key from `metadata` (e.g. `{species}`) — rarely needed, since `metadata` entries are auto-appended as flags (see below); only reach for a placeholder when a value needs to land somewhere other than a trailing flag. |
 | `dandi_instance` | DANDI archive instance name (per `dandi instance-list`), default: `ember-dandi`. |
@@ -118,6 +119,15 @@ It runs `labs/suthana/in-lab/code/batch_convert.py`, which converts every `.mat`
 Its `script_path` deliberately stays pointed at `_suthana_in_lab_to_nwb.py`, since that is where the conversion logic that determines output content lives.
 An empty incoming dandiset is fine: the batch driver reports that it found no `.mat` files and exits 0, so the first pass converts nothing and succeeds rather than failing the run.
 The institution in `labs/suthana/in-lab/code/config.yaml` is still marked PROVISIONAL (the original conversion says Duke University, while the lab is at UCLA). Confirm it with the lab before treating the standardized output as final.
+
+## Why did a run reprocess everything?
+
+A pass that reconverts and reuploads with nothing new upstream says so in its own log, one line per project:
+
+- `conversion script changed (<old> -> <new>); reprocessing all N discovered session(s)` — someone edited the file named by `script_path`. Expected after a merge that touches a conversion script, once.
+- `no conversion-script hash recorded in <path>; treating this as a baseline pass` — the manifest is missing. If this appears on every run, the runner is not keeping `<standardized-root>` between runs (it defaults to an `ember-standardized` sibling of `--repo-root`, so a checkout at a fresh path each run moves it too). Every session then looks new and gets reconverted, though the lab's own converter still skips outputs already on disk.
+- `N new session(s) of M discovered` — genuinely new upstream data.
+- `nothing new (N known sessions, script unchanged), skipping upload` — the intended steady state. A run made only of these lines still costs one `docker pull` and one `dandi download -e refresh` per project, which is the floor for a no-op pass.
 
 ## Tests
 

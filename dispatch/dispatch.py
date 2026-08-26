@@ -8,6 +8,10 @@ registered project (see projects.json):
      converted yet with the current script.
   3. If there's new work (or the conversion script itself changed), run the
      lab's conversion command, writing into ``<standardized-root>/<id>``.
+     A project with no recorded script hash (its first pass, or one whose
+     manifest was lost) is a baseline, not a script change: the conversion
+     runs without overwrite_flag, leaving each lab's converter to skip the
+     outputs it already has.
      If the project names a container_image, the command runs inside it
      (docker pull + docker run) rather than directly on the runner host --
      the image holds only the lab's runtime environment (e.g. ffmpeg), not
@@ -62,7 +66,7 @@ from pathlib import Path
 
 from registry import Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
-from state import IngestState, hash_file
+from state import STATE_FILENAME, IngestState, hash_file
 
 log = logging.getLogger("dispatch")
 
@@ -268,12 +272,26 @@ def process_project(
         log.info("[%s] --skip-download set, using existing local copy", project.key)
 
     state = IngestState.load(standardized_dir)
+    manifest_path = standardized_dir / STATE_FILENAME
+    unrecorded = state.script_sha256 is None
 
     script_path = project.script_abspath(repo_root)
     current_script_hash = hash_file(script_path) if script_path.is_file() else None
     if current_script_hash is None:
         log.warning("[%s] conversion script not found at %s, cannot hash it", project.key, script_path)
-    script_changed = current_script_hash is not None and current_script_hash != state.script_sha256
+    # An unrecorded hash means "no baseline to compare against" (a project's
+    # first pass, or a manifest that went missing with its runner), which is
+    # not the same as an edited script: forcing overwrite_flag there would
+    # reconvert and reupload output that is already correct.
+    script_changed = current_script_hash is not None and not unrecorded and current_script_hash != state.script_sha256
+    if unrecorded:
+        log.info(
+            "[%s] no conversion-script hash recorded in %s; treating this as a baseline pass "
+            "(new sessions still convert, but without %s)",
+            project.key,
+            manifest_path,
+            project.overwrite_flag or "a forced reprocess",
+        )
 
     discovered_paths = [] if dry_run and not incoming_dir.is_dir() else discover_sessions(incoming_dir, session_spec)
     session_paths_by_id = {p.name: p for p in discovered_paths}
@@ -287,6 +305,15 @@ def process_project(
         log.info(
             "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.key, len(discovered)
         )
+        if unrecorded and current_script_hash is not None:
+            # Nothing to convert, but the hash still needs a baseline, or every
+            # later pass would repeat this one instead of detecting a real edit.
+            state.script_sha256 = current_script_hash
+            state.last_run_at = now_iso()
+            if not dry_run:
+                state.save(standardized_dir)
+            else:
+                log.info("[%s] [dry-run] would record the conversion-script hash baseline", project.key)
         return
 
     if script_changed:
@@ -298,7 +325,13 @@ def process_project(
             len(discovered),
         )
     else:
-        log.info("[%s] %d new session(s): %s", project.key, len(new_sessions), ", ".join(new_sessions))
+        log.info(
+            "[%s] %d new session(s) of %d discovered: %s",
+            project.key,
+            len(new_sessions),
+            len(discovered),
+            ", ".join(new_sessions),
+        )
 
     convert(
         project,
