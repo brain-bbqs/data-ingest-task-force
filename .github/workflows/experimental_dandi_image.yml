@@ -1,0 +1,117 @@
+name: Experimental dandi image
+
+# Builds and publishes a dandi-cli image from an *unreleased* dandi source, so
+# a fix can be soak-tested on the real ingest runner before it merges upstream.
+# Deliberately separate from container_images.yml, which only ever publishes
+# from main and only ever builds the released PyPI dandi.
+#
+# The tag is always prefixed "experimental-", never "latest", so an image built
+# from unmerged upstream code can't be mistaken for the supported one.
+#
+# To use one: point dispatch at it. Scheduled Ingest always runs
+# data-ingest-runner's workflow from *its* main, so the lever is the
+# TASK_FORCE_REF repository variable there -- set it to a branch of this repo
+# whose dispatch.py names the experimental image, and the nightly run picks it
+# up with no change to data-ingest-runner. See dispatch/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dandi_spec:
+        description: "pip requirement for dandi (e.g. a git+https ref to an unmerged PR)"
+        type: string
+        default: "dandi @ git+https://github.com/dandi/dandi-cli.git@refs/pull/1910/head"
+      tag:
+        description: "Image tag to publish, without the 'experimental-' prefix"
+        type: string
+        default: "pr1910"
+  # Pushing the soak-test branch republishes the image, so the branch and the
+  # image it names cannot drift apart.
+  push:
+    branches:
+      - 'claude/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  BuildAndPublish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Every value below reaches the shell as an environment variable rather
+      # than through ${{ }} interpolation: the spec is a free-text input
+      # holding spaces and a URL, so splicing it into a command line would
+      # both mis-split and be an injection vector.
+      DANDI_SPEC: ${{ inputs.dandi_spec || 'dandi @ git+https://github.com/dandi/dandi-cli.git@refs/pull/1910/head' }}
+      RAW_TAG: ${{ inputs.tag || 'pr1910' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve the image reference
+        run: |
+          set -eu
+          case "$RAW_TAG" in
+            *[!A-Za-z0-9._-]*) echo "Refusing tag with unexpected characters: $RAW_TAG" && exit 1 ;;
+          esac
+          echo "IMAGE=ghcr.io/brain-bbqs/dandi-cli:experimental-${RAW_TAG}" >> "$GITHUB_ENV"
+
+      - name: Build fresh image
+        run: |
+          set -eu
+          echo "Building $IMAGE from: $DANDI_SPEC"
+          docker build \
+            --no-cache \
+            --build-arg "DANDI_SPEC=${DANDI_SPEC}" \
+            --file dispatch/containers/dandi.Dockerfile \
+            --tag "$IMAGE" \
+            dispatch
+
+      - name: Report the dandi version actually installed
+        run: |
+          set -eu
+          version=$(docker run --rm "$IMAGE" dandi --version)
+          echo "dandi --version: $version"
+          {
+            echo "### \`$IMAGE\`"
+            echo
+            echo "- built from: \`$DANDI_SPEC\`"
+            echo "- \`dandi --version\`: \`$version\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The whole point of the image is that refresh stops re-downloading on a
+      # coarse-mtime filesystem, so assert the fix is actually in these bytes
+      # rather than trusting that the build arg took.
+      - name: Verify the mtime tolerance is present
+        run: |
+          set -eu
+          docker run --rm "$IMAGE" python -c "
+          import inspect
+          import dandi.download
+          source = inspect.getsource(dandi.download._download_file)
+          assert 'tolerance=' in source, 'refresh still uses the default 1e-6 mtime tolerance'
+          print('OK: _download_file passes an explicit mtime tolerance')
+          "
+
+      - name: Run dispatch's test suite inside it
+        run: |
+          set -eu
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work \
+            "$IMAGE" \
+            python -m pytest dispatch/tests -q
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        run: docker push "$IMAGE"

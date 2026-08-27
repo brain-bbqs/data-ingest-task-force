@@ -66,7 +66,19 @@ from state import IngestState, hash_file
 
 log = logging.getLogger("dispatch")
 
-DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:latest"
+# SOAK TEST -- DO NOT MERGE THIS LINE TO main.
+#
+# Normally "ghcr.io/brain-bbqs/dandi-cli:latest". This branch points at an
+# experimental image built from dandi-cli PR 1910 (see
+# .github/workflows/experimental_dandi_image.yml) so a live scheduled run can
+# confirm the fix for dandi-cli issue 1907 before it merges upstream.
+#
+# Changing this default is the whole mechanism: Scheduled Ingest runs
+# data-ingest-runner's workflow from that repo's main, so nothing there can be
+# overridden per-run. Its TASK_FORCE_REF variable selects this branch, and this
+# line is what that branch changes. Revert to :latest before merging, once a
+# released dandi carries the fix.
+DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:experimental-pr1910"
 
 
 def now_iso() -> str:

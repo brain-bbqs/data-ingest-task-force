@@ -119,6 +119,29 @@ Its `script_path` deliberately stays pointed at `_suthana_in_lab_to_nwb.py`, sin
 An empty incoming dandiset is fine: the batch driver reports that it found no `.mat` files and exits 0, so the first pass converts nothing and succeeds rather than failing the run.
 The institution in `labs/suthana/in-lab/code/config.yaml` is still marked PROVISIONAL (the original conversion says Duke University, while the lab is at UCLA). Confirm it with the lab before treating the standardized output as final.
 
+## Soak-testing an unreleased dandi fix
+
+`ghcr.io/brain-bbqs/dandi-cli:latest` is built from the current PyPI `dandi`. To try an unreleased fix on the real runner before it merges upstream, build an `experimental-` tagged image and point a branch's dispatch at it.
+
+The awkward part is that **Scheduled Ingest always runs `data-ingest-runner`'s workflow from that repo's `main`**, so a scheduled run cannot be given per-run overrides. What it does read is that repo's `TASK_FORCE_REF` variable, which selects the branch of *this* repo to check out. So the whole lever is a branch here whose `dispatch.py` names the experimental image.
+
+1. On a branch, set `DEFAULT_DANDI_IMAGE` in `dispatch.py` to the experimental tag.
+2. Push the branch. `.github/workflows/experimental_dandi_image.yml` builds `dandi-cli:experimental-<tag>` from the `dandi_spec` pip requirement (default: dandi-cli PR 1910) and publishes it. It asserts the fix is present in the built bytes and runs dispatch's suite inside the image before pushing.
+3. In `data-ingest-runner`, set the `TASK_FORCE_REF` repository variable to that branch. The nightly Scheduled Ingest then runs this branch against the experimental image, with no change to `data-ingest-runner` itself.
+4. To try it immediately instead of waiting for the cron, run **Manual Ingest** there with `task_force_ref` set to the branch.
+5. When done, clear `TASK_FORCE_REF` and revert `DEFAULT_DANDI_IMAGE`.
+
+`workflow_dispatch` on the image workflow takes a `dandi_spec` and `tag`, so the same machinery serves any other candidate fix without editing the workflow.
+
+### Reading the result
+
+A soak test of a download-skipping fix is judged on the `Run dispatch` step's wall time and on dandi's own per-asset `STATUS` column:
+
+- Assets reported `done` with their full byte count are being re-transferred. That is the bug.
+- Assets reported `skipped` / `no change` mean refresh worked.
+
+For the mtime case specifically (dandi-cli issue 1907), refresh only skips when the local mtime matches the archive's record, and dandi sets that mtime itself with `os.utime`. On a filesystem that truncates mtimes the value does not round-trip, so every asset looks stale forever. The runner's `ember-incoming` lives on `/mnt/g`, which truncates to whole seconds.
+
 ## Tests
 
 ```bash
