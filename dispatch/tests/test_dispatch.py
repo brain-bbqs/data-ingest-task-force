@@ -175,12 +175,12 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
 
 
-def test_dandi_api_key_env_var_follows_dandi_clis_own_naming():
-    # dandi-cli's own convention (not this script's) -- there is no single
-    # generic DANDI_API_KEY that works for every instance.
-    assert dispatch.dandi_api_key_env_var("dandi") == "DANDI_API_KEY"
-    assert dispatch.dandi_api_key_env_var("ember-dandi") == "EMBER_DANDI_API_KEY"
-    assert dispatch.dandi_api_key_env_var("dandi-sandbox") == "DANDI_SANDBOX_API_KEY"
+def test_dandi_credentials_name_the_ember_instances_own_env_var():
+    # dandi-cli's own convention (not this script's): the instance name,
+    # upper-cased, '-' -> '_', suffixed '_API_KEY'. There is no generic
+    # DANDI_API_KEY that would authenticate the ember instance.
+    assert dispatch.DANDI_INSTANCE == "ember-dandi"
+    assert dispatch.DANDI_API_KEY_ENV_VAR == "EMBER_DANDI_API_KEY"
 
 
 def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
@@ -191,7 +191,7 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
 
-    project = make_project()  # dandi_instance defaults to "ember-dandi"
+    project = make_project()
     dispatch.dandi_download(project, incoming_dir, dandi_image=DANDI_IMAGE, dry_run=False)
 
     assert len(calls) == 2  # docker pull, then docker run
@@ -262,7 +262,6 @@ def test_containerize_mounts_paths_and_wraps_cmd(monkeypatch):
         repo_root=Path("/repo"),
         incoming_dir=Path("/incoming/000001"),
         standardized_dir=Path("/standardized/000002"),
-        dandi_instance="ember-dandi",
     )
     assert cmd[:3] == ["docker", "run", "--rm"]
     assert "-v" in cmd
@@ -281,7 +280,6 @@ def test_containerize_forwards_dandi_api_key_by_name_only(monkeypatch):
         repo_root=Path("/repo"),
         incoming_dir=Path("/incoming/000001"),
         standardized_dir=Path("/standardized/000002"),
-        dandi_instance="ember-dandi",
     )
     assert "EMBER_DANDI_API_KEY" in cmd
     # By name only ("-e EMBER_DANDI_API_KEY", no "=value") -- docker reads

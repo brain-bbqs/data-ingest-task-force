@@ -39,15 +39,14 @@ Docker rejects.
 
 Credentials: this script does not manage DANDI or container-registry auth
 itself. `dandi` runs only inside --dandi-image; its credentials come from
-this process's own environment, one variable per dandi_instance named in
-projects.json -- dandi-cli's own convention, not this script's: the
-instance name, upper-cased, '-' -> '_', suffixed '_API_KEY' (e.g.
-'ember-dandi' -> EMBER_DANDI_API_KEY; 'dandi' -> DANDI_API_KEY). Every
-docker-run subprocess this script starts forwards the right one of these
-into its container by name only (`docker run -e <NAME>`), never as a
-literal value on the argv. `docker` itself must already be logged in for
-any private image (--dandi-image or a project's container_image) this
-script names (`docker login ghcr.io`).
+EMBER_DANDI_API_KEY in this process's own environment. That name is
+dandi-cli's own convention, not this script's: the instance name, upper-
+cased, '-' -> '_', suffixed '_API_KEY'. Every docker-run subprocess this
+script starts forwards that variable into its container by name only
+(`docker run -e EMBER_DANDI_API_KEY`), never as a literal value on the
+argv. `docker` itself must already be logged in for any private image
+(--dandi-image or a project's container_image) this script names
+(`docker login ghcr.io`).
 """
 
 from __future__ import annotations
@@ -68,19 +67,16 @@ log = logging.getLogger("dispatch")
 
 DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:latest"
 
+# Every dandiset this pipeline touches, incoming and standardized alike,
+# lives on the EMBER archive, so the instance is fixed here rather than
+# configured per project. Its key env var is named by dandi-cli's own
+# convention, spelled out in this module's docstring.
+DANDI_INSTANCE = "ember-dandi"
+DANDI_API_KEY_ENV_VAR = "EMBER_DANDI_API_KEY"
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
-
-def dandi_api_key_env_var(dandi_instance: str) -> str:
-    """The env var name dandi-cli itself looks for a given instance's API
-    key under: the instance name, upper-cased, '-' -> '_', suffixed
-    '_API_KEY' (e.g. 'ember-dandi' -> 'EMBER_DANDI_API_KEY'; 'dandi' ->
-    'DANDI_API_KEY'). There is no single generic DANDI_API_KEY that works
-    for every instance -- dandi-cli only honors that literal name for the
-    default 'dandi' instance itself."""
-    return f"{dandi_instance.upper().replace('-', '_')}_API_KEY"
 
 
 def run(cmd: list[str], *, cwd: Path | None = None, dry_run: bool) -> None:
@@ -135,14 +131,14 @@ DANDI_CACHE_ENV = {"DANDI_CACHE": "ignore"}
 
 
 def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
-    url = f"dandi://{project.dandi_instance}/{project.incoming_dandiset_id}"
+    url = f"dandi://{DANDI_INSTANCE}/{project.incoming_dandiset_id}"
     if not dry_run:
         incoming_dir.parent.mkdir(parents=True, exist_ok=True)
     run(["docker", "pull", dandi_image], dry_run=dry_run)
     cmd = docker_run_prefix(
         image=dandi_image,
         mounts={incoming_dir.parent: ""},
-        forward_env=(dandi_api_key_env_var(project.dandi_instance),),
+        forward_env=(DANDI_API_KEY_ENV_VAR,),
         literal_env=DANDI_CACHE_ENV,
     ) + ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
     run(cmd, dry_run=dry_run)
@@ -153,14 +149,14 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         log.info("[%s] no standardized output yet at %s, skipping upload", project.key, standardized_dir)
         return
     run(["docker", "pull", dandi_image], dry_run=dry_run)
-    forward_env = (dandi_api_key_env_var(project.dandi_instance),)
+    forward_env = (DANDI_API_KEY_ENV_VAR,)
     # `dandi upload` identifies its target dandiset from a dandiset.yaml it
     # walks up from cwd to find -- one only ever lands here via a prior
     # `dandi download` of standardized_dandiset_id, which never happens on
     # its own when standardized_dandiset_id differs from incoming_dandiset_id
     # (the only one dispatch downloads). Fetch just that file -- not the
     # whole dandiset -- so upload works before any such download has.
-    url = f"dandi://{project.dandi_instance}/{project.standardized_dandiset_id}"
+    url = f"dandi://{DANDI_INSTANCE}/{project.standardized_dandiset_id}"
     fetch_dandiset_yaml_cmd = docker_run_prefix(
         image=dandi_image,
         mounts={standardized_dir.parent: ""},
@@ -174,7 +170,7 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         workdir=standardized_dir,
         forward_env=forward_env,
         literal_env=DANDI_CACHE_ENV,
-    ) + ["dandi", "upload", "-i", project.dandi_instance, "--existing", "refresh"]
+    ) + ["dandi", "upload", "-i", DANDI_INSTANCE, "--existing", "refresh"]
     run(cmd, dry_run=dry_run)
 
 
@@ -185,20 +181,19 @@ def containerize(
     repo_root: Path,
     incoming_dir: Path,
     standardized_dir: Path,
-    dandi_instance: str,
 ) -> list[str]:
     """Wrap cmd to run inside a lab's published container image (portable
     Python env only -- ffmpeg, etc. -- not the code or data, which are
     mounted in at run time). Host paths are mounted at identical paths
     inside the container, so cmd's own {repo_root}/{incoming_dir}/
     {standardized_dir}-based tokens (already resolved, absolute) need no
-    rewriting. dandi_instance's API key env var is forwarded too, in case
-    the conversion script itself needs to talk to DANDI."""
+    rewriting. The DANDI API key env var is forwarded too, in case the
+    conversion script itself needs to talk to DANDI."""
     prefix = docker_run_prefix(
         image=image,
         mounts={repo_root: ":ro", incoming_dir: "", standardized_dir: ""},
         workdir=repo_root,
-        forward_env=(dandi_api_key_env_var(dandi_instance),),
+        forward_env=(DANDI_API_KEY_ENV_VAR,),
     )
     return prefix + cmd
 
@@ -241,7 +236,6 @@ def convert(
             repo_root=repo_root,
             incoming_dir=incoming_dir,
             standardized_dir=standardized_dir,
-            dandi_instance=project.dandi_instance,
         )
     run(cmd, dry_run=dry_run)
 

@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
-from registry import DEFAULT_DANDI_INSTANCE, RegistryError, load_registry  # noqa: E402
+from registry import RegistryError, load_registry  # noqa: E402
 
 pytestmark = pytest.mark.ai_generated
 
@@ -40,16 +40,10 @@ def test_load_registry_reads_the_committed_projects_json():
     assert kemere.metadata == {"species": "Ovis aries"}
 
 
-def test_committed_projects_all_use_the_default_dandi_instance():
-    projects = load_registry(Path(__file__).resolve().parents[1] / "projects.json")
-    assert [p.dandi_instance for p in projects] == [DEFAULT_DANDI_INSTANCE] * len(projects)
-
-
 def test_valid_minimal_entry(tmp_path):
     path = write_registry(tmp_path, {"projects": [entry()]})
     (project,) = load_registry(path)
     assert project.lab == "test-lab"
-    assert project.dandi_instance == DEFAULT_DANDI_INSTANCE  # default
     assert project.overwrite_flag is None
     assert project.container_image is None  # default: run directly on the runner host
     assert project.metadata == {}  # default: no project-wide placeholders
