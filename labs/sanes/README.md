@@ -176,7 +176,7 @@ single contiguous objects rather than one per chunk.
 - `starting_frame` is built from a list seeded with a float, so the values are
   written as floats and HDMF converts them to int64 with a warning.
 - Chunk layout is assumed, not checked: exactly one `.mp4`, at least one `.slp`
-  (the first is used), and an `annotations.csv` with `start_seconds`,
+  (the first is used), and exactly one `*annotations.csv` with `start_seconds`,
   `stop_seconds` and `name` columns. A chunk missing any of these raises.
 - The single NWB `Subject` describes several animals at once, with the
   per-animal detail in a `Subject Information` `DynamicTable` inside a `general`
@@ -271,7 +271,12 @@ python3 labs/sanes/code/batch_convert.py \
 
 The input folder is one session, holding `idx_*` chunk folders. Each chunk holds
 one `.wav` per audio channel (files with `multichannel` in the name are
-skipped), one `.mp4`, one `.slp`, and an `annotations.csv`.
+skipped), one `.mp4`, one `.slp`, and one annotations table.
+
+That annotations table is matched on its `annotations.csv` suffix rather than
+by exact name. Most chunks name it `annotations.csv`, some name it after the
+channel and chunk instead, as in `channel_0_4_annotations.csv`. Both namings
+occur within a single upload, so the file is found either way.
 
 ## Tests
 

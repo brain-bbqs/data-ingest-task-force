@@ -19,12 +19,16 @@ One session is one folder holding the ``idx_*`` recording chunks::
 
     <session>/
       idx_0/
-        *.wav            one file per audio channel ("multichannel" ones skipped)
-        *.mp4            the behavioral video for this chunk
-        *.slp            SLEAP pose estimation
-        annotations.csv  vocalization annotations (start_seconds, stop_seconds, ...)
+        *.wav             one file per audio channel ("multichannel" ones skipped)
+        *.mp4             the behavioral video for this chunk
+        *.slp             SLEAP pose estimation
+        *annotations.csv  vocalization annotations (start_seconds, stop_seconds, ...)
       idx_1/
         ...
+
+A chunk carries exactly one annotations table. Most name it
+``annotations.csv``, some name it after the channel and chunk instead, as in
+``channel_0_4_annotations.csv``. Both namings occur within one upload.
 
 The chunks are stitched into one NWB file: audio channels are read per chunk
 and concatenated end to end, vocalization annotation times are offset by the
@@ -83,6 +87,22 @@ def get_video_info_ffprobe(video_path, /):
     return duration, frame_count
 
 
+def find_annotations_file(folder_path, /):
+    """The chunk's vocalization annotations, whatever it is named.
+
+    Most chunks name it ``annotations.csv``, but some carry the channel and
+    chunk in the name instead (``channel_0_4_annotations.csv``). Both are
+    valid uploads holding the same per-chunk table, so match on the suffix
+    the way the ``.wav``/``.mp4``/``.slp`` lookups below do.
+    """
+    folder_path = Path(folder_path)
+    matches = natsort.natsorted(f for f in os.listdir(folder_path) if f.endswith("annotations.csv"))
+    if len(matches) != 1:
+        raise ValueError(f"Expected exactly one *annotations.csv in {folder_path}, found {len(matches)}: {matches}")
+    annotations_path = folder_path / matches[0]
+    return annotations_path
+
+
 def session_start_time(cfg, /):
     """The configured start time, or now, which is what the notebook used."""
     configured = cfg["session"].get("start_time", "")
@@ -135,7 +155,7 @@ def build_nwb(*, input_folder, out_nwb, cfg):
         print(f"Video: {vid_file}, Duration: {duration} seconds, Frame Count: {frame_count}")
         vid_files.append(vid_path)
 
-        annotationsPath = folder_path / "annotations.csv"
+        annotationsPath = find_annotations_file(folder_path)
         df = pandas.read_csv(annotationsPath)
         df.start_seconds = df.start_seconds + cumulative_offset
         df.stop_seconds = df.stop_seconds + cumulative_offset
