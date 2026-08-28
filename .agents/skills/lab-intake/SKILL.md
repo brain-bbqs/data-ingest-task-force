@@ -31,7 +31,7 @@ Rules while filling it in:
 
 - Do not guess. A field the description does not answer stays open.
 - A value needed to keep work moving but not confirmed by the lab gets the house marker `PROVISIONAL`, with a note of what would confirm it. The marker must survive into whatever file the value lands in later, so nobody mistakes a placeholder for real metadata. `labs/inman/code/config.yaml` shows the pattern.
-- Record who authored any prior conversion code, and whether it should be ported verbatim as provenance or improved on the way in. Original authors are credited in the lab README (see `labs/shepherd/README.md`), and the port mode changes how lab-scaffold treats the files.
+- Record who authored any prior conversion code, what form it is in (scripts, or a notebook), and whether it should be ported verbatim as provenance or improved on the way in. Original authors are credited in the lab README (see `labs/shepherd/README.md`), and the port mode changes how lab-scaffold treats the files.
 
 The filled record itself is a working document for this session. It is not committed as a separate file. Its facts get folded into the lab's READMEs and `config.yaml` by lab-scaffold, while `prompts/initial.md` preserves the verbatim inputs.
 
