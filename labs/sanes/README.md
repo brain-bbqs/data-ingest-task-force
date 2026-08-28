@@ -137,6 +137,15 @@ These are all present in the original and were left alone. They are listed here
 so the follow-up has a starting point, and so nobody treats the current output
 as correct.
 
+The packaging review in
+[issue #20](https://github.com/brain-bbqs/data-ingest-task-force/issues/20)
+covers the same code against an earlier upload and is the fuller list of what
+the follow-up owes. Among other things it asks for `AcousticWaveformSeries`
+from ndx-sound instead of a plain `TimeSeries`, compression on the acoustic and
+pose data, the multi-subject layout via ndx-multisubjects, relative video paths
+in the pose estimation, and the chunk videos and their pose tracks combined into
+single contiguous objects rather than one per chunk.
+
 - The NWB `identifier` is the literal `example_id` for every session, so all
   output files share one identifier.
 - Session start time is the time of conversion (`datetime.now`), unless
