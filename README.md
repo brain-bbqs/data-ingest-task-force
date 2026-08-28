@@ -17,6 +17,8 @@ labs/
                          (see labs/inman/README.md)
   shepherd/             Shepherd lab: multicamera rat feeding behavior -> NWB
                          (see labs/shepherd/README.md)
+  sanes/                Sanes lab: multi-animal gerbil vocal interactions -> NWB
+                         (see labs/sanes/README.md)
   suthana/              Suthana lab, one directory per project
     in-lab/               in-lab navigation: iEEG + scalp EEG + motion capture -> NWB
                            (see labs/suthana/in-lab/README.md)

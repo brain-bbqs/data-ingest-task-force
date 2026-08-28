@@ -13,6 +13,10 @@
       "include": ["sourcedata/raw/sessions/*"],
       "exclude": []
     },
+    "sanes": {
+      "include": ["sourcedata/raw/*"],
+      "exclude": []
+    },
     "suthana/in-lab": {
       "include": ["sourcedata/raw/*"],
       "exclude": []
