@@ -156,9 +156,12 @@ single contiguous objects rather than one per chunk.
   integer sample counts read out of the `.wav` files.
 - The audio sampling rate is whichever rate the last `.wav` file read reported,
   assumed identical across every channel and chunk.
-- `external_file` entries are paths relative to the output NWB file, pointing
-  back into the incoming tree. The videos are not copied into the standardized
-  output, so those links do not resolve once the NWB file stands on its own.
+- The chunk videos are copied next to the output NWB and `external_file` names
+  them there, so each session's videos are duplicated into the standardized
+  dandiset (roughly 2.1 GB for the seven chunks of `experiment_135`). They used
+  to be linked back into the incoming tree instead, which DANDI rejected at
+  upload with one `check_image_series_external_file_valid` error per chunk,
+  since that tree is not there to resolve against.
 - All audio is concatenated in memory before writing, so peak memory scales
   with the total audio in a session.
 - SLEAP pose data is added per chunk with no time offset, while audio and

@@ -33,7 +33,9 @@ A chunk carries exactly one annotations table. Most name it
 The chunks are stitched into one NWB file: audio channels are read per chunk
 and concatenated end to end, vocalization annotation times are offset by the
 cumulative video duration before them, and each chunk's video is one entry of a
-single external-file ``ImageSeries``.
+single external-file ``ImageSeries``. Those videos are copied in next to the
+output NWB, so the file stands on its own once uploaded rather than pointing
+back into the incoming dandiset.
 
 ``batch_convert.py`` is what dispatch runs. It loops this module's
 :pyfunc:`build_nwb` over the session folders in an incoming dandiset.
@@ -42,6 +44,7 @@ single external-file ``ImageSeries``.
 import argparse
 import json
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -101,6 +104,29 @@ def find_annotations_file(folder_path, /):
         raise ValueError(f"Expected exactly one *annotations.csv in {folder_path}, found {len(matches)}: {matches}")
     annotations_path = folder_path / matches[0]
     return annotations_path
+
+
+def copy_chunk_videos(*, vid_files, out_nwb):
+    """Copy each chunk's video next to the output NWB, returning the names to
+    store in ``external_file``.
+
+    The videos live in the incoming dandiset. Linking back into that tree
+    leaves ``external_file`` pointing outside the standardized dandiset, which
+    DANDI rejects at upload (``check_image_series_external_file_valid``, one
+    error per chunk) because the incoming tree is not there to resolve
+    against. Copying the videos in is what lets the NWB stand on its own.
+
+    Names are prefixed with the NWB's own stem because every session of a
+    subject writes into one ``sub-<id>/`` folder, so bare chunk names from two
+    sessions could collide.
+    """
+    external_file = []
+    for vid_file in vid_files:
+        destination = out_nwb.parent / f"{out_nwb.stem}_{vid_file.name}"
+        if not destination.is_file() or destination.stat().st_size != vid_file.stat().st_size:
+            shutil.copy2(vid_file, destination)
+        external_file.append(destination.name)
+    return external_file
 
 
 def session_start_time(cfg, /):
@@ -183,7 +209,7 @@ def build_nwb(*, input_folder, out_nwb, cfg):
     )
     nwbfile.add_acquisition(acoustic_waveform_series)
 
-    externalFile = [os.path.relpath(f, out_nwb.parent) for f in vid_files]
+    externalFile = copy_chunk_videos(vid_files=vid_files, out_nwb=out_nwb)
     print(externalFile)
     sampling_rate = float(cfg["video"]["rate"])
 
