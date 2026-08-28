@@ -46,6 +46,7 @@ def test_valid_minimal_entry(tmp_path):
     assert project.lab == "test-lab"
     assert project.overwrite_flag is None
     assert project.container_image is None  # default: run directly on the runner host
+    assert project.upload_validation == "require"  # default: DANDI validation gates the upload
     assert project.metadata == {}  # default: no project-wide placeholders
 
 
@@ -53,6 +54,19 @@ def test_container_image_is_read_when_present(tmp_path):
     path = write_registry(tmp_path, {"projects": [entry(container_image="ghcr.io/example/lab-ingest:latest")]})
     (project,) = load_registry(path)
     assert project.container_image == "ghcr.io/example/lab-ingest:latest"
+
+
+@pytest.mark.parametrize("upload_validation", ["require", "skip", "ignore"])
+def test_upload_validation_is_read_when_present(tmp_path, upload_validation):
+    path = write_registry(tmp_path, {"projects": [entry(upload_validation=upload_validation)]})
+    (project,) = load_registry(path)
+    assert project.upload_validation == upload_validation
+
+
+def test_unknown_upload_validation_raises(tmp_path):
+    path = write_registry(tmp_path, {"projects": [entry(upload_validation="nope")]})
+    with pytest.raises(RegistryError, match="upload_validation"):
+        load_registry(path)
 
 
 def test_metadata_is_read_when_present(tmp_path):

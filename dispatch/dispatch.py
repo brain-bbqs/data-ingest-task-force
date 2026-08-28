@@ -59,7 +59,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from registry import Project, load_registry
+from registry import DEFAULT_UPLOAD_VALIDATION, Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
 from state import IngestState, hash_file
 
@@ -171,6 +171,11 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
         forward_env=forward_env,
         literal_env=DANDI_CACHE_ENV,
     ) + ["dandi", "upload", "-i", DANDI_INSTANCE, "--existing", "refresh"]
+    # Only named when the project departs from dandi's own default, so the
+    # flag's presence in the logged command is the signal that this project
+    # uploads without validation gating it.
+    if project.upload_validation != DEFAULT_UPLOAD_VALIDATION:
+        cmd += ["--validation", project.upload_validation]
     run(cmd, dry_run=dry_run)
 
 

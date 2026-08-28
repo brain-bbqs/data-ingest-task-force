@@ -64,6 +64,7 @@
       "script_path": "labs/sanes/code/_sanes_to_nwb.py",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
+      "upload_validation": "ignore",
       "convert_command": [
         "python3",
         "{repo_root}/labs/sanes/code/batch_convert.py",

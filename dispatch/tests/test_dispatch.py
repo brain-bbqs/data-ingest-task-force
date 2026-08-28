@@ -254,6 +254,32 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     assert cwd is None  # working directory is set inside the container (-w), not on the host
 
 
+@pytest.mark.parametrize(
+    ("upload_validation", "expected_tail"),
+    [
+        ("require", ["--existing", "refresh"]),
+        ("ignore", ["--existing", "refresh", "--validation", "ignore"]),
+        ("skip", ["--existing", "refresh", "--validation", "skip"]),
+    ],
+)
+def test_dandi_upload_names_validation_only_when_it_departs_from_the_default(
+    tmp_path, monkeypatch, upload_validation, expected_tail
+):
+    """The default stays byte-identical, so the flag showing up in a logged
+    command is itself the signal that a project uploads unvalidated."""
+    standardized_dir = tmp_path / "standardized" / "000002"
+    standardized_dir.mkdir(parents=True)
+
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+
+    project = make_project(upload_validation=upload_validation)
+    dispatch.dandi_upload(project, standardized_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    run_cmd, _ = calls[2]
+    assert run_cmd[-len(expected_tail) :] == expected_tail
+
+
 def test_containerize_mounts_paths_and_wraps_cmd(monkeypatch):
     monkeypatch.delenv("EMBER_DANDI_API_KEY", raising=False)
     cmd = dispatch.containerize(
