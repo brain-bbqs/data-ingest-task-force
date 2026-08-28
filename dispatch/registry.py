@@ -31,6 +31,12 @@ REQUIRED_FIELDS = (
 # one would silently shadow it, so it's rejected at load time instead.
 RESERVED_TEMPLATE_NAMES = ("repo_root", "incoming_dir", "standardized_dir")
 
+# Mirrors `dandi upload --validation`. "require" is dandi's own default and
+# this registry's: a project only departs from it deliberately, by naming the
+# departure in projects.json.
+UPLOAD_VALIDATION_CHOICES = ("require", "skip", "ignore")
+DEFAULT_UPLOAD_VALIDATION = "require"
+
 
 class RegistryError(ValueError):
     pass
@@ -46,6 +52,7 @@ class Project:
     project: str | None = None
     overwrite_flag: str | None = None
     container_image: str | None = None
+    upload_validation: str = DEFAULT_UPLOAD_VALIDATION
     metadata: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -76,6 +83,11 @@ def _validate_raw(raw: dict, *, index: int) -> None:
         value = str(raw[id_field])
         if not (len(value) == 6 and value.isdigit()):
             raise RegistryError(f"{label}: {id_field}={value!r} is not a six-digit dandiset id")
+    upload_validation = raw.get("upload_validation", DEFAULT_UPLOAD_VALIDATION)
+    if upload_validation not in UPLOAD_VALIDATION_CHOICES:
+        raise RegistryError(
+            f"{label}: upload_validation={upload_validation!r} is not one of {list(UPLOAD_VALIDATION_CHOICES)}"
+        )
     metadata = raw.get("metadata", {})
     if not isinstance(metadata, dict):
         raise RegistryError(f"{label}: metadata must be an object of string values")
@@ -108,6 +120,7 @@ def load_registry(path: Path) -> list[Project]:
             project=raw.get("project"),
             overwrite_flag=raw.get("overwrite_flag"),
             container_image=raw.get("container_image"),
+            upload_validation=raw.get("upload_validation", DEFAULT_UPLOAD_VALIDATION),
             metadata=dict(raw.get("metadata", {})),
         )
         if project.key in seen_keys:
