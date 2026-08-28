@@ -15,6 +15,8 @@ Every external tool dispatch drives runs in a container, not directly on the run
 
 Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
 
+The dandi image requires dandi-cli 0.78.0 or newer. Steps 1 and 4 both pass `-e refresh`, which skipped nothing on filesystems whose mtimes are coarser than sub-second ([dandi/dandi-cli#1907](https://github.com/dandi/dandi-cli/issues/1907)), so a refresh re-fetched the whole dandiset every pass. [dandi/dandi-cli#1910](https://github.com/dandi/dandi-cli/pull/1910) fixed it upstream in 0.78.0, and `containers/dandi.Dockerfile` carries that floor.
+
 Each project needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
 Most labs contribute a single project and are keyed by the lab name alone. A lab running several data collections names each one with the optional `project` field, and the pair keys it everywhere dispatch refers to it (`--only`, `sessions.json`, log lines): `suthana/in-lab`.
 

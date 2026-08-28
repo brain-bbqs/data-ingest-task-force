@@ -15,8 +15,16 @@ LABEL org.opencontainers.image.description="Portable dandi CLI runtime for dispa
 # jsonschema) is installed so this same image can also run dispatch's test
 # suite against mounted code. Publishing the image is gated on that suite
 # (see .github/workflows/container_images.yml), mirroring the lab images.
+#
+# The dandi floor is the only version constraint here. Every download
+# dispatch.py runs passes `-e refresh`, which skipped nothing at all on
+# filesystems that store mtimes at coarser than sub-second granularity
+# (dandi/dandi-cli#1907), so each pass re-fetched whole dandisets instead of
+# refreshing them. Fixed upstream in 0.78.0 by dandi/dandi-cli#1910. The
+# floor makes a build fail loudly rather than resolve back to a dandi
+# without the fix.
 COPY envs/pyproject.toml /tmp/build/pyproject.toml
-RUN pip install --no-cache-dir dandi "/tmp/build[test]" \
+RUN pip install --no-cache-dir "dandi>=0.78.0" "/tmp/build[test]" \
     && rm -rf /tmp/build
 
 CMD ["dandi", "--version"]
