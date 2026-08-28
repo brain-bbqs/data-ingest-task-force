@@ -43,6 +43,15 @@ def test_projects_schema_rejects_non_six_digit_id():
         jsonschema.validate(instance=bad, schema=schema)
 
 
+def test_projects_schema_rejects_a_dandi_instance_field():
+    # The archive instance is hardcoded in dispatch.py, not per project.
+    schema = load("schemas/projects.schema.json")
+    bad = load("projects.json")
+    bad["projects"][0]["dandi_instance"] = "ember-dandi"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(instance=bad, schema=schema)
+
+
 def test_projects_schema_rejects_metadata_key_shadowing_a_reserved_placeholder():
     schema = load("schemas/projects.schema.json")
     bad = load("projects.json")

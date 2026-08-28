@@ -6,7 +6,6 @@
       "incoming_dandiset_id": "000477",
       "standardized_dandiset_id": "000525",
       "script_path": "labs/kemere/code/convert_raw_to_bids.py",
-      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest",
       "metadata": {
@@ -26,7 +25,6 @@
       "incoming_dandiset_id": "000519",
       "standardized_dandiset_id": "000526",
       "script_path": "labs/inman/code/_inman_to_nwb.py",
-      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest",
       "convert_command": [
@@ -46,7 +44,6 @@
       "incoming_dandiset_id": "000528",
       "standardized_dandiset_id": "000529",
       "script_path": "labs/shepherd/code/shepherd_to_nwb.py",
-      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/shepherd-r34da059723-ingest:latest",
       "convert_command": [
@@ -65,7 +62,6 @@
       "incoming_dandiset_id": "000522",
       "standardized_dandiset_id": "000523",
       "script_path": "labs/sanes/code/_sanes_to_nwb.py",
-      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
       "convert_command": [
@@ -85,7 +81,6 @@
       "incoming_dandiset_id": "000530",
       "standardized_dandiset_id": "000531",
       "script_path": "labs/suthana/in-lab/code/_suthana_in_lab_to_nwb.py",
-      "dandi_instance": "ember-dandi",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/suthana-in-lab-r61mh135106-ingest:latest",
       "convert_command": [

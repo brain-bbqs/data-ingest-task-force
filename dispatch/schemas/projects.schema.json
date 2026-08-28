@@ -60,12 +60,6 @@
           "items": { "type": "string" },
           "description": "Argv list to run the conversion. Tokens may use {repo_root}, {incoming_dir}, {standardized_dir}, plus any key from metadata (e.g. {species}) -- rarely needed, since every metadata entry is also auto-appended as its own --<key> <value> flag; only use a placeholder when a value needs to land somewhere other than a trailing flag."
         },
-        "dandi_instance": {
-          "type": "string",
-          "minLength": 1,
-          "default": "ember-dandi",
-          "description": "DANDI archive instance name (per `dandi instance-list`), e.g. ember-dandi / ember-dandi-sandbox."
-        },
         "overwrite_flag": {
           "type": ["string", "null"],
           "description": "Optional single flag appended to convert_command when script_path's hash has changed."

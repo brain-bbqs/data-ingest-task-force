@@ -44,7 +44,6 @@ class Project:
     script_path: str
     convert_command: list[str]
     project: str | None = None
-    dandi_instance: str = "ember-dandi"
     overwrite_flag: str | None = None
     container_image: str | None = None
     metadata: dict[str, str] = field(default_factory=dict)
@@ -107,7 +106,6 @@ def load_registry(path: Path) -> list[Project]:
             script_path=raw["script_path"],
             convert_command=list(raw["convert_command"]),
             project=raw.get("project"),
-            dandi_instance=raw.get("dandi_instance", "ember-dandi"),
             overwrite_flag=raw.get("overwrite_flag"),
             container_image=raw.get("container_image"),
             metadata=dict(raw.get("metadata", {})),
