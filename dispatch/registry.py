@@ -27,6 +27,10 @@ REQUIRED_FIELDS = (
     "convert_command",
 )
 
+# Every project on this pipeline lives on the EMBER archive, so an entry
+# only needs dandi_instance to point somewhere else (e.g. a sandbox).
+DEFAULT_DANDI_INSTANCE = "ember-dandi"
+
 # Names convert_command tokens can already template; a metadata key reusing
 # one would silently shadow it, so it's rejected at load time instead.
 RESERVED_TEMPLATE_NAMES = ("repo_root", "incoming_dir", "standardized_dir")
@@ -44,7 +48,7 @@ class Project:
     script_path: str
     convert_command: list[str]
     project: str | None = None
-    dandi_instance: str = "ember-dandi"
+    dandi_instance: str = DEFAULT_DANDI_INSTANCE
     overwrite_flag: str | None = None
     container_image: str | None = None
     metadata: dict[str, str] = field(default_factory=dict)
@@ -107,7 +111,7 @@ def load_registry(path: Path) -> list[Project]:
             script_path=raw["script_path"],
             convert_command=list(raw["convert_command"]),
             project=raw.get("project"),
-            dandi_instance=raw.get("dandi_instance", "ember-dandi"),
+            dandi_instance=raw.get("dandi_instance", DEFAULT_DANDI_INSTANCE),
             overwrite_flag=raw.get("overwrite_flag"),
             container_image=raw.get("container_image"),
             metadata=dict(raw.get("metadata", {})),

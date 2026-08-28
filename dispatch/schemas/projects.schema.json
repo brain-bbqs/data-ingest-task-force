@@ -64,7 +64,7 @@
           "type": "string",
           "minLength": 1,
           "default": "ember-dandi",
-          "description": "DANDI archive instance name (per `dandi instance-list`), e.g. ember-dandi / ember-dandi-sandbox."
+          "description": "DANDI archive instance name (per `dandi instance-list`). Defaults to ember-dandi, which every registered project uses. Set it only for a project on another instance, e.g. ember-dandi-sandbox."
         },
         "overwrite_flag": {
           "type": ["string", "null"],
