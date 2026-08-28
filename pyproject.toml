@@ -16,6 +16,10 @@ exclude = [
   # and unlinted as original provenance (see labs/shepherd/README.md).
   # batch_convert.py alongside it is new code and is linted normally.
   "labs/shepherd/code/shepherd_to_nwb.py",
+  # Verbatim port of the original Sanes viewer example, kept unformatted and
+  # unlinted as original provenance (see labs/sanes/README.md). The converter
+  # and batch driver alongside it are new code and are linted normally.
+  "labs/sanes/code/pynaViz_ex.py",
 ]
 
 [tool.ruff.lint]

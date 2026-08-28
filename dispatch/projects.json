@@ -61,6 +61,25 @@
       ]
     },
     {
+      "lab": "sanes",
+      "incoming_dandiset_id": "000522",
+      "standardized_dandiset_id": "000523",
+      "script_path": "labs/sanes/code/_sanes_to_nwb.py",
+      "dandi_instance": "ember-dandi",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/sanes/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/sanes/code/config.yaml"
+      ]
+    },
+    {
       "lab": "suthana",
       "project": "in-lab",
       "incoming_dandiset_id": "000530",

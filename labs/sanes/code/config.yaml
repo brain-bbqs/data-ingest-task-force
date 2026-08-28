@@ -1,0 +1,51 @@
+# Every value here is the literal the original conversion notebook
+# (code/sanesDatatoNWB_v2.ipynb) hard-coded, lifted into a file so the port can
+# run without editing the code. They are marked PROVISIONAL because the notebook
+# was written against one example dataset. Replace them with the real lab
+# metadata before treating the standardized output as final.
+
+session:
+  identifier: 'example_id'                                # PROVISIONAL, verbatim from the notebook
+  description: 'Multi-animal social vocal interactions'   # PROVISIONAL, verbatim from the notebook
+  start_time: ''                                          # PROVISIONAL. Empty means "time of conversion", as the notebook did.
+                                                          # In this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
+
+acoustic:
+  name: 'Multi-channel Acoustic Data'
+  description: 'Audio data from 12 channels'   # PROVISIONAL, channel count is whatever the session's .wav files give
+  unit: 'V'                                    # PROVISIONAL. The stored values are raw WAV sample counts, not volts.
+
+video:
+  name: 'External Behavioral Videos'
+  description: 'External video file combined from multiple videos'
+  unit: 'n.a.'
+  rate: 30.0     # PROVISIONAL. Assumed frame rate, not read from the videos. Confirm with the lab.
+
+vocalizations:
+  name: 'vocalizations'
+
+subject:
+  id: 'Gerbil_001_002_003'                          # PROVISIONAL, verbatim from the notebook
+  description: 'Multiple gerbils used in the experiment'
+  species: 'Meriones unguiculatus'
+  age: 'P90D'                                       # PROVISIONAL. Required by DANDI, ISO 8601 duration - for example, P5W3D
+  sex: 'M'                                          # PROVISIONAL. Required by DANDI, one of "M", "F", "O", "U"
+
+# One row per animal in the recording. NWB carries a single Subject, so the
+# notebook also wrote this table to describe the several animals present.
+subject_table:
+  name: 'Subject Information'
+  description: 'Information about the subject(s)'
+  rows:                                             # PROVISIONAL, verbatim from the notebook
+    - subject_id: 'S0'
+      age: 'P90D'
+      species: 'Meriones unguiculatus'
+      sex: 'M'
+    - subject_id: 'S2'
+      age: 'P92D'
+      species: 'Meriones unguiculatus'
+      sex: 'F'
+    - subject_id: 'S3'
+      age: 'P95D'
+      species: 'Meriones unguiculatus'
+      sex: 'M'
