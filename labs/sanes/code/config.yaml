@@ -1,6 +1,3 @@
-# If there are any questions about the meaning of certain metadata fields:
-# The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) provides extensive documentation on metadata reqs
-#
 # Every value here is the literal the original conversion notebook
 # (code/sanesDatatoNWB_v2.ipynb) hard-coded, lifted into a file so the port can
 # run without editing the code. They are marked PROVISIONAL because the notebook
