@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
-from state import STATE_FILENAME, IngestState, hash_file  # noqa: E402
+from state import STATE_FILENAME, IngestState, hash_file, manifest_filename  # noqa: E402
 
 pytestmark = pytest.mark.ai_generated
 
@@ -46,3 +46,29 @@ def test_hash_file_is_stable_and_sensitive_to_content(tmp_path):
 
     f.write_text("print('b')\n")
     assert hash_file(f) != first
+
+
+def test_manifest_filename_unshared_keeps_the_bare_name():
+    assert manifest_filename("suthana/in-lab", shared=False) == STATE_FILENAME
+
+
+def test_manifest_filename_shared_is_unique_per_project_key():
+    assert manifest_filename("suthana/in-lab", shared=True) == ".ingest_state.suthana__in-lab.json"
+    assert manifest_filename("suthana/seeber-2024", shared=True) == ".ingest_state.suthana__seeber-2024.json"
+
+
+def test_shared_manifests_do_not_collide(tmp_path):
+    one = IngestState(script_sha256="hash-one")
+    one.mark_converted("ses-1", source_path="x", converted_at="t")
+    two = IngestState(script_sha256="hash-two")
+    two.mark_converted("Seeber_etal_2024_data_code", source_path="y", converted_at="t")
+
+    one.save(tmp_path, manifest_name=manifest_filename("a/one", shared=True))
+    two.save(tmp_path, manifest_name=manifest_filename("a/two", shared=True))
+
+    reloaded_one = IngestState.load(tmp_path, manifest_name=manifest_filename("a/one", shared=True))
+    reloaded_two = IngestState.load(tmp_path, manifest_name=manifest_filename("a/two", shared=True))
+    assert reloaded_one.script_sha256 == "hash-one"
+    assert reloaded_two.script_sha256 == "hash-two"
+    assert reloaded_one.converted_sessions.keys() == {"ses-1"}
+    assert reloaded_two.converted_sessions.keys() == {"Seeber_etal_2024_data_code"}

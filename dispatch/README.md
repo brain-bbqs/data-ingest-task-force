@@ -18,6 +18,8 @@ Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling
 Each project needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
 Most labs contribute a single project and are keyed by the lab name alone. A lab running several data collections names each one with the optional `project` field, and the pair keys it everywhere dispatch refers to it (`--only`, `sessions.json`, log lines): `suthana/in-lab`.
 
+Sibling projects of one lab may point at the same `incoming_dandiset_id` and/or `standardized_dandiset_id` — nest each one under its own subdirectory (a `convert_command`'s `{incoming_dir}`/`{standardized_dir}` tokens, and a matching `sessions.json` include glob) rather than the dandiset root, so their raw and standardized data don't collide. Only the project key (`lab`, or `lab/project`) has to stay unique; dispatch gives each project sharing a `standardized_dandiset_id` its own conversion-state manifest, so their "what's already been converted" records don't collide either (see `state.py`'s `manifest_filename`).
+
 ## Layout
 
 ```

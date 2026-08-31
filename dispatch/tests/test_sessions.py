@@ -73,4 +73,9 @@ def test_load_session_specs_accepts_a_lab_slash_project_key(tmp_path):
 
 def test_load_session_specs_reads_the_committed_suthana_in_lab_entry():
     specs = load_session_specs(Path(__file__).resolve().parents[1] / "sessions.json")
-    assert specs["suthana/in-lab"].include == ["sourcedata/raw/*"]
+    assert specs["suthana/in-lab"].include == ["sourcedata/raw/in-lab/*"]
+
+
+def test_load_session_specs_reads_the_committed_suthana_seeber_2024_entry():
+    specs = load_session_specs(Path(__file__).resolve().parents[1] / "sessions.json")
+    assert specs["suthana/seeber-2024"].include == ["sourcedata/raw/Seeber_etal_2024_data_code"]

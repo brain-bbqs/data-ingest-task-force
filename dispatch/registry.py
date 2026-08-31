@@ -9,6 +9,16 @@ optional `project` field, and the pair is then its key everywhere dispatch
 refers to it (`--only`, sessions.json, log lines): "suthana/in-lab". See
 Project.key.
 
+Two or more projects may name the same incoming_dandiset_id and/or
+standardized_dandiset_id -- a lab whose projects share one pair of
+dandisets nests each project's raw and standardized data under its own
+subdirectory (a convert_command's {incoming_dir}/{standardized_dir}
+tokens, plus a matching sessions.json include glob, point at that
+subdirectory) rather than the dandiset root. Only the project key itself
+(lab, or lab/project) has to be unique. dispatch.py gives each project
+sharing a standardized_dandiset_id its own manifest file so their
+conversion-state records don't collide; see state.py.
+
 Session discovery is deliberately not part of this file -- see sessions.py /
 dispatch/sessions.json.
 """
@@ -103,14 +113,10 @@ def load_registry(path: Path) -> list[Project]:
         raise RegistryError(f"{path} defines no projects")
 
     projects: list[Project] = []
-    seen_incoming: set[str] = set()
     seen_keys: set[str] = set()
     for index, raw in enumerate(raw_projects):
         _validate_raw(raw, index=index)
         incoming_id = str(raw["incoming_dandiset_id"])
-        if incoming_id in seen_incoming:
-            raise RegistryError(f"projects.json: incoming_dandiset_id {incoming_id!r} is registered more than once")
-        seen_incoming.add(incoming_id)
         project = Project(
             lab=raw["lab"],
             incoming_dandiset_id=incoming_id,

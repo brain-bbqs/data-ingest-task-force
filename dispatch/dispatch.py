@@ -56,12 +56,13 @@ import logging
 import os
 import subprocess
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
 from registry import DEFAULT_UPLOAD_VALIDATION, Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
-from state import IngestState, hash_file
+from state import IngestState, hash_file, manifest_filename
 
 log = logging.getLogger("dispatch")
 
@@ -256,6 +257,7 @@ def process_project(
     skip_download: bool,
     skip_upload: bool,
     dry_run: bool,
+    shared_standardized: bool = False,
 ) -> None:
     incoming_dir = incoming_root / project.incoming_dandiset_id
     standardized_dir = standardized_root / project.standardized_dandiset_id
@@ -266,7 +268,8 @@ def process_project(
     else:
         log.info("[%s] --skip-download set, using existing local copy", project.key)
 
-    state = IngestState.load(standardized_dir)
+    manifest_name = manifest_filename(project.key, shared=shared_standardized)
+    state = IngestState.load(standardized_dir, manifest_name=manifest_name)
 
     script_path = project.script_abspath(repo_root)
     current_script_hash = hash_file(script_path) if script_path.is_file() else None
@@ -320,7 +323,7 @@ def process_project(
     state.last_run_at = converted_at
     touched = discovered if script_changed else new_sessions
     if not dry_run:
-        state.save(standardized_dir)
+        state.save(standardized_dir, manifest_name=manifest_name)
     else:
         log.info("[%s] [dry-run] would write state for %d session(s)", project.key, len(touched))
 
@@ -417,6 +420,11 @@ def main(argv: list[str] | None = None) -> int:
             log.error("--only named unknown project(s): %s", ", ".join(sorted(missing)))
             return 2
 
+    # Whether a project's standardized_dandiset_id is registered more than
+    # once decides its manifest filename (state.manifest_filename) -- only
+    # visible here, with the full registry in hand.
+    standardized_id_counts = Counter(p.standardized_dandiset_id for p in projects)
+
     failures = []
     for project in projects:
         spec = session_specs.get(project.key)
@@ -435,6 +443,7 @@ def main(argv: list[str] | None = None) -> int:
                 skip_download=args.skip_download,
                 skip_upload=args.skip_upload,
                 dry_run=args.dry_run,
+                shared_standardized=standardized_id_counts[project.standardized_dandiset_id] > 1,
             )
         except Exception:
             log.exception("[%s] failed; continuing with remaining projects", project.key)

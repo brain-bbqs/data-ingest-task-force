@@ -6,6 +6,15 @@ One manifest lives at ``<standardized_dir>/.ingest_state.json`` per project
 (next to the standardized/converted output, so it travels with it). It is
 plain JSON, not uploaded to DANDI (see the upload step in dispatch.py, which
 excludes dotfiles).
+
+That bare filename only works when a project has ``standardized_dir`` to
+itself. When two or more projects share a ``standardized_dandiset_id``
+(sibling projects of one lab, nested under their own subdirectories --
+see registry.py), each needs its own manifest file in that same directory,
+or they'd overwrite one another's ``script_sha256`` and
+``converted_sessions``. ``manifest_filename`` picks the right name for
+either case; dispatch.py is the only caller that knows, from the full
+registry, whether a project's standardized_dandiset_id is shared.
 """
 
 from __future__ import annotations
@@ -18,6 +27,19 @@ from pathlib import Path
 STATE_FILENAME = ".ingest_state.json"
 
 
+def manifest_filename(project_key: str, *, shared: bool) -> str:
+    """The manifest filename for *project_key*.
+
+    Unshared (the common case) keeps the original bare name, so existing
+    single-project standardized directories are unaffected. Shared gives
+    each project its own file, named after its key ("/" becomes "__" since
+    a project key is not a path).
+    """
+    if not shared:
+        return STATE_FILENAME
+    return f".ingest_state.{project_key.replace('/', '__')}.json"
+
+
 @dataclass
 class IngestState:
     """In-memory view of a project's manifest."""
@@ -27,8 +49,8 @@ class IngestState:
     last_run_at: str | None = None
 
     @classmethod
-    def load(cls, standardized_dir: Path) -> "IngestState":
-        path = standardized_dir / STATE_FILENAME
+    def load(cls, standardized_dir: Path, *, manifest_name: str = STATE_FILENAME) -> "IngestState":
+        path = standardized_dir / manifest_name
         if not path.is_file():
             return cls()
         payload = json.loads(path.read_text())
@@ -38,8 +60,8 @@ class IngestState:
             last_run_at=payload.get("last_run_at"),
         )
 
-    def save(self, standardized_dir: Path) -> None:
-        path = standardized_dir / STATE_FILENAME
+    def save(self, standardized_dir: Path, *, manifest_name: str = STATE_FILENAME) -> None:
+        path = standardized_dir / manifest_name
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "script_sha256": self.script_sha256,

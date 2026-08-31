@@ -99,18 +99,32 @@ def test_non_six_digit_id_raises(tmp_path):
         load_registry(path)
 
 
-def test_duplicate_incoming_id_raises(tmp_path):
+def test_sibling_projects_may_share_dandiset_ids(tmp_path):
+    # Two projects of the same lab, nested under their own subdirectories,
+    # sharing both the incoming and standardized dandiset.
     path = write_registry(
         tmp_path,
         {
             "projects": [
-                entry(lab="a", incoming_dandiset_id="000001", standardized_dandiset_id="000002"),
-                entry(lab="b", incoming_dandiset_id="000001", standardized_dandiset_id="000003"),
+                entry(
+                    lab="a",
+                    project="one",
+                    incoming_dandiset_id="000001",
+                    standardized_dandiset_id="000002",
+                ),
+                entry(
+                    lab="a",
+                    project="two",
+                    incoming_dandiset_id="000001",
+                    standardized_dandiset_id="000002",
+                ),
             ]
         },
     )
-    with pytest.raises(RegistryError, match="more than once"):
-        load_registry(path)
+    projects = load_registry(path)
+    assert [p.key for p in projects] == ["a/one", "a/two"]
+    assert {p.incoming_dandiset_id for p in projects} == {"000001"}
+    assert {p.standardized_dandiset_id for p in projects} == {"000002"}
 
 
 def test_empty_projects_raises(tmp_path):
