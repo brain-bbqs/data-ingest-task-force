@@ -26,7 +26,13 @@ default_language_version:
 # normal treatment. The v1 notebook and its accompanying code/README.md were
 # retired once the v2 scripts superseded them (see labs/sanes/README.md); git
 # history still has them.
-exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw|suthana/in-lab/tests/example_raw)/|^labs/shepherd/code/(shepherd_to_nwb\.py|config\.yaml|README\.md)$|^labs/sanes/(code/(pynaViz_ex\.py|sanes_multisubject_to_nwb\.py|sanes_individual_subject_to_nwb\.py|concat_sanes_data\.py|config_multisubject\.yaml)|envs/original/.*)$
+#
+# labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py is the
+# lab-supplied group-subject script for that project, ported verbatim (only
+# its two hardcoded local paths were converted to CLI arguments) pending its
+# conversion plan. Drop this exclusion once that plan lands and the file is
+# rewritten as owned conversion code.
+exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw|suthana/in-lab/tests/example_raw)/|^labs/shepherd/code/(shepherd_to_nwb\.py|config\.yaml|README\.md)$|^labs/sanes/(code/(pynaViz_ex\.py|sanes_multisubject_to_nwb\.py|sanes_individual_subject_to_nwb\.py|concat_sanes_data\.py|config_multisubject\.yaml)|envs/original/.*)$|^labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb\.py$
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
