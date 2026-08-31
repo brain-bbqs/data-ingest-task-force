@@ -1,51 +1,66 @@
-# Every value here is the literal the original conversion notebook
-# (code/sanesDatatoNWB_v2.ipynb) hard-coded, lifted into a file so the port can
-# run without editing the code. They are marked PROVISIONAL because the notebook
-# was written against one example dataset. Replace them with the real lab
-# metadata before treating the standardized output as final.
+# The single metadata source the v2 callable port (_sanes_to_nwb.py) reads.
+# Its structure follows the lab-supplied code/config_multisubject.yaml (the v2
+# scripts' own config, committed verbatim next to this file). Two files exist
+# because config_multisubject.yaml is kept byte-for-byte as provenance for the
+# verbatim-ported scripts, while this one is what the callable module actually
+# loads -- the same relationship code/config.yaml had to the v1 notebook.
+#
+# Every value here is still PROVISIONAL: config_multisubject.yaml's own header
+# says it holds "fake placeholder metadata", and this file inherits the same
+# values. Replace them with the real lab metadata before treating the
+# standardized output as final.
+#
+# If there are any questions about the meaning of certain metadata fields:
+# The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) provides extensive documentation on metadata reqs
 
 session:
-  identifier: 'example_id'                                # PROVISIONAL, verbatim from the notebook
-  description: 'Multi-animal social vocal interactions'   # PROVISIONAL, verbatim from the notebook
-  start_time: ''                                          # PROVISIONAL. Empty means "time of conversion", as the notebook did.
-                                                          # In this format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00Z
+  description: 'Video and audio data from interacting gerbils'   # PROVISIONAL, verbatim from config_multisubject.yaml
+  start_time: '2025-10-1310:35:00+0000'   # PROVISIONAL. Format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00+0000
+  experimenter: 'Muttath Joseph, Niegil Francis'   # PROVISIONAL. List in Last, First M. style
+  institution: 'New York University'   # PROVISIONAL
 
-acoustic:
-  name: 'Multi-channel Acoustic Data'
-  description: 'Audio data from 12 channels'   # PROVISIONAL, channel count is whatever the session's .wav files give
-  unit: 'V'                                    # PROVISIONAL. The stored values are raw WAV sample counts, not volts.
-
-video:
-  name: 'External Behavioral Videos'
-  description: 'External video file combined from multiple videos'
-  unit: 'n.a.'
-  rate: 30.0     # PROVISIONAL. Assumed frame rate, not read from the videos. Confirm with the lab.
-
-vocalizations:
-  name: 'vocalizations'
-
-subject:
-  id: 'Gerbil_001_002_003'                          # PROVISIONAL, verbatim from the notebook
-  description: 'Multiple gerbils used in the experiment'
-  species: 'Meriones unguiculatus'
-  age: 'P90D'                                       # PROVISIONAL. Required by DANDI, ISO 8601 duration - for example, P5W3D
+# One block per animal track. Track index N in the merged SLEAP data maps to
+# subject_N here (see concat_sanes_data.py's create_merged_slp_tracks and
+# ../README.md's "Known rough edges" for what that mapping assumes).
+subject_0:
+  id: 'S0'                                          # PROVISIONAL
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'   # PROVISIONAL
+  species: 'Meriones unguiculatus'                  # PROVISIONAL
   sex: 'M'                                          # PROVISIONAL. Required by DANDI, one of "M", "F", "O", "U"
+  age: 'P33D'                                       # PROVISIONAL. Required by DANDI, ISO 8601 duration, for example P30Y
 
-# One row per animal in the recording. NWB carries a single Subject, so the
-# notebook also wrote this table to describe the several animals present.
-subject_table:
-  name: 'Subject Information'
-  description: 'Information about the subject(s)'
-  rows:                                             # PROVISIONAL, verbatim from the notebook
-    - subject_id: 'S0'
-      age: 'P90D'
-      species: 'Meriones unguiculatus'
-      sex: 'M'
-    - subject_id: 'S2'
-      age: 'P92D'
-      species: 'Meriones unguiculatus'
-      sex: 'F'
-    - subject_id: 'S3'
-      age: 'P95D'
-      species: 'Meriones unguiculatus'
-      sex: 'M'
+subject_1:
+  id: 'S1'                                          # PROVISIONAL
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'   # PROVISIONAL
+  species: 'Meriones unguiculatus'                  # PROVISIONAL
+  sex: 'F'                                          # PROVISIONAL. Required by DANDI, one of "M", "F", "O", "U"
+  age: 'P30D'                                       # PROVISIONAL. Required by DANDI, ISO 8601 duration, for example P30Y
+
+subject_2:
+  id: 'S2'                                          # PROVISIONAL
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'   # PROVISIONAL
+  species: 'Meriones unguiculatus'                  # PROVISIONAL
+  sex: 'F'                                          # PROVISIONAL. Required by DANDI, one of "M", "F", "O", "U"
+  age: 'P23D'                                       # PROVISIONAL. Required by DANDI, ISO 8601 duration, for example P30Y
+
+acousticwaveformseries:
+  multichannel_audio:
+    description: 'Audio data from 12 channels'   # PROVISIONAL, channel count is whatever the session's .wav files give
+
+imageseries:
+  behavioral_video:
+    description: 'External video file combined from multiple videos'
+    unit: 'n.a.'
+    rate: 30.0   # PROVISIONAL. Assumed frame rate, not read from the videos. Confirm with the lab.
+
+timeintervals:
+  vocalizations:
+    description: 'Table of vocalizations'
+
+device_microphone:
+  name: 'name_of_microphone'                                              # PROVISIONAL
+  description: '12 Single-channel ambient microphones positioned around cage.'   # PROVISIONAL
+
+device_video:
+  name: 'name_of_video_device'          # PROVISIONAL
+  description: 'video positioned above cage'   # PROVISIONAL

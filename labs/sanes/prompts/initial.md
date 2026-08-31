@@ -27,3 +27,10 @@ credited. Answers:
 > R34DA059513
 
 > Neha Thomas
+
+## Request 3 — Update to the v2 scripts
+
+> Can you update the Sanes conversion in accordance with these updated scripts
+
+(Attached: `sanes_multisubject_to_nwb.py`, `sanes_individual_subject_to_nwb.py`,
+`config_multisubject.yaml`, `concat_sanes_data.py`.)
