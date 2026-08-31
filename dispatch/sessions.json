@@ -18,7 +18,7 @@
       "exclude": []
     },
     "suthana/in-lab": {
-      "include": ["sourcedata/raw/in-lab/*"],
+      "include": ["sourcedata/raw/Suthana-R61MH135106_In-Lab/*"],
       "exclude": []
     },
     "suthana/seeber-2024": {

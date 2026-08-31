@@ -89,7 +89,7 @@
         "python3",
         "{repo_root}/labs/suthana/in-lab/code/batch_convert.py",
         "--input",
-        "{incoming_dir}/sourcedata/raw/in-lab",
+        "{incoming_dir}/sourcedata/raw/Suthana-R61MH135106_In-Lab",
         "--output",
         "{standardized_dir}",
         "--config",
