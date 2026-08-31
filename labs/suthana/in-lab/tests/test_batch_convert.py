@@ -42,7 +42,7 @@ EXAMPLE_MAT = EXAMPLE_RAW / generate_fixtures.MAT_FILENAME
 EXAMPLE_RUNTIMES = EXAMPLE_RAW / generate_fixtures.RUNTIMES_FILENAME
 CONFIG = TESTS / "config.yaml"
 
-EXPECTED_NWB = Path("sub-S1") / "sub-S1_ses-inlab_behavior+ecephys.nwb"
+EXPECTED_NWB = Path(batch_convert.OUTPUT_SUBDIRECTORY) / "sub-S1" / "sub-S1_ses-inlab_behavior+ecephys.nwb"
 
 
 @pytest.fixture
@@ -71,7 +71,8 @@ def test_discover_subjects_finds_every_mat_file(tmp_path):
 def test_output_path_uses_the_dandi_subject_layout():
     nwb_path = batch_convert.output_path(standardized_dir=Path("/out"), paper_id="S3")
 
-    assert nwb_path == Path("/out/sub-S3/sub-S3_ses-inlab_behavior+ecephys.nwb")
+    expected = Path("/out") / batch_convert.OUTPUT_SUBDIRECTORY / "sub-S3" / "sub-S3_ses-inlab_behavior+ecephys.nwb"
+    assert nwb_path == expected
 
 
 def test_find_runtimes_prefers_the_copy_beside_the_mat(tmp_path):

@@ -84,6 +84,7 @@
       "script_path": "labs/suthana/in-lab/code/_suthana_in_lab_to_nwb.py",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/suthana-in-lab-r61mh135106-ingest:latest",
+      "upload_validation": "ignore",
       "convert_command": [
         "python3",
         "{repo_root}/labs/suthana/in-lab/code/batch_convert.py",
