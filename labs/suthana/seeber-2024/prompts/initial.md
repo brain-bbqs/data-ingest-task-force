@@ -49,5 +49,20 @@ NWB), not as a "reproduce the paper's figures" task, and do not let that
 framing drive the refactor. Proceeded with the new-sibling-project layout,
 named `seeber-2024` after the source Zenodo repository, since the script's
 data and NWB structure differ substantially from `in-lab` (see
-`../README.md` once written). Open to renaming if that project key is
-wrong.
+`../README.md` once written).
+
+> nah seeber 2024 is fine
+
+Confirmed the project key stays `seeber-2024`.
+
+## Request 3 — Incoming source-data layout
+
+> the sourcedata in the related incoming dataset is nested under folder
+> 'Seeber_etal_2024_data_code'
+
+So the incoming dandiset holds the `data_1.mat`..`data_4.mat` files under a
+`Seeber_etal_2024_data_code/` subfolder, not at its root. Noted here for
+the conversion plan and the eventual batch driver's discovery glob; the
+ported script's `--input` still expects that folder's contents directly
+(the folder itself, not its parent), so callers pass
+`.../Seeber_etal_2024_data_code` as `--input`.
