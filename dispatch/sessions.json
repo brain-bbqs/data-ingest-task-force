@@ -18,7 +18,11 @@
       "exclude": []
     },
     "suthana/in-lab": {
-      "include": ["sourcedata/raw/*"],
+      "include": ["sourcedata/raw/Suthana-R61MH135106_In-Lab/*"],
+      "exclude": []
+    },
+    "suthana/seeber-2024": {
+      "include": ["sourcedata/raw/Seeber_etal_2024_data_code"],
       "exclude": []
     }
   }

@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 
 from registry import Project  # noqa: E402
 from sessions import SessionSpec  # noqa: E402
-from state import IngestState  # noqa: E402
+from state import IngestState, manifest_filename  # noqa: E402
 
 import dispatch  # noqa: E402
 
@@ -474,3 +474,62 @@ def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch
     )
     assert calls == []
     assert not (standardized_root / "000002").exists()
+
+
+def test_process_project_gives_shared_standardized_dir_a_per_project_manifest(tmp_path, monkeypatch):
+    """Two sibling projects (same lab, different `project`) may point at the
+    same standardized_dandiset_id -- each nested under its own subdirectory
+    -- without clobbering each other's conversion-state manifest."""
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    (incoming_root / "000001" / "one" / "ses-1").mkdir(parents=True)
+    (incoming_root / "000001" / "two" / "ses-2").mkdir(parents=True)
+
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: None)
+
+    for project_name, session_dir in (("one", "one"), ("two", "two")):
+        project = make_project(project=project_name, convert_command=["python3", "convert.py"])
+        dispatch.process_project(
+            project,
+            repo_root=repo_root,
+            incoming_root=incoming_root,
+            standardized_root=standardized_root,
+            session_spec=SessionSpec(include=[f"{session_dir}/*"]),
+            dandi_image=DANDI_IMAGE,
+            skip_download=True,
+            skip_upload=True,
+            dry_run=False,
+            shared_standardized=True,
+        )
+
+    standardized_dir = standardized_root / "000002"
+    manifest_one = IngestState.load(standardized_dir, manifest_name=manifest_filename("test-lab/one", shared=True))
+    manifest_two = IngestState.load(standardized_dir, manifest_name=manifest_filename("test-lab/two", shared=True))
+    assert manifest_one.converted_sessions.keys() == {"ses-1"}
+    assert manifest_two.converted_sessions.keys() == {"ses-2"}
+
+
+def test_main_marks_standardized_id_shared_only_when_registered_twice(tmp_path, monkeypatch):
+    repo_root = make_repo(tmp_path)
+    (repo_root / "dispatch").mkdir()
+    (repo_root / "dispatch" / "projects.json").write_text(
+        '{"projects": ['
+        '{"lab": "test-lab", "project": "one", "incoming_dandiset_id": "000001", '
+        '"standardized_dandiset_id": "000002", "script_path": "labs/test-lab/code/convert.py", '
+        '"convert_command": ["python3"]},'
+        '{"lab": "test-lab", "project": "two", "incoming_dandiset_id": "000001", '
+        '"standardized_dandiset_id": "000002", "script_path": "labs/test-lab/code/convert.py", '
+        '"convert_command": ["python3"]}'
+        "]}"
+    )
+    (repo_root / "dispatch" / "sessions.json").write_text(
+        '{"labs": {"test-lab/one": {"include": ["one/*"]}, "test-lab/two": {"include": ["two/*"]}}}'
+    )
+    calls = []
+    monkeypatch.setattr(dispatch, "process_project", lambda project, **kwargs: calls.append(kwargs))
+
+    assert dispatch.main(["--repo-root", str(repo_root), "--dry-run"]) == 0
+
+    assert len(calls) == 2
+    assert all(kwargs["shared_standardized"] for kwargs in calls)
