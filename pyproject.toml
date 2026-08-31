@@ -20,6 +20,13 @@ exclude = [
   # unlinted as original provenance (see labs/sanes/README.md). The converter
   # and batch driver alongside it are new code and are linted normally.
   "labs/sanes/code/pynaViz_ex.py",
+  # Verbatim ports of the lab-supplied v2 Sanes scripts that supersede the v1
+  # notebook, kept unformatted and unlinted as original provenance (see
+  # labs/sanes/README.md). _sanes_to_nwb.py and batch_convert.py alongside them
+  # are new code and are linted normally.
+  "labs/sanes/code/sanes_multisubject_to_nwb.py",
+  "labs/sanes/code/sanes_individual_subject_to_nwb.py",
+  "labs/sanes/code/concat_sanes_data.py",
 ]
 
 [tool.ruff.lint]

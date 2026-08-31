@@ -6,12 +6,14 @@
 # build time and the resulting image (by digest) is the reproducibility lock,
 # so there is no lockfile in the repository to keep in sync.
 #
-# The original conda environments the conversion was written in are kept
+# The original conda environments the v1 notebook was written in are kept
 # verbatim under envs/original/ as provenance. They are a record, not an input
-# to any build.
+# to any build. The v2 lab-supplied scripts this environment now targets did
+# not come with an environment export of their own.
 #
 # The converter also shells out to `ffprobe` to read video duration and frame
-# count. That is an external FFmpeg dependency, a *system* package installed in
+# count, and to `ffmpeg` (via ffmpeg-python) to concatenate chunk videos. Both
+# are external FFmpeg dependencies, a *system* package installed in
 # containers/sanes.Dockerfile rather than a Python one.
 
 [project]
@@ -28,19 +30,39 @@ dependencies = [
   "PyYAML",
   "tqdm",
   "hdmf",
-  # These three carry upper bounds, unlike the sibling labs' declarations. The
-  # ported code is written against the NWB stack in envs/original/, and both
-  # newer lines break it: pynwb 3.2 requires num_samples on an external-file
-  # ImageSeries that uses rate, and sleap-io 0.5 moved SLEAP pose data out of
-  # the "behavior" processing module the port reads back. Lifting these bounds
-  # is part of the follow-up that takes ownership of the port, not something
-  # to do while the code stays as-is.
-  "pynwb>=3.1,<3.2",
-  "sleap-io>=0.4,<0.5",
-  # SLEAPInterface lives behind neuroconv's sleap extra.
-  "neuroconv[sleap]>=0.8,<0.9",
-  # Only the notebook's one-off "combine every chunk video into one mp4" cell
-  # uses this. It is kept so that cell still runs inside this environment.
+  # pynwb itself no longer carries an upper bound: v2 reads SLEAP pose data
+  # through sleap_io directly (see below) rather than through neuroconv's
+  # SLEAPInterface, so the ImageSeries/num_samples incompatibility that bound
+  # v1 to pynwb<3.2 no longer applies. Verified against pynwb 4.1.
+  "pynwb",
+  # sleap-io keeps an upper AND a lower bound, for a narrower reason than v1's:
+  # this pipeline needs sleap_io.model.matching.PATH_VIDEO_MATCHER (added in
+  # 0.5.1) to merge chunk .slp files by exact video path, and
+  # sleap_io.io.nwb.write_nwb's nwb_file_kwargs= signature (moved to
+  # sleap_io.io.nwb_predictions and re-exported through 0.5.7, then dropped
+  # in favor of a differently-shaped save_nwb() from 0.6 onward, where
+  # sleap_io.io.nwb also stops being reachable as a bare attribute without an
+  # explicit submodule import, because of sleap-io's lazy loader). No released
+  # version has both PATH_VIDEO_MATCHER and the old write_nwb() outside
+  # 0.5.1-0.5.7, so this pin is load-bearing, not a leftover from the v1 port.
+  "sleap-io>=0.5.1,<0.5.8",
+  # get_default_backend_configuration / configure_and_write_nwbfile for the
+  # (computed but, as ported, unapplied -- see ../README.md) gzip backend
+  # compression in sanes_multisubject_to_nwb.py. v2 no longer uses neuroconv's
+  # SLEAPInterface, so the sleap extra v1 needed is dropped and the upper bound
+  # that extra's SLEAPInterface required goes with it.
+  "neuroconv",
+  # ndx-sound's AcousticWaveformSeries for the multichannel audio, replacing
+  # v1's plain TimeSeries.
+  "ndx-sound",
+  # ndx-multisubjects' NdxMultiSubjectsNWBFile/SubjectsTable for the
+  # multi-subject session layout, replacing v1's single Subject plus a
+  # DynamicTable workaround.
+  "ndx-multisubjects",
+  # Chunk-video concatenation into one combined external video is now part of
+  # the automated path (concat_sanes_data.py's concat_video_files), not a
+  # manual one-off cell, so this is a real runtime dependency rather than one
+  # kept only so a notebook cell still runs.
   "ffmpeg-python",
 ]
 

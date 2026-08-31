@@ -12,9 +12,10 @@
 #
 # NeuroDebian trixie (Debian 13) is the base layer, matching the sibling lab
 # images and the DANDI-cache repositories. It provides Python 3.13, and from
-# Debian main a recent FFmpeg. The converter shells out to `ffprobe` (part of
-# FFmpeg) to read video duration and frame count -- that is this pipeline's one
-# system dependency.
+# Debian main a recent FFmpeg. The pipeline shells out to `ffprobe` (part of
+# FFmpeg) to read video duration and frame count, and to `ffmpeg` itself (via
+# the ffmpeg-python dependency) to concatenate chunk videos -- that is this
+# pipeline's one system dependency.
 FROM neurodebian:trixie
 
 LABEL org.opencontainers.image.source="https://github.com/brain-bbqs/data-ingest-task-force"

@@ -1,0 +1,86 @@
+# Original metadata config developed by Neha Thomas (neha-thomas477), committed
+# verbatim as provenance. It is what the v2 scripts (sanes_multisubject_to_nwb.py,
+# sanes_individual_subject_to_nwb.py, concat_sanes_data.py) read, and supersedes
+# v1's config.yaml. Its own header (below) already says the values are fake
+# placeholders. This repository's callable v2 port (_sanes_to_nwb.py) reads
+# ../code/config.yaml instead, whose structure follows this file; see
+# ../README.md for why both files exist.
+#
+# If there are any questions about the meaning of certain metadata fields:
+# The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) provides extensive documentation on metadata reqs
+
+session:
+  id: 'sanes_multisubject_1'                      # Example: CAM021_R08
+  description: 'Video and audio data from interacting gerbils'
+  start_time: '2025-10-1310:35:00+0000'              # Format: %Y-%m-%d%H:%M:%S%z, ex 2025-10-2113:45:00+0000
+  timestamps_reference_time: '' # Usually same instant as session.start_time; NWB timestamps are seconds relative to this time.
+  lab: ''
+  experimenter: 'Muttath Joseph, Niegil Francis'            # List in Last, First M. style
+  institution: 'New York University'
+  keywords: ''
+  notes: 
+  pharmacology:
+  protocol:
+  related_publications: ''    # DOI links if available
+  data_collection: 
+  surgery:
+  virus:
+  stimulus_notes: 
+
+subject_0:
+  id: 'S0'                     
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'
+  species: 'Meriones unguiculatus'
+  genotype:
+  strain:
+  sex: 'M'                     # Required by DANDI; one of "M", "F", "O", "U"
+  age: 'P33D'                     # Required by DANDI; ISO 8601 duration, for example P30Y
+  weight: ''                  # In grams, if available
+  date_of_birth: ''           # ISO 8601 timestamp, if used instead of age
+
+subject_1:
+  id: 'S1'                     
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'
+  species: 'Meriones unguiculatus'
+  genotype:
+  strain:
+  sex: 'F'                     # Required by DANDI; one of "M", "F", "O", "U"
+  age: 'P30D'                     # Required by DANDI; ISO 8601 duration, for example P30Y
+  weight: ''                  # In grams, if available
+  date_of_birth: ''           # ISO 8601 timestamp, if used instead of age
+
+
+subject_2:
+  id: 'S2'                      
+  description: 'Fake placeholder metadata in a multi-subject interaction experiment'
+  species: 'Meriones unguiculatus'
+  genotype:
+  strain:
+  sex: 'F'                     # Required by DANDI; one of "M", "F", "O", "U"
+  age: 'P23D'                    # Required by DANDI; ISO 8601 duration, for example P30Y
+  weight: ''                  # In grams, if available
+  date_of_birth: ''           # ISO 8601 timestamp, if used instead of age
+
+
+acousticwaveformseries:
+  multichannel_audio:
+    description: "Audio data from 12 channels"
+
+imageseries:
+  behavioral_video:
+    description: "External video file combined from multiple videos"
+    unit: "n/a"
+
+timeintervals:
+  vocalizations:
+    description: "Table of vocalizations"
+
+
+device_microphone:
+  name: 'name_of_microphone'
+  description: '12 Single-channel ambient microphones positioned around cage.'
+
+device_video:
+  name: 'name_of_video_device'
+  description: 'video positioned above cage'
+
