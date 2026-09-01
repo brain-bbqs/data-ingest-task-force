@@ -107,7 +107,7 @@
         "python3",
         "{repo_root}/labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
         "--input",
-        "{incoming_dir}/sourcedata/raw/Seeber_etal_2024_data_code",
+        "{incoming_dir}/sourcedata/raw/Seeber_etal_2024_data_code/data",
         "--output",
         "{standardized_dir}/sourcedata/nwb/Seeber_etal_2024_data_code"
       ]

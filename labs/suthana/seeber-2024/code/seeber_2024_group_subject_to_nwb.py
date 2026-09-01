@@ -52,8 +52,8 @@ def parse_args():
         "--input",
         required=True,
         help="Folder holding data_1.mat through data_4.mat directly. In the incoming"
-        " dandiset this is nested under a Seeber_etal_2024_data_code/ subfolder,"
-        " so pass that subfolder's path, not its parent.",
+        " dandiset these live under Seeber_etal_2024_data_code/data/, so pass that"
+        " data/ subfolder's path, not Seeber_etal_2024_data_code/ itself.",
     )
     parser.add_argument(
         "--output",
