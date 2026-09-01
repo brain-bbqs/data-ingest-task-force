@@ -1200,6 +1200,7 @@ backend_configuration.apply_global_compression(
     },
 )
 
+os.makedirs(saveNWBFolder, exist_ok=True)
 nwbfile_path = os.path.join(saveNWBFolder, "Zenodo_compressed_groupSubject.nwb")
 
 configure_and_write_nwbfile(
