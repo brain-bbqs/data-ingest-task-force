@@ -69,6 +69,42 @@ def test_session_start_time(configured, expected_is_none):
         assert start_time.isoformat() == "2025-10-13T10:35:00+00:00"
 
 
+@pytest.mark.parametrize("filename", ["annotations.csv", "channel_0_4_annotations.csv"])
+def test_find_annotations_file_accepts_either_naming(tmp_path, filename):
+    """Both namings appear across the chunks of one real upload (000522)."""
+    (tmp_path / filename).touch()
+
+    annotations_path = _sanes_to_nwb.find_annotations_file(tmp_path)
+
+    assert annotations_path == tmp_path / filename
+
+
+def test_find_annotations_file_ignores_the_tracks_csv(tmp_path):
+    """Every chunk also holds a SLEAP tracks .csv, which is not the annotations table."""
+    (tmp_path / "center-session_135_video-4.tracks.csv").touch()
+    (tmp_path / "channel_0_4_annotations.csv").touch()
+
+    annotations_path = _sanes_to_nwb.find_annotations_file(tmp_path)
+
+    assert annotations_path == tmp_path / "channel_0_4_annotations.csv"
+
+
+@pytest.mark.parametrize(
+    ("filenames", "expected_found"),
+    [
+        ((), 0),
+        (("center-session_135_video-4.tracks.csv",), 0),
+        (("annotations.csv", "channel_0_4_annotations.csv"), 2),
+    ],
+)
+def test_find_annotations_file_requires_exactly_one(tmp_path, filenames, expected_found):
+    for filename in filenames:
+        (tmp_path / filename).touch()
+
+    with pytest.raises(ValueError, match=f"found {expected_found}"):
+        _sanes_to_nwb.find_annotations_file(tmp_path)
+
+
 def test_read_chunk_annotations_offsets_start_and_stop(tmp_path):
     (tmp_path / "annotations.csv").write_text("start_seconds,stop_seconds,name\n0.1,0.2,call_a\n0.5,0.6,call_b\n")
 

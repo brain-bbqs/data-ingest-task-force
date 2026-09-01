@@ -281,15 +281,12 @@ true.
   same underlying issue v1 had, just carried by a different mechanism (v1 had
   a single processing module with unrelated per-chunk data; v2 has explicit
   per-video frame indices with no offset applied).
-- Chunk layout is still assumed, not checked, and the annotations-file lookup
-  is now *less* forgiving than v1's port: v2 hard-codes `annotations.csv`
-  exactly (`read_chunk_annotations` matches that literally), unlike v1's
-  `find_annotations_file` helper, which also matched the
-  `channel_0_4_annotations.csv` naming seen in some chunks. That helper is
-  not part of this port, since matching v2's actual (hard-coded) behavior was
-  the more faithful choice. A chunk that names its table
-  `channel_0_4_annotations.csv` (seen in real uploads, per v1's README)
-  breaks v2 as supplied.
+- Chunk layout is still assumed, not checked, beyond the annotations-file
+  lookup: `read_chunk_annotations` restores v1's `find_annotations_file`
+  helper, which matches on the `annotations.csv` suffix rather than that
+  exact name, since a real chunk in 000522/experiment_135 (`idx_4`) names its
+  table `channel_0_4_annotations.csv` instead and broke a scheduled ingest
+  run hard-coded to the exact name (see brain-bbqs/data-ingest-task-force#37).
 - There is no per-session metadata. `config.yaml`'s one `session` block and
   three `subject_N` blocks apply to every session in the dandiset.
 - Every value in `config.yaml` is marked `PROVISIONAL`, same as v1.
@@ -430,8 +427,8 @@ python3 labs/sanes/code/batch_convert.py \
 
 The input folder is one session, holding `idx_*` chunk folders. Each chunk
 holds one `.wav` per audio channel (files with `multichannel` in the name
-are skipped), one `.mp4`, at least one `.slp`, and one `annotations.csv`
-(the exact name, see "Known rough edges" above).
+are skipped), one `.mp4`, at least one `.slp`, and one file ending in
+`annotations.csv` (see "Known rough edges" above for the naming variance).
 
 ## Tests
 
