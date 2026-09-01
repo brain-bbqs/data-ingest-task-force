@@ -22,6 +22,8 @@ labs/
   suthana/              Suthana lab, one directory per project
     in-lab/               in-lab navigation: iEEG + scalp EEG + motion capture -> NWB
                            (see labs/suthana/in-lab/README.md)
+    seeber-2024/          Seeber et al. (2024/2025) derived group-subject data -> NWB
+                           (see labs/suthana/seeber-2024/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
                          (see dispatch/README.md), including its own
                          containers/dandi.Dockerfile -- the portable dandi

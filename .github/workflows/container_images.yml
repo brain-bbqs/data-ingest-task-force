@@ -53,6 +53,9 @@ jobs:
             suthana-in-lab-r61mh135106-ingest:
               - 'labs/suthana/in-lab/**'
               - '.github/workflows/container_images.yml'
+            suthana-seeber-2024-r61mh135106-ingest:
+              - 'labs/suthana/seeber-2024/**'
+              - '.github/workflows/container_images.yml'
             dandi-cli:
               - 'dispatch/**'
               - '.github/workflows/container_images.yml'
@@ -85,6 +88,10 @@ jobs:
              "dockerfile": "labs/suthana/in-lab/containers/suthana-in-lab.Dockerfile",
              "context": "labs/suthana/in-lab",
              "tests": "labs/suthana/in-lab/tests"},
+            {"image": "suthana-seeber-2024-r61mh135106-ingest",
+             "dockerfile": "labs/suthana/seeber-2024/containers/suthana-seeber-2024.Dockerfile",
+             "context": "labs/suthana/seeber-2024",
+             "tests": "labs/suthana/seeber-2024/tests"},
             {"image": "dandi-cli",
              "dockerfile": "dispatch/containers/dandi.Dockerfile",
              "context": "dispatch",

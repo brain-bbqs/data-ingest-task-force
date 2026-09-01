@@ -267,17 +267,32 @@ def read_chunk_audio(chunk_folder, /):
     return numpy.hstack(channel_columns), sampling_rate
 
 
+def find_annotations_file(folder_path, /):
+    """The chunk's vocalization annotations, whatever it is named.
+
+    Most chunks name it ``annotations.csv``, but some carry the channel and
+    chunk in the name instead (``channel_0_4_annotations.csv``). Both are
+    valid uploads holding the same per-chunk table, so match on the suffix
+    the way the ``.wav``/``.mp4``/``.slp`` lookups below do.
+    """
+    folder_path = Path(folder_path)
+    matches = natsort.natsorted(f for f in os.listdir(folder_path) if f.endswith("annotations.csv"))
+    if len(matches) != 1:
+        raise ValueError(f"Expected exactly one *annotations.csv in {folder_path}, found {len(matches)}: {matches}")
+    annotations_path = folder_path / matches[0]
+    return annotations_path
+
+
 def read_chunk_annotations(chunk_folder, *, cumulative_offset):
     """One chunk's vocalization annotations, offset by *cumulative_offset*.
 
-    Matches ``sanes_multisubject_to_nwb.py``'s hard-coded ``annotations.csv``
-    name exactly, unlike this module's own v1-era ``find_annotations_file``
-    helper, which also matched the ``channel_0_4_annotations.csv`` naming seen
-    in some chunks. That robustness is not part of what the v2 scripts do, so
-    it is not ported here; see ``../README.md``.
+    Restores this module's own v1-era ``find_annotations_file`` lookup
+    (dropped when the v2 scripts were ported in for hard-coding
+    ``annotations.csv`` exactly): a real chunk in 000522/experiment_135
+    (``idx_4``) names its table ``channel_0_4_annotations.csv`` instead, which
+    otherwise breaks the whole session's conversion. See ``../README.md``.
     """
-    chunk_folder = Path(chunk_folder)
-    annotations_path = chunk_folder / "annotations.csv"
+    annotations_path = find_annotations_file(chunk_folder)
     df = pandas.read_csv(annotations_path)
     df.start_seconds = df.start_seconds + cumulative_offset
     df.stop_seconds = df.stop_seconds + cumulative_offset
