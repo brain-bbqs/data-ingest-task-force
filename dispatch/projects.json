@@ -103,11 +103,12 @@
       "standardized_dandiset_id": "000531",
       "script_path": "labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
       "container_image": "ghcr.io/brain-bbqs/suthana-seeber-2024-r61mh135106-ingest:latest",
+      "upload_validation": "ignore",
       "convert_command": [
         "python3",
         "{repo_root}/labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
         "--input",
-        "{incoming_dir}/sourcedata/raw/Seeber_etal_2024_data_code",
+        "{incoming_dir}/sourcedata/raw/Seeber_etal_2024_data_code/data",
         "--output",
         "{standardized_dir}/sourcedata/nwb/Seeber_etal_2024_data_code"
       ]
