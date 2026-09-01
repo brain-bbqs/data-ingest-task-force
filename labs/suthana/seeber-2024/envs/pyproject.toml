@@ -1,0 +1,46 @@
+# Loose, declarative environment for the Suthana seeber-2024 group-subject
+# conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/suthana-seeber-2024.Dockerfile resolves
+# it fresh at build time and the resulting image (by digest) is the
+# reproducibility lock, so there is no lockfile in the repository to keep in
+# sync.
+#
+# The dependency set matches the ported script's own imports
+# (seeber_2024_group_subject_to_nwb.py) exactly, since it is not yet driven
+# by config.yaml or a batch driver of its own -- see the lab README's
+# provenance section.
+
+[project]
+name = "suthana-seeber-2024-r61mh135106-ingest"
+version = "0.1.0"
+description = "Convert the Seeber et al. (2024/2025) derived group-subject data into one NWB file."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  # The source .mat files are read with scipy's MATLAB reader (not h5py, unlike
+  # in-lab's raw recordings), since these are ordinary (non-v7.3) .mat files.
+  "scipy",
+  "hdmf",
+  "pynwb",
+  "neuroconv",
+  "ndx-multisubjects",
+]
+
+[project.optional-dependencies]
+# The converter's own dependencies double as the test runtime. The test extra
+# only adds the runner itself.
+test = [
+  "pytest>=7",
+]
+
+# The package carries no importable modules; installing it only realises the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

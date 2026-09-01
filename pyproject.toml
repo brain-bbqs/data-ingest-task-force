@@ -27,6 +27,10 @@ exclude = [
   "labs/sanes/code/sanes_multisubject_to_nwb.py",
   "labs/sanes/code/sanes_individual_subject_to_nwb.py",
   "labs/sanes/code/concat_sanes_data.py",
+  # Verbatim port of the Suthana seeber-2024 group-subject conversion script,
+  # kept unformatted and unlinted as original provenance (see
+  # labs/suthana/seeber-2024/README.md).
+  "labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
 ]
 
 [tool.ruff.lint]

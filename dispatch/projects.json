@@ -102,6 +102,7 @@
       "incoming_dandiset_id": "000530",
       "standardized_dandiset_id": "000531",
       "script_path": "labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
+      "container_image": "ghcr.io/brain-bbqs/suthana-seeber-2024-r61mh135106-ingest:latest",
       "convert_command": [
         "python3",
         "{repo_root}/labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb.py",
