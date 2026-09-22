@@ -19,7 +19,7 @@ Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, i
 
 ## NWB targets
 
-- Write with `pynwb`. Use a `neuroconv` DataInterface when one exists for the source format (shepherd uses `DeepLabCutInterface` for DLC pose files). Check for an existing interface before hand-rolling a reader.
+- Write with `pynwb`. Use a `neuroconv` DataInterface when one exists for the source format (shepherd uses `DeepLabCutInterface` for DLC pose files). Check for an existing interface before hand-rolling a reader, and check what it actually covers rather than only that it exists: neuroconv's SpikeGadgets interface reads the ephys stream of a `.rec` and skips the digital inputs and headstage sensors the same file holds (zhang), so those streams still need a reader of their own.
 - One `.nwb` file per session by default. Precedented variations: a `_desc-raw` / `_desc-processed` pair per session (shepherd), one file per subject-walk (inman).
 - Output layout follows the DANDI convention. Assets sit directly under `sub-<label>/` with the session in the filename. Do not nest a `ses-<label>/` subfolder, dandi validation rejects that form (see the comment in `labs/inman/code/batch_convert.py`).
 

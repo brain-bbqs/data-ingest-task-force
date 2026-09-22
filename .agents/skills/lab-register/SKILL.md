@@ -22,7 +22,7 @@ Add one entry. The field reference lives in `dispatch/README.md`, and the existi
 
 ## 2. `dispatch/sessions.json`
 
-Add an entry under `"labs"` with the same project key. `include` globs are relative to the incoming project directory, only directories count as sessions, and a session's id is its directory basename. Derive the glob from the intake's source tree (kemere: `sourcedata/raw/*-Session*`). Use `exclude` for stray non-session directories. If the incoming dandiset currently holds data the converter cannot read, scope the glob so discovery finds only real input, as shepherd does with `sourcedata/raw/sessions/*`.
+Add an entry under `"labs"` with the same project key. `include` globs are relative to the incoming project directory, only directories count as sessions, and a session's id is its directory basename. Derive the glob from the intake's source tree (kemere: `sourcedata/raw/*-Session*`). Basenames must be unique across everything the globs match, since dispatch keys sessions by basename and a later match silently replaces an earlier one. When the natural session directory repeats (zhang nests date folders under animal-pair folders), glob one level deeper to a directory whose name is unique, such as the recording directory, and let the batch driver reach sibling folders from there. Use `exclude` for stray non-session directories. If the incoming dandiset currently holds data the converter cannot read, scope the glob so discovery finds only real input, as shepherd does with `sourcedata/raw/sessions/*`.
 
 ## 3. `.github/workflows/container_images.yml`
 
