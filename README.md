@@ -76,3 +76,5 @@ this conversion taught back into the skills.
 ```
 
 Fields you cannot fill yet are fine to leave as "unknown". The intake skill asks about anything that blocks planning and carries the rest forward as `PROVISIONAL`.
+
+Hint: an easy way to get the filetree from an embargoed Dandiset is to navigate to its neurosift dataset view (e.g., `https://neurosift.app/ember-dandiset/XYZ123`) and expand a single session completely, then copy and paste all content from the page into a separate agent session with the instruction to render the "Can you convert this to a nice-looking filetree (markdown style)".
