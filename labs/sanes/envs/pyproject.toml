@@ -52,6 +52,11 @@ dependencies = [
   # SLEAPInterface, so the sleap extra v1 needed is dropped and the upper bound
   # that extra's SLEAPInterface required goes with it.
   "neuroconv",
+  # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr
+  # 0.14.0 (2026-09-22) moved to zarr>=3.4, so an unbounded resolve installs
+  # zarr 3 and `import neuroconv` fails. Drop this bound once a neuroconv
+  # release imports under zarr 3.
+  "zarr<3",
   # ndx-sound's AcousticWaveformSeries for the multichannel audio, replacing
   # v1's plain TimeSeries.
   "ndx-sound",
