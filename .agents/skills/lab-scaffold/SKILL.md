@@ -18,6 +18,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 | `envs/pyproject.toml` | Loose, unpinned environment declaration with a `[test]` extra | `labs/inman/envs/` |
 | `tests/` | One golden-file integration test plus committed fixtures | `labs/kemere/tests/` |
 | `prompts/` | Verbatim AI-agent prompts, started by lab-intake | `labs/kemere/prompts/` |
+| `OPEN_QUESTIONS.md` | Every question the plan left open, with status, what it blocks, and where its placeholder lives | `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md` |
 | `README.md` | The lab's own README | `labs/kemere/README.md`, `labs/shepherd/README.md` |
 
 `references/layout-contract.md` specifies each piece file by file, including the dispatch contract the batch driver must satisfy, the naming rules derived from the grant award number, and the verbatim-port rules. Read it before writing anything.
@@ -30,6 +31,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 4. `envs/pyproject.toml`, then the Dockerfile that resolves it.
 5. Tests with committed `example_raw/` and `expected_output/` fixtures, plus `generate_fixtures.py`.
 6. `code/README.md` and the lab `README.md`, folding in the intake facts and the plan.
+7. `OPEN_QUESTIONS.md`, carrying over every question the plan's sign-off left open.
 
 ## Repository conventions that apply here
 

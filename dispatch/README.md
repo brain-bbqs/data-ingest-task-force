@@ -141,7 +141,7 @@ It runs `labs/zhang/ferret-hyperscanning/code/batch_convert.py`, which converts 
 Its `script_path` deliberately stays pointed at `_zhang_ferret_hyperscanning_to_nwb.py`, since that is where the conversion logic that determines output content lives.
 Its `sessions.json` glob selects the `.rec` directory rather than the date directory it sits in, since date directories repeat across animal pairs and dispatch keys sessions by basename.
 It uses the default `upload_validation`. Whether DANDI accepts the `.avi` assets written next to the NWB files is unconfirmed until the first real upload; set `ignore` if it does not.
-What in the output is still provisional is listed in `labs/zhang/ferret-hyperscanning/README.md`.
+Open questions that still affect the output are tracked in `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`.
 
 ## Tests
 

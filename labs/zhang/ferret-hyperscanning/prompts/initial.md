@@ -117,6 +117,9 @@ default that is easy to change. The precedents referenced are
 
 ### Open questions, in priority order
 
+(As asked at plan time. Their current status is tracked in
+[`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md), under the same numbers.)
+
 1. **Does the uploaded `.rec` contain the ephys?** By size it cannot hold
    64 channels at 20 kHz for the session. Is it the base-station file, with
    the Sprite32 SD-card data merged into a separate (larger) `.rec` through
@@ -446,3 +449,13 @@ video file. The video interface reads each file's frame rate and frame count
 from its header and links the camera device. It stores the absolute path it
 read, so the converter rewrites each `external_file` relative to the NWB
 file before writing. The golden output summary came out unchanged.
+
+## Request 4 — A separate open-questions doc
+
+> separate the open questions into a clearly designated and linked doc for future reference
+
+The plan's questions now live in `../OPEN_QUESTIONS.md`, keeping their
+numbers (Q1 to Q15, plus Q16 on DANDI's validation of the `.avi` assets).
+Each question carries its status after the sign-off, what it blocks, and
+where its placeholder lives. The lab README, the `PROVISIONAL` comments in
+`code/config.yaml`, and the dispatch note link to it.

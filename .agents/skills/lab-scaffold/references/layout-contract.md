@@ -1,6 +1,6 @@
 # Layout contract, file by file
 
-Contents: naming, `code/`, the dispatch contract for the batch driver, `config.yaml`, `code/README.md`, `envs/`, `containers/`, `tests/`, `prompts/`, the lab `README.md`.
+Contents: naming, `code/`, the dispatch contract for the batch driver, `config.yaml`, `code/README.md`, `envs/`, `containers/`, `tests/`, `prompts/`, `OPEN_QUESTIONS.md`, the lab `README.md`.
 
 ## Naming
 
@@ -94,6 +94,15 @@ Repo `AGENTS.md` applies: mark AI-authored tests with the `ai_generated` marker 
 ## `prompts/`
 
 Created by lab-intake. Keep `initial.md` current as the scaffold session proceeds, quoting each new request verbatim.
+
+## `OPEN_QUESTIONS.md`
+
+The standing record of what the conversion still depends on, so the plan's questions do not stay buried in `prompts/initial.md`. Modeled on `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`:
+
+- Keep the plan's question numbers, so `Q<N>` stays citable from follow-up PRs, commits, and the `PROVISIONAL` comments in `config.yaml`. Append new questions with the next free number.
+- A status table first, then one section per question grouped by status (waiting on the lab, deferred to a follow-up, implemented as proposed but unconfirmed). Each says what the current code does, what to ask, and where the answer lands.
+- Answered questions move to a "Resolved" table that points at the request quoting the answer.
+- Link it from the lab README's provisional section, and point `dispatch/README.md`'s note at it rather than listing open items there.
 
 ## The lab `README.md`
 

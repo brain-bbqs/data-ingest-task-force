@@ -3,6 +3,7 @@
 
 # Provisional values below (marked PROVISIONAL) keep the conversion runnable
 # end-to-end on sample uploads. Replace them with the real lab metadata.
+# Each one cites its question in ../OPEN_QUESTIONS.md (Q<N>).
 # The intake sources are the BRAIN-BBQS questionnaire and the lab's
 # Ferret_Hyperscanning_MetaData.xlsx (see ../prompts/initial.md).
 
@@ -12,10 +13,10 @@ session:
     {partner} (HS{partner_headstage}): naturalistic behavior of the dyad in an
     open-field box with a toy. {channel_map} channel map.
   notes_template: "Pair {pair}. Session log usable data: {usable_data}. Session log notes: {notes}."
-  timezone: America/New_York   # PROVISIONAL. US Eastern fits both the PI's institution and the questionnaire contact; confirm with the lab
+  timezone: America/New_York   # PROVISIONAL (Q9). US Eastern fits both the PI's institution and the questionnaire contact; confirm with the lab
   lab: Zhang Lab
-  institution: Michigan State University   # PROVISIONAL. The questionnaire contact is at UNC School of Medicine; confirm where the data were collected
-  experimenter: []   # PROVISIONAL. List in "Last, First M." style
+  institution: Michigan State University   # PROVISIONAL (Q9). The questionnaire contact is at UNC School of Medicine; confirm where the data were collected
+  experimenter: []   # PROVISIONAL (Q9). List in "Last, First M." style
   experiment_description: >-
     Simultaneous wireless electrophysiology recordings of ferret dyads during
     naturalistic behavior in an open field box with a toy included.
@@ -33,8 +34,8 @@ session:
 subjects:
   defaults:
     species: Mustela putorius furo
-    sex: U        # PROVISIONAL ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
-    age: P1Y      # PROVISIONAL. Required by DANDI, should be an ISO 8601 duration, or use date_of_birth instead
+    sex: U        # PROVISIONAL (Q9) ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
+    age: P1Y      # PROVISIONAL (Q9). Required by DANDI, should be an ISO 8601 duration, or use date_of_birth instead
   "0235":
     description: "Ferret 0235, identified by a shaved lower back"
   "0236":
@@ -53,7 +54,7 @@ devices:
     manufacturer: Teledyne FLIR
 
 ecephys:
-  # PROVISIONAL. Assumes the merged .rec carries the headstages in the order
+  # PROVISIONAL (Q1, Q8). Assumes the merged .rec carries the headstages in the order
   # the basename lists them, 32 hardware channels each (0-31, then 32-63).
   # Confirm against a real file's SpikeConfiguration before trusting the split.
   channels_per_headstage: 32
@@ -82,11 +83,11 @@ ecephys:
 
 video:
   # Frame rate and frame count are read from each file's header by NeuroConv's ExternalVideoInterface.
-  starting_time: 0.0   # PROVISIONAL. Frame-pulse synchronization is a follow-up; until then every video starts at the recording start
+  starting_time: 0.0   # PROVISIONAL (Q5, Q7). Frame-pulse synchronization is a follow-up; until then every video starts at the recording start
   cameras: [14, 46, 58, 67, 68]
 
 session_log:
-  # Export of the lab's session-log sheet, relative to this file. Times are
+  # Export of the lab's session-log sheet, relative to this file (parsing rules: Q12). Times are
   # 24-hour local wall clock; rows whose sheet cell had no AM/PM were read as
   # afternoon when the hour was below 8.
   path: session_log.csv
