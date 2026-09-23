@@ -26,7 +26,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 
 1. `code/config.yaml` from the plan's metadata skeleton, every unconfirmed value marked `PROVISIONAL`.
 2. The core converter, implementing the plan's mapping and identity rules exactly. Out-of-scope files are reported, not silently skipped. For NWB converters, first refresh and read the vendored `nwb-convert` skill (`.agents/skills/nwb-convert`, see the external-skills section of `AGENTS.md`) for NeuroConv and PyNWB practice. Its repo-generation workflow does not apply here, the layout contract does.
-3. The batch driver that dispatch will run (skip it only if the core converter already processes a whole incoming dandiset in one invocation, as kemere's does).
+3. The batch driver that dispatch will run (skip it only if the core converter already processes a whole incoming dandiset in one invocation, as Kemere's does).
 4. `envs/pyproject.toml`, then the Dockerfile that resolves it.
 5. Tests with committed `example_raw/` and `expected_output/` fixtures, plus `generate_fixtures.py`.
 6. `code/README.md` and the lab `README.md`, folding in the intake facts and the plan.
@@ -42,11 +42,11 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 
 When the intake says prior scripts exist, the port mode from the intake decides the treatment:
 
-- Verbatim as provenance (shepherd precedent): byte-for-byte apart from a short provenance note at the top naming the original author. Add the files to the formatter and linter exclusions. Document every known rough edge in the lab README instead of fixing it, so the follow-up has a starting point and nobody trusts the output prematurely. New code alongside the port (a batch driver, tests) gets the normal treatment.
-- Improve on the way in (inman precedent): normal treatment, but the original author is still credited in the lab README and the port is kept reviewable.
-- A notebook, not a script (sanes precedent): commit the notebook verbatim and excluded like any other ported file, then transcribe it into a callable module beside it, cell by cell and in the same order, changing only what a notebook cannot carry (hard-coded paths become arguments, inline literals move to `config.yaml`). The transcription is new code and gets the normal treatment. Say in the lab README that the two can be read side by side, and leave cells the notebook itself marks as one-off manual steps untranscribed.
+- Verbatim as provenance (Shepherd precedent): byte-for-byte apart from a short provenance note at the top naming the original author. Add the files to the formatter and linter exclusions. Document every known rough edge in the lab README instead of fixing it, so the follow-up has a starting point and nobody trusts the output prematurely. New code alongside the port (a batch driver, tests) gets the normal treatment.
+- Improve on the way in (Inman precedent): normal treatment, but the original author is still credited in the lab README and the port is kept reviewable.
+- A notebook, not a script (Sanes precedent): commit the notebook verbatim and excluded like any other ported file, then transcribe it into a callable module beside it, cell by cell and in the same order, changing only what a notebook cannot carry (hard-coded paths become arguments, inline literals move to `config.yaml`). The transcription is new code and gets the normal treatment. Say in the lab README that the two can be read side by side, and leave cells the notebook itself marks as one-off manual steps untranscribed.
 
-Before handing off any port, run it once end to end on a throwaway synthetic session built in a scratch directory. It is cheap and it is how version drift in the ported code surfaces (the sanes port only runs against the NWB stack it was written for). Do not commit that fixture: it is guesswork about the source layout, not lab data.
+Before handing off any port, run it once end to end on a throwaway synthetic session built in a scratch directory. It is cheap and it is how version drift in the ported code surfaces (the Sanes port only runs against the NWB stack it was written for). Do not commit that fixture: it is guesswork about the source layout, not lab data.
 
 In every mode, credit the original author by name in the lab README ("originally authored by ...").
 

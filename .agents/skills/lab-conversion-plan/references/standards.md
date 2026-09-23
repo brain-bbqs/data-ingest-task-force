@@ -20,8 +20,8 @@ Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, i
 
 ## NWB targets
 
-- Write with `pynwb`. Use a `neuroconv` DataInterface when one exists for the source format (shepherd uses `DeepLabCutInterface` for DLC pose files). Check for an existing interface before hand-rolling a reader, and check what it actually covers rather than only that it exists: neuroconv's SpikeGadgets interface reads the ephys stream of a `.rec` and skips the digital inputs and headstage sensors the same file holds (zhang), so those streams still need a reader of their own.
-- One `.nwb` file per session by default. Precedented variations: a `_desc-raw` / `_desc-processed` pair per session (shepherd), one file per subject-walk (inman), one file per animal when several share a session (zhang), one multi-subject file per session via `ndx-multisubjects` (sanes).
+- Write with `pynwb`. Use a `neuroconv` DataInterface when one exists for the source format (Shepherd uses `DeepLabCutInterface` for DLC pose files). Check for an existing interface before hand-rolling a reader, and check what it actually covers rather than only that it exists: neuroconv's SpikeGadgets interface reads the ephys stream of a `.rec` and skips the digital inputs and headstage sensors the same file holds (Zhang), so those streams still need a reader of their own.
+- One `.nwb` file per session by default. Precedented variations: a `_desc-raw` / `_desc-processed` pair per session (Shepherd), one file per subject-walk (Inman), one file per animal when several share a session (Zhang), one multi-subject file per session via `ndx-multisubjects` (Sanes).
 - Output layout follows the DANDI convention. Assets sit directly under `sub-<label>/` with the session in the filename. Do not nest a `ses-<label>/` subfolder, dandi validation rejects that form (see the comment in `labs/inman/code/batch_convert.py`).
 
   ```
@@ -30,7 +30,7 @@ Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, i
       sub-<subject>_ses-<session>_<streams>.nwb
   ```
 
-- A stream suffix like `behavior+ecephys` in the filename describes the modalities inside (inman precedent).
+- A stream suffix like `behavior+ecephys` in the filename describes the modalities inside (Inman precedent).
 - Metadata comes from the lab's `code/config.yaml`. The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) documents the field requirements. `labs/inman/code/config.yaml` is the house pattern, including `PROVISIONAL` markers on unconfirmed values.
 - Common containers: `TimeSeries` under `acquisition` for raw streams, `ElectricalSeries` with device / electrode-group / electrode-table plumbing for neural channels, `ImageSeries` for video, pose via the `ndx-pose` extension or neuroconv's DLC interface, and `processing/behavior` modules for derived signals.
 - Deeper NWB know-how lives in the vendored `nwb-convert` skill (`.agents/skills/nwb-convert`, a symlink into the `catalystneuro/claude-skills` submodule). Refresh it first (`git submodule update --init --remote`), and consult its knowledge files for interface selection, synchronization, and metadata detail. Where its workflow differs from this repository's layout, the lab skills win (see the external-skills section of `AGENTS.md`).
@@ -42,12 +42,12 @@ BEP047 covers audio, video, and image recordings of behavior in the `beh` dataty
 - Specification: https://github.com/bids-standard/bids-specification/pull/2231
 - Reference dataset: `beh_audio_video_recordings` in https://github.com/bids-standard/bids-examples
 
-Load-bearing details, verified for kemere. Re-verify them against the PR's current state on each new use:
+Load-bearing details, verified for Kemere. Re-verify them against the PR's current state on each new use:
 
 - Suffixes and extensions: `_video` (`.mp4`/`.mkv`/`.avi`), `_audiovideo` (same extensions, when an audio stream is present), `_audio` (`.wav`/`.flac`/...), `_image` (`.png`/`.jpg`).
 - Entity order: `sub`, `ses`, `task`, `acq`, `run`, `recording`, `split`. Subject is required, the rest are optional. `recording-<label>` distinguishes simultaneous camera angles.
 - Every media file gets a JSON sidecar with its measured properties (via `ffprobe`: codec, frame rate, frame count, duration, dimensions, pixel format, bit depth).
-- Lab-specific raw parameters ride along in the sidecar under a namespaced block (kemere's `TrackingSettings`), carrying a `Description` and `SourceFile` so provenance is explicit and the block is clearly not part of BIDS itself.
+- Lab-specific raw parameters ride along in the sidecar under a namespaced block (Kemere's `TrackingSettings`), carrying a `Description` and `SourceFile` so provenance is explicit and the block is clearly not part of BIDS itself.
 - Dataset scaffolding files are required: `dataset_description.json`, `README`, `participants.tsv`/`.json`, and per-session `scans.tsv`/`.json`. The `scans.tsv` `filename` column is participant-relative, so it includes the `ses-<label>/` prefix.
 - Kemere precedent for where the tree lives inside the standardized dandiset: `<standardized>/sourcedata/rawbids/`.
 

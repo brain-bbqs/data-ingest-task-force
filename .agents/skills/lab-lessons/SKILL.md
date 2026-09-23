@@ -5,7 +5,7 @@ description: Encode lessons from a conversion back into the new-conversion skill
 
 # Lab lessons
 
-The new-conversion skills stay useful only if every conversion feeds back what it taught. The skills were themselves distilled from the first labs (the no-`ses-`-subfolder rule came from inman, the nested project layout from suthana, the verbatim-port rules from shepherd). Closing each conversion by encoding its lessons keeps that distillation current instead of frozen at the labs that existed when it was written.
+The new-conversion skills stay useful only if every conversion feeds back what it taught. The skills were themselves distilled from the first labs (the no-`ses-`-subfolder rule came from Inman, the nested project layout from Suthana, the verbatim-port rules from Shepherd). Closing each conversion by encoding its lessons keeps that distillation current instead of frozen at the labs that existed when it was written.
 
 Run this at the end of every conversion. Do not wait for the end when guidance is actively wrong: fix the skill the moment reality disagrees with it, in the same branch, rather than deferring to a cleanup that never comes.
 

@@ -31,7 +31,7 @@ Rules while filling it in:
 
 - Do not guess. A field the description does not answer stays open.
 - Say which sources were actually read. The archive API is often unreachable from the agent's sandbox, so the pasted tree may be the only view of the data. Never describe the dandiset as inspected when it was not.
-- Sanity-check file sizes against durations, rates and channel counts before trusting a file's role. A `.rec` far too small for its channel count at its sampling rate is how the zhang intake found that the upload held only the sync stream, not the ephys.
+- Sanity-check file sizes against durations, rates and channel counts before trusting a file's role. A `.rec` far too small for its channel count at its sampling rate is how the Zhang intake found that the upload held only the sync stream, not the ephys.
 - A value needed to keep work moving but not confirmed by the lab gets the house marker `PROVISIONAL`, with a note of what would confirm it. The marker must survive into whatever file the value lands in later, so nobody mistakes a placeholder for real metadata. `labs/inman/code/config.yaml` shows the pattern.
 - Record who authored any prior conversion code, what form it is in (scripts, or a notebook), and whether it should be ported verbatim as provenance or improved on the way in. Original authors are credited in the lab README (see `labs/shepherd/README.md`), and the port mode changes how lab-scaffold treats the files.
 
