@@ -46,9 +46,7 @@ status, and where its placeholder lives is tracked in
 [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md). The ones that most affect the
 output:
 
-- The uploaded `.rec` is assumed to hold both headstages' ephys, although by
-  size it cannot ([Q1](OPEN_QUESTIONS.md#q1-does-the-uploaded-rec-contain-the-ephys)),
-  and the channel split between the two animals is assumed
+- The channel split between the two animals' headstages is assumed
   ([Q8](OPEN_QUESTIONS.md#q8-channel-numbering-per-headstage)).
 - Videos are not yet synchronized to the ephys and start at the recording
   start ([Q5](OPEN_QUESTIONS.md#q5-camera-and-ephys-clocks),

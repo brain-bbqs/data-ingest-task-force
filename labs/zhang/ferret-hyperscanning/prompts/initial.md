@@ -459,3 +459,11 @@ numbers (Q1 to Q15, plus Q16 on DANDI's validation of the `.avi` assets).
 Each question carries its status after the sign-off, what it blocks, and
 where its placeholder lives. The lab README, the `PROVISIONAL` comments in
 `code/config.yaml`, and the dispatch note link to it.
+
+## Request 5 — Drop two questions
+
+> remove Q1 and Q6 those will become self-explanatory
+
+Q1 (whether the uploaded `.rec` holds the ephys) and Q6 (where the Trodes
+comments live) are removed from `../OPEN_QUESTIONS.md`. The other questions
+keep their numbers.

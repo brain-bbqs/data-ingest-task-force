@@ -54,7 +54,7 @@ devices:
     manufacturer: Teledyne FLIR
 
 ecephys:
-  # PROVISIONAL (Q1, Q8). Assumes the merged .rec carries the headstages in the order
+  # PROVISIONAL (Q8). Assumes the merged .rec carries the headstages in the order
   # the basename lists them, 32 hardware channels each (0-31, then 32-63).
   # Confirm against a real file's SpikeConfiguration before trusting the split.
   channels_per_headstage: 32

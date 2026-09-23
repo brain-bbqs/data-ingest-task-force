@@ -1,10 +1,9 @@
 # Open questions
 
 The questions this conversion still depends on, and where their answers
-land. Numbers match the conversion plan in `prompts/initial.md` (Q1 to
-Q15), so they stay citable from follow-up PRs, commit messages and the
-`PROVISIONAL` comments in `code/config.yaml`. Q16 was added during
-scaffolding.
+land. Numbers match the conversion plan in `prompts/initial.md`, so they
+stay citable from follow-up PRs, commit messages and the `PROVISIONAL`
+comments in `code/config.yaml`. Q16 was added during scaffolding.
 
 When a question is answered, quote the answer into `prompts/initial.md` as
 a new request, make the code change, and move the entry to "Resolved" below
@@ -14,9 +13,7 @@ with a pointer to the change.
 
 | # | Question | Status | Blocks |
 | --- | --- | --- | --- |
-| [Q1](#q1-does-the-uploaded-rec-contain-the-ephys) | Does the uploaded `.rec` contain the ephys? | Assumed yes, unverified | Correct ephys in every file |
 | [Q5](#q5-camera-and-ephys-clocks) | Why do video and `.rec` timestamps differ by 40 minutes? | Deferred to the sync follow-up | Video timing |
-| [Q6](#q6-where-are-the-trodes-comments) | Where are the Trodes `hi` / `ho` comments? | Waiting on the lab | Human-interference intervals |
 | [Q7](#q7-which-din-carries-the-camera-frame-trigger) | Which DIN carries the camera frame trigger? | Deferred to the sync follow-up | Video timing |
 | [Q8](#q8-channel-numbering-per-headstage) | How are channels split between the two headstages? | Deferred | Correct ephys in every file |
 | [Q9](#q9-subject-and-session-metadata) | Sex, age, experimenters, institution, timezone | Deferred | DANDI-ready metadata |
@@ -27,38 +24,6 @@ with a pointer to the change.
 | [Q14](#q14-sessions-to-exclude) | Should sessions without usable data be excluded? | Deferred, all converted | Which sessions publish |
 | [Q15](#q15-calibration-videos) | Calibration videos in the NWB or as plain assets? | Implemented as proposed, unconfirmed | Calibration video placement |
 | [Q16](#q16-dandi-validation-of-the-avi-assets) | Does DANDI accept `.avi` files next to the NWB files? | Unknown until the first upload | Upload |
-
-## Waiting on the lab
-
-### Q1. Does the uploaded `.rec` contain the ephys?
-
-By size it cannot. The example session's `.rec` is 764 MB over about 21
-minutes at 20 kHz, about 31 bytes per packet, while 64 int16 channels alone
-need 128. It reads like the base-station recording (sync, digital inputs,
-timestamps), with the Sprite32 datalogger SD-card data not merged in or not
-uploaded.
-
-- **Current handling:** per the sign-off, the converter treats the `.rec`
-  as the merged file holding both headstages. Run on the example upload, it
-  would write whatever channels neo finds there.
-- **Ask the lab:** is there a merged `.rec` per session, made with Trodes'
-  datalogger merge or some other export? Where is it and how is it named?
-- **If the ephys lives elsewhere:** the ephys rows of the mapping move to
-  that file, and this `.rec` becomes the sync source only. That touches
-  `build_nwbfile` in `code/_zhang_ferret_hyperscanning_to_nwb.py` and the
-  discovery glob in `code/batch_convert.py` and `dispatch/sessions.json`.
-
-### Q6. Where are the Trodes comments?
-
-The lab marks human interference with Trodes comments `hi` (human in) and
-`ho` (human out). Trodes normally writes them to `<rec>.trodesComments`
-next to the `.rec`, and no such file is in the upload.
-
-- **Current handling:** no intervals are written.
-- **Once located:** they become an `intervals/human_interference`
-  `TimeIntervals` table, start at `hi` and stop at `ho`, with unpaired
-  comments reported.
-- The requester is checking with the lab.
 
 ## Deferred to follow-ups
 
@@ -95,7 +60,7 @@ cameras triggered together.
 - **Current handling:** the first animal in the basename takes hardware
   channels 0 to 31 and the second 32 to 63 (`headstage_channel_ids`,
   `ecephys.channels_per_headstage` in `code/config.yaml`, marked
-  `PROVISIONAL`). A real merged file settles this together with Q1.
+  `PROVISIONAL`). The header of a real merged file settles this.
 
 ### Q9. Subject and session metadata
 
