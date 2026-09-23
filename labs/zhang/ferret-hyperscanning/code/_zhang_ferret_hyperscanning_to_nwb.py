@@ -24,11 +24,13 @@ lower-numbered animal's file and referenced from both::
       sub-<B>/
         sub-<B>_ses-<label>_behavior+ecephys.nwb
 
-The ephys goes through NeuroConv's SpikeGadgets interface, which also
-supplies the device, electrode-group and electrode-table plumbing. Each
-animal's file takes only that headstage's channels. Frame-pulse
-synchronization, the headstage accelerometer and the Trodes comments are
-follow-ups (see ``README.md``), so the videos carry a nominal rate and a
+Each animal's file is assembled by a NeuroConv ``ConverterPipe``: the
+SpikeGadgets interface supplies the ephys with its device, electrode-group
+and electrode-table plumbing, keeping only that headstage's channels, and
+one ``ExternalVideoInterface`` per video file supplies the ``ImageSeries``,
+its camera device, and the frame rate and count read from the file header.
+Frame-pulse synchronization, the headstage accelerometer and the Trodes
+comments are follow-ups (see ``README.md``), so the videos carry a
 provisional starting time.
 
 Example CLI usage
@@ -51,13 +53,11 @@ import zoneinfo
 from pathlib import Path
 from xml.etree import ElementTree
 
-import av
+import neuroconv
 import numpy
 import yaml
-from neuroconv.datainterfaces import SpikeGadgetsRecordingInterface
+from neuroconv.datainterfaces import ExternalVideoInterface, SpikeGadgetsRecordingInterface
 from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
-from pynwb.device import Device
-from pynwb.image import ImageSeries
 
 REC_NAME_PATTERN = re.compile(
     r"^(?P<subject_a>\d{4})HS(?P<headstage_a>\d+)_(?P<subject_b>\d{4})HS(?P<headstage_b>\d+)"
@@ -216,15 +216,6 @@ def match_videos(rec, /):
     return matched, unmatched
 
 
-def count_video_frames(path, /):
-    with av.open(str(path)) as container:
-        stream = container.streams.video[0]
-        frames = stream.frames
-        if not frames:
-            frames = sum(1 for _ in container.demux(stream))
-    return frames
-
-
 def load_session_log(path, /):
     with open(path, newline="") as handle:
         rows = list(csv.DictReader(handle))
@@ -321,6 +312,60 @@ def _subject_metadata(*, subject, cfg):
     return metadata
 
 
+def _video_series_name(*, camera, kind):
+    prefix = "BehaviorVideo" if kind == "video" else "CalibrationVideo"
+    name = f"{prefix}Cam{camera}"
+    return name
+
+
+def _video_interfaces(*, placed_videos, cfg):
+    """One ``ExternalVideoInterface`` per placed video, keyed by its metadata key."""
+    starting_time = float(cfg["video"]["starting_time"])
+    interfaces = {}
+    for (camera, kind), destination in sorted(placed_videos.items()):
+        metadata_key = f"{kind}_cam{camera}"
+        interface = ExternalVideoInterface(
+            file_paths=[Path(destination).resolve()],
+            metadata_key=metadata_key,
+            video_name=_video_series_name(camera=camera, kind=kind),
+        )
+        interface.set_aligned_starting_time(starting_time)
+        interfaces[metadata_key] = interface
+    return interfaces
+
+
+def _video_metadata(*, metadata, placed_videos, cfg):
+    """Point every video at one shared camera device per camera number and describe each series."""
+    camera_cfg = cfg["devices"]["camera"]
+    for (camera, kind), destination in sorted(placed_videos.items()):
+        metadata_key = f"{kind}_cam{camera}"
+        default_device_key = f"{metadata_key}_camera"
+        metadata["Devices"].pop(default_device_key, None)
+        camera_key = f"camera_cam{camera}"
+        metadata["Devices"][camera_key] = {
+            "name": camera_cfg["name_template"].format(camera=camera),
+            "description": camera_cfg["description"],
+            "manufacturer": camera_cfg["manufacturer"],
+        }
+        if kind == "video":
+            description = f"Behavior video from camera {camera} (source file {destination.name})"
+        else:
+            description = (
+                f"ChArUco board calibration video for camera {camera}, filmed before the session "
+                f"(source file {destination.name})"
+            )
+        metadata["Behavior"]["ExternalVideos"][metadata_key].update(
+            description=description, device_metadata_key=camera_key
+        )
+
+
+def _relativize_video_paths(*, nwbfile, placed_videos, nwb_path):
+    """The video interface stores the absolute path it read; DANDI needs it relative to the NWB file."""
+    for (camera, kind), destination in placed_videos.items():
+        series = nwbfile.acquisition[_video_series_name(camera=camera, kind=kind)]
+        series.fields["external_file"] = [os.path.relpath(destination, nwb_path.parent)]
+
+
 def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up, session_row):
     """One animal's NWBFile: its headstage channels plus the shared videos."""
     partner = identity.headstages[1 - headstage.position]
@@ -361,7 +406,9 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
         notes=(session_row or {}).get("notes") or "none",
     )
 
-    metadata = interface.get_metadata()
+    video_interfaces = _video_interfaces(placed_videos=placed_videos, cfg=cfg)
+    converter = neuroconv.ConverterPipe(data_interfaces={"ecephys": interface, **video_interfaces})
+    metadata = converter.get_metadata()
     metadata["NWBFile"].update(
         {
             "session_description": session_cfg["description_template"].format(
@@ -384,13 +431,13 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
         }
     )
     metadata["Subject"] = _subject_metadata(subject=headstage.subject, cfg=cfg)
-    metadata["Devices"] = {
-        device_key: {
-            "name": device_name,
-            "description": cfg["devices"]["headstage"]["description"],
-            "manufacturer": cfg["devices"]["headstage"]["manufacturer"],
-        }
+    metadata.setdefault("Devices", {})[device_key] = {
+        "name": device_name,
+        "description": cfg["devices"]["headstage"]["description"],
+        "manufacturer": cfg["devices"]["headstage"]["manufacturer"],
     }
+    if placed_videos:
+        _video_metadata(metadata=metadata, placed_videos=placed_videos, cfg=cfg)
     metadata["Ecephys"]["ElectrodeGroups"] = {
         region: {
             "name": region,
@@ -408,47 +455,9 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
         {"name": "headstage_channel", "description": "Channel index within this animal's headstage (0-31)"},
     ]
 
-    nwbfile = interface.create_nwbfile(metadata=metadata)
-    _add_videos(nwbfile=nwbfile, cfg=cfg, placed_videos=placed_videos, nwb_path=nwb_path)
+    nwbfile = converter.create_nwbfile(metadata=metadata)
+    _relativize_video_paths(nwbfile=nwbfile, placed_videos=placed_videos, nwb_path=nwb_path)
     return nwbfile
-
-
-def _add_videos(*, nwbfile, cfg, placed_videos, nwb_path):
-    video_cfg = cfg["video"]
-    camera_cfg = cfg["devices"]["camera"]
-    devices = {}
-    for (camera, kind), destination in sorted(placed_videos.items()):
-        if camera not in devices:
-            device = Device(
-                name=camera_cfg["name_template"].format(camera=camera),
-                description=camera_cfg["description"],
-                manufacturer=camera_cfg["manufacturer"],
-            )
-            nwbfile.add_device(device)
-            devices[camera] = device
-        relative_path = os.path.relpath(destination, nwb_path.parent)
-        if kind == "video":
-            name = f"BehaviorVideoCam{camera}"
-            description = f"Behavior video from camera {camera} (source file {destination.name})"
-        else:
-            name = f"CalibrationVideoCam{camera}"
-            description = (
-                f"ChArUco board calibration video for camera {camera}, filmed before the session "
-                f"(source file {destination.name})"
-            )
-        series = ImageSeries(
-            name=name,
-            description=description,
-            external_file=[relative_path],
-            format="external",
-            starting_frame=[0],
-            rate=float(video_cfg["rate"]),
-            starting_time=float(video_cfg["starting_time"]),
-            num_samples=count_video_frames(destination),
-            unit="n.a.",
-            device=devices[camera],
-        )
-        nwbfile.add_acquisition(series)
 
 
 def convert_session(*, rec, output_dir, cfg, session_log=None, overwrite=False):

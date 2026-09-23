@@ -48,8 +48,8 @@ output is runnable but not final until they land:
   upload cannot hold that (see `prompts/initial.md`), so the ephys split is
   `PROVISIONAL` until a real file is inspected.
 - **No time synchronization yet.** The camera frame pulses on the digital
-  inputs are not read, so every video `ImageSeries` carries a nominal 30 fps
-  rate and a `starting_time` of zero. neo's SpikeGadgets reader exposes
+  inputs are not read, so every video `ImageSeries` carries the frame rate
+  from its file header and a `starting_time` of zero. neo's SpikeGadgets reader exposes
   neither the digital inputs nor the headstage sensor block, so the frame
   pulses and the accelerometer need a small packet reader of their own.
 - **No human-interference intervals.** The Trodes `hi` / `ho` comments were
@@ -68,9 +68,11 @@ output is runnable but not final until they land:
 The Python environment is declared in `envs/pyproject.toml`. The interpreter
 version (3.13) is pinned by `containers/zhang-ferret-hyperscanning.Dockerfile`'s
 base image and by the CI test job, not by a file in `envs/`. The converter's
-dependencies (pynwb, neuroconv with its `spikegadgets` extra, PyAV for video
-frame counts, PyYAML, tqdm) are all Python packages. There are no
-system-level dependencies: PyAV bundles its own FFmpeg libraries.
+dependencies (pynwb, neuroconv with its `spikegadgets` and `video` extras,
+PyYAML, tqdm) are all Python packages. There are no system-level
+dependencies: the OpenCV wheels NeuroConv reads videos with bundle their own
+FFmpeg libraries. A `dev` extra adds PyAV, which only
+`tests/generate_fixtures.py` needs to write the synthetic AVI fixtures.
 
 `zarr` is bounded below 3 for now: hdmf-zarr 0.14.0 requires zarr 3, which
 neuroconv 0.10.2 cannot import under. Drop the bound once a neuroconv

@@ -435,3 +435,14 @@ Between the plan and this sign-off the branch also picked up a `zarr<3`
 bound in every neuroconv-based lab environment: hdmf-zarr 0.14.0 was
 released the same day and moved to zarr 3, which neuroconv 0.10.2 cannot
 import under. The Zhang environment carries the same bound.
+
+## Request 3 — Use NeuroConv's video interface
+
+> use the neuroconv video interface instead of direct imageseries
+
+Each subject's file is now assembled by a NeuroConv `ConverterPipe` that
+combines the SpikeGadgets interface with one `ExternalVideoInterface` per
+video file. The video interface reads each file's frame rate and frame count
+from its header and links the camera device. It stores the absolute path it
+read, so the converter rewrites each `external_file` relative to the NWB
+file before writing. The golden output summary came out unchanged.

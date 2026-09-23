@@ -13,10 +13,15 @@ writes two NWB files per recording, one per animal, and places the
 session's videos next to the lower-numbered animal's file so both files can
 reference them by relative path.
 
-The ephys goes through NeuroConv's `SpikeGadgetsRecordingInterface`, which
-reads the `trodes` stream through spikeinterface and neo and builds the
-device, electrode groups and electrode table. Each animal's file takes only
-that headstage's channels.
+Each file is assembled by a NeuroConv `ConverterPipe`. The ephys goes
+through `SpikeGadgetsRecordingInterface`, which reads the `trodes` stream
+through spikeinterface and neo and builds the device, electrode groups and
+electrode table; each animal's file takes only that headstage's channels.
+Each video goes through its own `ExternalVideoInterface`, which reads the
+frame rate and frame count from the file header and links the camera
+device. That interface stores the absolute path it read the file from, so
+the converter rewrites each `external_file` to be relative to the NWB file
+before writing, which is what DANDI resolves after upload.
 
 ## Input layout
 
@@ -40,7 +45,7 @@ that headstage's channels.
 | `.rec` ephys packets | `acquisition/ElectricalSeries`, this animal's 32 channels only, int16 with the header's `spikeScalingToUv` as `conversion` |
 | `.rec` digital inputs and headstage sensor block | Not read yet. Frame-pulse sync and the accelerometer are follow-ups |
 | `<rec>.trodesComments` | Not read yet. Human-interference intervals are a follow-up once the lab says where the comments live |
-| `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` (`ImageSeries`, external, nominal 30 fps, `starting_time` 0.0 PROVISIONAL), file placed as `sub-<host>/sub-<host>_ses-<label>_cam<NN>_video.avi` |
+| `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` via NeuroConv's `ExternalVideoInterface` (external `ImageSeries`, rate and frame count from the file header, `starting_time` 0.0 PROVISIONAL), file placed as `sub-<host>/sub-<host>_ses-<label>_cam<NN>_video.avi` |
 | `Videos/cam<NN>-cal-<ts>-0000.avi` | `acquisition/CalibrationVideoCam<NN>` (same shape), file placed as `..._cam<NN>_calibration.avi` |
 | `session_log.csv` row (pair and date, nearest start time) | Belly-up flag selects the channel map; usable-data text and notes land in `notes` |
 | `config.yaml` | Everything else: lab, institution, subjects, devices, regions, channel maps, video rate |

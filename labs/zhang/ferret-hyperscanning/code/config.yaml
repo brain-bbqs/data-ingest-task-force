@@ -81,7 +81,7 @@ ecephys:
   reference_note: "Reference electrode, 0.5 mm above the other electrodes of its region"
 
 video:
-  rate: 30.0
+  # Frame rate and frame count are read from each file's header by NeuroConv's ExternalVideoInterface.
   starting_time: 0.0   # PROVISIONAL. Frame-pulse synchronization is a follow-up; until then every video starts at the recording start
   cameras: [14, 46, 58, 67, 68]
 
