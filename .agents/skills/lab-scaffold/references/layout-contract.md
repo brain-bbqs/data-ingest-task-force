@@ -24,7 +24,9 @@ Two-file shape used by the NWB labs:
 
 A converter that already processes a whole incoming tree in one invocation can stay a single file, as `labs/kemere/code/convert_raw_to_bids.py` does.
 
-When the driver imports the core module with a relative import, dispatch invokes it as a module from the repo root (`python3 -m labs.<lab>.code.batch_convert`) so the import resolves. Kemere and shepherd instead run plain script paths. Either works, just keep `convert_command` (lab-register) consistent with the choice.
+When the driver imports the core module with a relative import, dispatch invokes it as a module from the repo root (`python3 -m labs.<lab>.code.batch_convert`) so the import resolves. Kemere and shepherd instead run plain script paths. Either works, just keep `convert_command` (lab-register) consistent with the choice. A hyphenated project directory (`in-lab`, `ferret-hyperscanning`) is not a valid package name, so there the driver puts its own directory on `sys.path` and runs as a plain script (suthana/in-lab and zhang precedent).
+
+A lab spreadsheet that carries per-session facts (a session log, per-animal flags) is committed as a normalized CSV under `code/`, with the cleanup rules stated in `config.yaml`, rather than read from the incoming dandiset at run time (zhang precedent).
 
 ## The dispatch contract for the batch driver
 
@@ -54,7 +56,7 @@ Documents, at minimum: what the converter does, the source-to-output mapping tab
 
 ## `envs/`
 
-One file, `pyproject.toml`. Loose and intentionally unpinned. A verbatim port is the exception: it is written against one stack and newer releases break it, so bound exactly the dependencies that break (sanes bounds `pynwb`, `sleap-io` and `neuroconv`) and say in the file why each bound is there and that lifting it belongs to the follow-up. When the original work ships its own environment export, keep it verbatim under `envs/original/` as provenance, and say in the lab README that it is a record, not a build input. The Dockerfile resolves it fresh at build time and the image digest is the reproducibility lock, so there is no lockfile to keep in sync. Shape (see `labs/inman/envs/pyproject.toml`):
+One file, `pyproject.toml`. Loose and intentionally unpinned. Bound a dependency only when a release demonstrably breaks the environment, bound exactly that one, and say in the file why and what would let it be dropped. A verbatim port needs this most, since it is written against one stack (sanes bounds `pynwb`, `sleap-io` and `neuroconv`), but new code hits it too: every neuroconv-based lab carries `zarr<3` until neuroconv imports under zarr 3. When the original work ships its own environment export, keep it verbatim under `envs/original/` as provenance, and say in the lab README that it is a record, not a build input. The Dockerfile resolves it fresh at build time and the image digest is the reproducibility lock, so there is no lockfile to keep in sync. Shape (see `labs/inman/envs/pyproject.toml`):
 
 - Header comment explaining exactly that.
 - `[project]` with the lowercased ingest name, `requires-python = ">=3.10"`, and the runtime dependencies.
@@ -80,7 +82,8 @@ The interpreter version (3.13) is pinned by the Dockerfile base image and the CI
 Golden-file pattern (kemere is the fullest example):
 
 - `example_raw/`: a small committed mock of the exact source tree, real enough to exercise the real parsing paths (tiny real media files, real text formats).
-- `expected_output/`: the golden standardized tree the converter must reproduce, byte-exact for text and media, semantic comparison for JSON.
+- `expected_output/`: the golden standardized tree the converter must reproduce, byte-exact for text and media, semantic comparison for JSON. NWB files are HDF5 and not byte-stable across library versions, so for NWB the golden fixture is a JSON structural summary of the files as read back (metadata, table columns, shapes, a data hash), as `labs/zhang/ferret-hyperscanning/tests/nwb_summary.py` does.
+- A binary source format with no small public sample (a SpikeGadgets `.rec`, for one) is synthesized by `generate_fixtures.py` from its documented layout, small enough to commit. Say in the lab README that it is generated, not lab data.
 - One integration test running the converter over `example_raw/` and diffing against `expected_output/`. Unit tests only where the driver has real logic of its own (discovery, output paths, skip/overwrite bookkeeping).
 - `generate_fixtures.py` to regenerate both trees on intentional behavior changes.
 - Deterministic stand-ins for system tools the sandbox may lack (kemere ships a PyAV-backed `ffprobe` shim).

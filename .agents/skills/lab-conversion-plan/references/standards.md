@@ -14,13 +14,14 @@ The choice of standard belongs to the requester. Use this table to understand th
 | Mixed physiological and behavioral time series (IMU, gaze, analog sensors) | NWB | `labs/inman/` |
 | Multicamera video plus pose estimation plus analog/digital sync channels | NWB, raw + processed pair | `labs/shepherd/` |
 | Raw behavioral audio, video, or image recordings with no neural data | BIDS `beh` datatype per BEP047 | `labs/kemere/` |
+| Several animals recorded together in one session (hyperscanning, social groups) | NWB, one file per subject per session, shared videos referenced from each | `labs/zhang/ferret-hyperscanning/` (`labs/sanes/` for the multi-subject-file alternative) |
 
 Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, is an intermediate step toward NWB. When a dataset straddles the line, lean NWB and note the alternative in the plan so the reviewer decides.
 
 ## NWB targets
 
 - Write with `pynwb`. Use a `neuroconv` DataInterface when one exists for the source format (shepherd uses `DeepLabCutInterface` for DLC pose files). Check for an existing interface before hand-rolling a reader, and check what it actually covers rather than only that it exists: neuroconv's SpikeGadgets interface reads the ephys stream of a `.rec` and skips the digital inputs and headstage sensors the same file holds (zhang), so those streams still need a reader of their own.
-- One `.nwb` file per session by default. Precedented variations: a `_desc-raw` / `_desc-processed` pair per session (shepherd), one file per subject-walk (inman).
+- One `.nwb` file per session by default. Precedented variations: a `_desc-raw` / `_desc-processed` pair per session (shepherd), one file per subject-walk (inman), one file per animal when several share a session (zhang), one multi-subject file per session via `ndx-multisubjects` (sanes).
 - Output layout follows the DANDI convention. Assets sit directly under `sub-<label>/` with the session in the filename. Do not nest a `ses-<label>/` subfolder, dandi validation rejects that form (see the comment in `labs/inman/code/batch_convert.py`).
 
   ```
