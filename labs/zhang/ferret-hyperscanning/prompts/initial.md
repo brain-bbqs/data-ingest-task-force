@@ -408,3 +408,30 @@ Answers to questions 1 through 4 and 12 through 15 change the code that
 gets written; the rest can stay `PROVISIONAL` in `config.yaml` and be filled
 in later. Approval and corrections get quoted below as further
 `## Request N` sections.
+
+## Request 2 — Plan sign-off
+
+> 1. act like it does contain it and we will go from there; use the neuroconv interface to handle all that metadata
+> 2. ferret-hyperscanning
+> 3. nwb in dandi layout
+> 4. keep avi for now we will transcode later
+> 5. well deal with time sync in a followup
+> 6. will get back to you on trodes comment
+> 7. ...the rest, we will do in follow-ups
+
+Read against the plan's numbered questions: the `.rec` is treated as the
+merged file holding both headstages' ephys, read through NeuroConv's
+SpikeGadgets interface, which also supplies the device, electrode-group and
+electrode-table metadata; the layout is nested,
+`labs/zhang/ferret-hyperscanning/`; the standard is option A, NWB with one
+file per subject per session in DANDI's `sub-<id>/` layout; the AVIs are
+carried unchanged as external files; frame-pulse synchronization, the
+Trodes comments, and every other open question are follow-ups. Until the
+sync follow-up, the video `ImageSeries` carry the nominal 30 fps rate with
+a `PROVISIONAL` starting time of zero, and the headstage accelerometer and
+human-interference intervals are not written.
+
+Between the plan and this sign-off the branch also picked up a `zarr<3`
+bound in every neuroconv-based lab environment: hdmf-zarr 0.14.0 was
+released the same day and moved to zarr 3, which neuroconv 0.10.2 cannot
+import under. The Zhang environment carries the same bound.

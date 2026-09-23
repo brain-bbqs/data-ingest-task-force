@@ -1,0 +1,640 @@
+{
+  "files": [
+    "sub-0236/sub-0236_ses-20260401T130419_behavior+ecephys.nwb",
+    "sub-0236/sub-0236_ses-20260401T130419_cam14_calibration.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam14_video.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam46_calibration.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam46_video.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam58_calibration.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam58_video.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam67_calibration.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam67_video.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam68_calibration.avi",
+    "sub-0236/sub-0236_ses-20260401T130419_cam68_video.avi",
+    "sub-0237/sub-0237_ses-20260401T130419_behavior+ecephys.nwb"
+  ],
+  "nwb": {
+    "sub-0236/sub-0236_ses-20260401T130419_behavior+ecephys.nwb": {
+      "devices": [
+        "BlackflyS_cam14",
+        "BlackflyS_cam46",
+        "BlackflyS_cam58",
+        "BlackflyS_cam67",
+        "BlackflyS_cam68",
+        "Sprite32HS3"
+      ],
+      "electrical_series": {
+        "conversion": 1.9499999999999999e-07,
+        "data_sha256": "12e9865b73881464fcec34d23eefc37c5356f53e749613193010123772b31c28",
+        "dtype": "int16",
+        "rate": 20000.0,
+        "shape": [
+          200,
+          32
+        ],
+        "starting_time": 0.0
+      },
+      "electrode_groups": {
+        "PMC": "premotor cortex",
+        "PPC": "posterior parietal cortex"
+      },
+      "electrodes": {
+        "channel_name": [
+          "trode1chan0",
+          "trode1chan1",
+          "trode1chan2",
+          "trode1chan3",
+          "trode1chan4",
+          "trode1chan5",
+          "trode1chan6",
+          "trode1chan7",
+          "trode1chan8",
+          "trode1chan9",
+          "trode1chan10",
+          "trode1chan11",
+          "trode1chan12",
+          "trode1chan13",
+          "trode1chan14",
+          "trode1chan15",
+          "trode1chan16",
+          "trode1chan17",
+          "trode1chan18",
+          "trode1chan19",
+          "trode1chan20",
+          "trode1chan21",
+          "trode1chan22",
+          "trode1chan23",
+          "trode1chan24",
+          "trode1chan25",
+          "trode1chan26",
+          "trode1chan27",
+          "trode1chan28",
+          "trode1chan29",
+          "trode1chan30",
+          "trode1chan31"
+        ],
+        "group_name": [
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC"
+        ],
+        "headstage_channel": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31
+        ],
+        "location": [
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown"
+        ],
+        "reference_electrode": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ]
+      },
+      "identifier": "zhang-ferret-hyperscanning-20260401T130419-sub-0236",
+      "institution": "Michigan State University",
+      "keywords": [
+        "hyperscanning",
+        "ferret",
+        "social behavior",
+        "premotor cortex",
+        "posterior parietal cortex",
+        "wireless electrophysiology"
+      ],
+      "lab": "Zhang Lab",
+      "notes": "Pair 0236-0237. Session log usable data: 21min. Session log notes: none.",
+      "session_description": "Ferret hyperscanning, subject 0236 (headstage HS3) with partner 0237 (HS4): naturalistic behavior of the dyad in an open-field box with a toy. Belly-down channel map.",
+      "session_id": "20260401T130419",
+      "session_start_time": "2026-04-01T13:04:19-04:00",
+      "subject": {
+        "age": "P1Y",
+        "description": "Ferret 0236, no shave",
+        "sex": "U",
+        "species": "Mustela putorius furo",
+        "subject_id": "0236"
+      },
+      "videos": {
+        "BehaviorVideoCam14": {
+          "device": "BlackflyS_cam14",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam14_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam46": {
+          "device": "BlackflyS_cam46",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam46_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam58": {
+          "device": "BlackflyS_cam58",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam58_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam67": {
+          "device": "BlackflyS_cam67",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam67_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam68": {
+          "device": "BlackflyS_cam68",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam68_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam14": {
+          "device": "BlackflyS_cam14",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam14_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam46": {
+          "device": "BlackflyS_cam46",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam46_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam58": {
+          "device": "BlackflyS_cam58",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam58_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam67": {
+          "device": "BlackflyS_cam67",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam67_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam68": {
+          "device": "BlackflyS_cam68",
+          "external_file": [
+            "sub-0236_ses-20260401T130419_cam68_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        }
+      }
+    },
+    "sub-0237/sub-0237_ses-20260401T130419_behavior+ecephys.nwb": {
+      "devices": [
+        "BlackflyS_cam14",
+        "BlackflyS_cam46",
+        "BlackflyS_cam58",
+        "BlackflyS_cam67",
+        "BlackflyS_cam68",
+        "Sprite32HS4"
+      ],
+      "electrical_series": {
+        "conversion": 1.9499999999999999e-07,
+        "data_sha256": "2b044f01c6c4441f1e0f1a8d206353b2dcf099b74487da60c24ba9cc93cc564d",
+        "dtype": "int16",
+        "rate": 20000.0,
+        "shape": [
+          200,
+          32
+        ],
+        "starting_time": 0.0
+      },
+      "electrode_groups": {
+        "PMC": "premotor cortex",
+        "PPC": "posterior parietal cortex"
+      },
+      "electrodes": {
+        "channel_name": [
+          "trode2chan32",
+          "trode2chan33",
+          "trode2chan34",
+          "trode2chan35",
+          "trode2chan36",
+          "trode2chan37",
+          "trode2chan38",
+          "trode2chan39",
+          "trode2chan40",
+          "trode2chan41",
+          "trode2chan42",
+          "trode2chan43",
+          "trode2chan44",
+          "trode2chan45",
+          "trode2chan46",
+          "trode2chan47",
+          "trode2chan48",
+          "trode2chan49",
+          "trode2chan50",
+          "trode2chan51",
+          "trode2chan52",
+          "trode2chan53",
+          "trode2chan54",
+          "trode2chan55",
+          "trode2chan56",
+          "trode2chan57",
+          "trode2chan58",
+          "trode2chan59",
+          "trode2chan60",
+          "trode2chan61",
+          "trode2chan62",
+          "trode2chan63"
+        ],
+        "group_name": [
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC",
+          "PPC",
+          "PMC"
+        ],
+        "headstage_channel": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31
+        ],
+        "location": [
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown",
+          "unknown"
+        ],
+        "reference_electrode": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true
+        ]
+      },
+      "identifier": "zhang-ferret-hyperscanning-20260401T130419-sub-0237",
+      "institution": "Michigan State University",
+      "keywords": [
+        "hyperscanning",
+        "ferret",
+        "social behavior",
+        "premotor cortex",
+        "posterior parietal cortex",
+        "wireless electrophysiology"
+      ],
+      "lab": "Zhang Lab",
+      "notes": "Pair 0236-0237. Session log usable data: 21min. Session log notes: none.",
+      "session_description": "Ferret hyperscanning, subject 0237 (headstage HS4) with partner 0236 (HS3): naturalistic behavior of the dyad in an open-field box with a toy. Belly-down channel map.",
+      "session_id": "20260401T130419",
+      "session_start_time": "2026-04-01T13:04:19-04:00",
+      "subject": {
+        "age": "P1Y",
+        "description": "Ferret 0237, identified by a shaved upper back",
+        "sex": "U",
+        "species": "Mustela putorius furo",
+        "subject_id": "0237"
+      },
+      "videos": {
+        "BehaviorVideoCam14": {
+          "device": "BlackflyS_cam14",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam14_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam46": {
+          "device": "BlackflyS_cam46",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam46_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam58": {
+          "device": "BlackflyS_cam58",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam58_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam67": {
+          "device": "BlackflyS_cam67",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam67_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "BehaviorVideoCam68": {
+          "device": "BlackflyS_cam68",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam68_video.avi"
+          ],
+          "num_samples": 6,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam14": {
+          "device": "BlackflyS_cam14",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam14_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam46": {
+          "device": "BlackflyS_cam46",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam46_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam58": {
+          "device": "BlackflyS_cam58",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam58_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam67": {
+          "device": "BlackflyS_cam67",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam67_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        },
+        "CalibrationVideoCam68": {
+          "device": "BlackflyS_cam68",
+          "external_file": [
+            "../sub-0236/sub-0236_ses-20260401T130419_cam68_calibration.avi"
+          ],
+          "num_samples": 3,
+          "rate": 30.0,
+          "starting_time": 0.0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+# If there are any questions about the meaning of certain metadata fields:
+# The NWB GUIDE (https://nwb-guide.readthedocs.io/en/stable/) provides extensive documentation on metadata reqs
+
+# Provisional values below (marked PROVISIONAL) keep the conversion runnable
+# end-to-end on sample uploads. Replace them with the real lab metadata.
+# The intake sources are the BRAIN-BBQS questionnaire and the lab's
+# Ferret_Hyperscanning_MetaData.xlsx (see ../prompts/initial.md).
+
+session:
+  description_template: >-
+    Ferret hyperscanning, subject {subject} (headstage HS{headstage}) with partner
+    {partner} (HS{partner_headstage}): naturalistic behavior of the dyad in an
+    open-field box with a toy. {channel_map} channel map.
+  notes_template: "Pair {pair}. Session log usable data: {usable_data}. Session log notes: {notes}."
+  timezone: America/New_York   # PROVISIONAL. US Eastern fits both the PI's institution and the questionnaire contact; confirm with the lab
+  lab: Zhang Lab
+  institution: Michigan State University   # PROVISIONAL. The questionnaire contact is at UNC School of Medicine; confirm where the data were collected
+  experimenter: []   # PROVISIONAL. List in "Last, First M." style
+  experiment_description: >-
+    Simultaneous wireless electrophysiology recordings of ferret dyads during
+    naturalistic behavior in an open field box with a toy included.
+    Electrophysiology is recorded from two cortical regions, the premotor cortex
+    and the posterior parietal cortex. Behavior is recorded from five camera angles.
+  keywords:
+    - hyperscanning
+    - ferret
+    - social behavior
+    - premotor cortex
+    - posterior parietal cortex
+    - wireless electrophysiology
+  related_publications: []   # DOI links, none yet
+
+subjects:
+  defaults:
+    species: Mustela putorius furo
+    sex: U        # PROVISIONAL ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
+    age: P1Y      # PROVISIONAL. Required by DANDI, should be an ISO 8601 duration, or use date_of_birth instead
+  "0235":
+    description: "Ferret 0235, identified by a shaved lower back"
+  "0236":
+    description: "Ferret 0236, no shave"
+  "0237":
+    description: "Ferret 0237, identified by a shaved upper back"
+
+devices:
+  headstage:
+    name_template: "Sprite32HS{headstage}"
+    description: "SpikeGadgets Sprite32 wireless datalogger headstage, recorded through the Trodes acquisition software"
+    manufacturer: SpikeGadgets
+  camera:
+    name_template: "BlackflyS_cam{camera}"
+    description: "Teledyne FLIR Blackfly S USB3 camera, hardware-triggered together with the other four cameras"
+    manufacturer: Teledyne FLIR
+
+ecephys:
+  # PROVISIONAL. Assumes the merged .rec carries the headstages in the order
+  # the basename lists them, 32 hardware channels each (0-31, then 32-63).
+  # Confirm against a real file's SpikeConfiguration before trusting the split.
+  channels_per_headstage: 32
+  electrical_series_description: "Raw wideband extracellular recording from one animal's 32-channel headstage at 20 kHz"
+  regions:
+    PMC:
+      location: premotor cortex
+      description: "Premotor cortex channels of this animal's headstage"
+    PPC:
+      location: posterior parietal cortex
+      description: "Posterior parietal cortex channels of this animal's headstage"
+  # Which region each headstage channel belongs to, keyed by channel parity
+  # within the headstage (channel index 0-31). The belly-up map applies to
+  # sessions whose session-log row has belly_up = 1.
+  channel_maps:
+    belly_down:
+      odd: PMC
+      even: PPC
+    belly_up:
+      odd: PPC
+      even: PMC
+  # Channels 30 and 31 are the reference electrodes of their region, sitting
+  # 0.5 mm above the other electrodes.
+  reference_channels: [30, 31]
+  reference_note: "Reference electrode, 0.5 mm above the other electrodes of its region"
+
+video:
+  rate: 30.0
+  starting_time: 0.0   # PROVISIONAL. Frame-pulse synchronization is a follow-up; until then every video starts at the recording start
+  cameras: [14, 46, 58, 67, 68]
+
+session_log:
+  # Export of the lab's session-log sheet, relative to this file. Times are
+  # 24-hour local wall clock; rows whose sheet cell had no AM/PM were read as
+  # afternoon when the hour was below 8.
+  path: session_log.csv

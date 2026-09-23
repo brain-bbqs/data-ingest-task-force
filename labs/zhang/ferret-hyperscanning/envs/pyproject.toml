@@ -1,0 +1,52 @@
+# Loose, declarative environment for the Zhang ferret hyperscanning to NWB
+# conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/zhang-ferret-hyperscanning.Dockerfile
+# resolves it fresh at build time and the resulting image (by digest) is the
+# reproducibility lock, so there is no lockfile in the repository to keep in
+# sync.
+#
+# There are no system-level dependencies. Video frame counts come from PyAV,
+# which bundles its own FFmpeg libraries, so no system FFmpeg is needed.
+
+[project]
+name = "zhang-ferret-hyperscanning-r34da061924-ingest"
+version = "0.1.0"
+description = "Convert Zhang-lab ferret hyperscanning recordings (SpikeGadgets .rec plus multicamera video) into per-subject NWB files."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "PyYAML",
+  "pynwb",
+  # SpikeGadgetsRecordingInterface lives behind neuroconv's spikegadgets extra
+  # (spikeinterface and neo).
+  "neuroconv[spikegadgets]",
+  # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr
+  # 0.14.0 (2026-09-22) moved to zarr>=3.4, so an unbounded resolve installs
+  # zarr 3 and `import neuroconv` fails. Drop this bound once a neuroconv
+  # release imports under zarr 3.
+  "zarr<3",
+  # Frame counts of the external video files, read from the container header.
+  "av",
+  # Zone database for the configured session timezone, independent of the host.
+  "tzdata",
+  # Progress bar for the batch driver.
+  "tqdm",
+]
+
+[project.optional-dependencies]
+# The converter's own dependencies double as the test runtime. The test extra
+# only adds the runner itself.
+test = [
+  "pytest>=7",
+]
+
+# The package carries no importable modules; installing it only realises the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

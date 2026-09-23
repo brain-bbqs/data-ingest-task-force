@@ -32,7 +32,7 @@ default_language_version:
 # its two hardcoded local paths were converted to CLI arguments) pending its
 # conversion plan. Drop this exclusion once that plan lands and the file is
 # rewritten as owned conversion code.
-exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw|suthana/in-lab/tests/example_raw)/|^labs/shepherd/code/(shepherd_to_nwb\.py|config\.yaml|README\.md)$|^labs/sanes/(code/(pynaViz_ex\.py|sanes_multisubject_to_nwb\.py|sanes_individual_subject_to_nwb\.py|concat_sanes_data\.py|config_multisubject\.yaml)|envs/original/.*)$|^labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb\.py$
+exclude: ^labs/(kemere/tests/(example_raw|expected_output)|inman/tests/example_raw|suthana/in-lab/tests/example_raw|zhang/ferret-hyperscanning/tests/example_raw)/|^labs/shepherd/code/(shepherd_to_nwb\.py|config\.yaml|README\.md)$|^labs/sanes/(code/(pynaViz_ex\.py|sanes_multisubject_to_nwb\.py|sanes_individual_subject_to_nwb\.py|concat_sanes_data\.py|config_multisubject\.yaml)|envs/original/.*)$|^labs/suthana/seeber-2024/code/seeber_2024_group_subject_to_nwb\.py$
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
