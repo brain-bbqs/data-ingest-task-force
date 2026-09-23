@@ -467,3 +467,10 @@ where its placeholder lives. The lab README, the `PROVISIONAL` comments in
 Q1 (whether the uploaded `.rec` holds the ephys) and Q6 (where the Trodes
 comments live) are removed from `../OPEN_QUESTIONS.md`. The other questions
 keep their numbers.
+
+## Request 6 — Generalize Q5
+
+> keep Q5 worded just as general 'request information regarding temporal synchronization protocols'
+
+Q5 in `../OPEN_QUESTIONS.md` is now "Temporal synchronization protocols",
+asking the lab for information on them, without the timestamp specifics.

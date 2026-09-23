@@ -49,7 +49,7 @@ output:
 - The channel split between the two animals' headstages is assumed
   ([Q8](OPEN_QUESTIONS.md#q8-channel-numbering-per-headstage)).
 - Videos are not yet synchronized to the ephys and start at the recording
-  start ([Q5](OPEN_QUESTIONS.md#q5-camera-and-ephys-clocks),
+  start ([Q5](OPEN_QUESTIONS.md#q5-temporal-synchronization-protocols),
   [Q7](OPEN_QUESTIONS.md#q7-which-din-carries-the-camera-frame-trigger)).
 - Subject and session metadata are placeholders
   ([Q9](OPEN_QUESTIONS.md#q9-subject-and-session-metadata)).
