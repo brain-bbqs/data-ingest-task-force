@@ -136,6 +136,14 @@ Suthana's second project, `suthana/seeber-2024`, shares this same dandiset pair 
 
 `suthana/seeber-2024` is set to `upload_validation: ignore` for the same reason: its single group-level NWB file is written under `sourcedata/nwb/Seeber_etal_2024_data_code/` rather than a `sub-<id>/` folder at the `000531` root, so it reports `NON_DANDI_FOLDERNAME` too. Since `dandi upload` validates the whole shared dandiset directory (not just one project's files), any project sharing `000531` needs `ignore` for its own upload step to get past `suthana/in-lab`'s pre-existing errors as well.
 
+Note: Zhang's registration (incoming `000480`, standardized `000547`) is keyed `zhang/ferret-hyperscanning`, the lab's first project (its dataset title also names human recordings, so the lab directory is nested from the start).
+It runs `labs/zhang/ferret-hyperscanning/code/batch_convert.py`, which converts every `.rec` recording directory found under `sourcedata/raw/Ferret_Hyperscanning/<pair>/<date>/` in one invocation, writing two NWB files per recording (one per animal, directly under `sub-<id>/`) and hard-linking or copying that session's AVI videos next to the lower-numbered animal's file. Already-converted recordings are skipped unless dispatch appends `--overwrite`.
+Its `script_path` deliberately stays pointed at `_zhang_ferret_hyperscanning_to_nwb.py`, since that is where the conversion logic that determines output content lives.
+The session unit is the `.rec` directory, not the date directory it sits in: date directories repeat across animal pairs, and dispatch keys sessions by basename.
+An empty incoming dandiset is fine: the batch driver reports that it found no recordings and exits 0.
+The conversion assumes the uploaded `.rec` is the merged datalogger file holding both headstages' 20 kHz channels in basename order, 32 each, and every video starts at the recording start (frame-pulse synchronization is a follow-up), so the ephys split and the video timing are marked PROVISIONAL in `labs/zhang/ferret-hyperscanning/code/config.yaml` alongside the subject sex and age, timezone, institution and experimenters. Whether DANDI's default upload validation accepts the `.avi` assets next to the NWB files is unconfirmed until the first real run; set `upload_validation: ignore` if it does not.
+Each recording carries about 170 GB of uncompressed video into `000547`, so the driver converts two recordings at a time by default (`--jobs` in `convert_command` to change it).
+
 ## Tests
 
 ```bash
