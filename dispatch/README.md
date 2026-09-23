@@ -136,6 +136,13 @@ Suthana's second project, `suthana/seeber-2024`, shares this same dandiset pair 
 
 `suthana/seeber-2024` is set to `upload_validation: ignore` for the same reason: its single group-level NWB file is written under `sourcedata/nwb/Seeber_etal_2024_data_code/` rather than a `sub-<id>/` folder at the `000531` root, so it reports `NON_DANDI_FOLDERNAME` too. Since `dandi upload` validates the whole shared dandiset directory (not just one project's files), any project sharing `000531` needs `ignore` for its own upload step to get past `suthana/in-lab`'s pre-existing errors as well.
 
+Note: Zhang's registration (incoming `000480`, standardized `000547`) is keyed `zhang/ferret-hyperscanning`, the lab's first project.
+It runs `labs/zhang/ferret-hyperscanning/code/batch_convert.py`, which converts every recording found under the incoming dandiset in one invocation (skipping recordings already converted, unless dispatch appends `--overwrite`), and exits 0 on an empty dandiset.
+Its `script_path` deliberately stays pointed at `_zhang_ferret_hyperscanning_to_nwb.py`, since that is where the conversion logic that determines output content lives.
+Its `sessions.json` glob selects the `.rec` directory rather than the date directory it sits in, since date directories repeat across animal pairs and dispatch keys sessions by basename.
+It uses the default `upload_validation`. Whether DANDI accepts the `.avi` assets written next to the NWB files is unconfirmed until the first real upload; set `ignore` if it does not.
+Open questions that still affect the output are tracked in `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`.
+
 ## Tests
 
 ```bash

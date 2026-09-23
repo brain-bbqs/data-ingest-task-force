@@ -13,16 +13,16 @@ The project key is the lab name alone, or `<lab>/<project>` when the lab has mor
 
 Add one entry. The field reference lives in `dispatch/README.md`, and the existing entries are worked examples. Points that need thought:
 
-- `script_path` points at the file holding the content-determining conversion logic (inman points at `_inman_to_nwb.py`, not the batch driver). Its hash is what triggers reprocessing.
+- `script_path` points at the file holding the content-determining conversion logic (Inman points at `_inman_to_nwb.py`, not the batch driver). Its hash is what triggers reprocessing.
 - `convert_command` is an argv list using `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`. Use module invocation (`python3 -m labs.<lab>.code.batch_convert`) when the driver relies on a relative import.
 - `overwrite_flag` is the flag the driver understands (house convention `--overwrite`).
 - `container_image` is the lab's GHCR image with the `:latest` tag. The image only exists on GHCR after the branch merges to main and CI publishes it, so a real cron run cannot use the entry before that first merge.
-- Project-wide scalar metadata (kemere's species) goes in the `metadata` map. Each entry is auto-appended to the command as `--<key> <value>`, so the command template does not name it.
+- Project-wide scalar metadata (Kemere's species) goes in the `metadata` map. Each entry is auto-appended to the command as `--<key> <value>`, so the command template does not name it.
 - Set `project` only for a multi-collection lab. It must match the `labs/<lab>/<project>/` directory.
 
 ## 2. `dispatch/sessions.json`
 
-Add an entry under `"labs"` with the same project key. `include` globs are relative to the incoming project directory, only directories count as sessions, and a session's id is its directory basename. Derive the glob from the intake's source tree (kemere: `sourcedata/raw/*-Session*`). Use `exclude` for stray non-session directories. If the incoming dandiset currently holds data the converter cannot read, scope the glob so discovery finds only real input, as shepherd does with `sourcedata/raw/sessions/*`.
+Add an entry under `"labs"` with the same project key. `include` globs are relative to the incoming project directory, only directories count as sessions, and a session's id is its directory basename. Derive the glob from the intake's source tree (Kemere: `sourcedata/raw/*-Session*`). Basenames must be unique across everything the globs match, since dispatch keys sessions by basename and a later match silently replaces an earlier one. When the natural session directory repeats (Zhang nests date folders under animal-pair folders), glob one level deeper to a directory whose name is unique, such as the recording directory, and let the batch driver reach sibling folders from there. Use `exclude` for stray non-session directories. If the incoming dandiset currently holds data the converter cannot read, scope the glob so discovery finds only real input, as Shepherd does with `sourcedata/raw/sessions/*`.
 
 ## 3. `.github/workflows/container_images.yml`
 
@@ -33,7 +33,7 @@ Register the image in both places its top comment points at, using the lowercase
 
 ## 4. `.github/workflows/test.yml`
 
-Add a job following the existing per-lab jobs: checkout, Python 3.13, `pip install "./labs/<lab>/envs[test]"`, run the lab's pytest suite. Name it `<Lab>Integration`, or `<Lab>Smoke` when the suite is shepherd-style smoke tests. The daily scheduled run calls this same workflow, so the new environment gets exercised even without commits.
+Add a job following the existing per-lab jobs: checkout, Python 3.13, `pip install "./labs/<lab>/envs[test]"`, run the lab's pytest suite. Name it `<Lab>Integration`, or `<Lab>Smoke` when the suite is Shepherd-style smoke tests. The daily scheduled run calls this same workflow, so the new environment gets exercised even without commits.
 
 ## 5. Top-level `README.md`
 
@@ -41,11 +41,11 @@ Add the lab to the Layout block, one line in the established format: lab key, a 
 
 ## 6. `dispatch/README.md`
 
-Append a note paragraph in the "Adding a project" section stating the registration facts and its readiness, matching the existing notes: the dandiset ids, what the registered command does, and anything provisional. Be explicit when the project is not yet ready for a real cron run, including how to keep the runner off it (`--only` the ready projects, or leave the incoming dandiset empty so discovery finds nothing).
+Append a note paragraph in the "Adding a project" section stating the registration facts and its readiness, matching the existing notes: the dandiset ids, what the registered command does, and any registry setting that needed thought (a session glob, `upload_validation`). Keep it to what dispatch needs. How the conversion works and what in its output is provisional belong in the lab README, which the note points to. Be explicit when the project is not yet ready for a real cron run, including how to keep the runner off it (`--only` the ready projects, or leave the incoming dandiset empty so discovery finds nothing).
 
 ## Placeholders and readiness
 
-- A dandiset id not yet assigned gets a plausible placeholder plus an explicit note in `dispatch/README.md` (kemere's incoming id is the precedent). Never leave a placeholder undocumented.
+- A dandiset id not yet assigned gets a plausible placeholder plus an explicit note in `dispatch/README.md` (Kemere's incoming id is the precedent). Never leave a placeholder undocumented.
 - An empty incoming dandiset is fine. The batch driver exits 0 having found nothing, so the first cron pass succeeds.
 - The runner authenticates per instance via `<INSTANCE>_API_KEY` env vars and needs `docker login` for private GHCR images. Both are runner-side setup, nothing to commit here, but say so in the note if the lab needs anything unusual.
 

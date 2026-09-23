@@ -1,36 +1,36 @@
-# Loose, declarative environment for the Suthana in-lab navigation to NWB
+# Loose, declarative environment for the Zhang ferret hyperscanning to NWB
 # conversion pipeline.
 #
 # This file is the single source of truth for the Python environment. It is
-# intentionally NOT pinned: containers/suthana-in-lab.Dockerfile resolves it
-# fresh at build time and the resulting image (by digest) is the
+# intentionally NOT pinned: containers/zhang-ferret-hyperscanning.Dockerfile
+# resolves it fresh at build time and the resulting image (by digest) is the
 # reproducibility lock, so there is no lockfile in the repository to keep in
 # sync.
 #
-# There are no system-level dependencies. The raw .mat files are MATLAB v7.3,
-# which is HDF5, so h5py reads them directly without a MATLAB runtime.
+# There are no system-level dependencies. NeuroConv reads video frame rates
+# and counts through opencv-python-headless, whose wheels bundle their own
+# FFmpeg libraries, so no system FFmpeg is needed.
 
 [project]
-name = "suthana-in-lab-r61mh135106-ingest"
+name = "zhang-ferret-hyperscanning-r34da061924-ingest"
 version = "0.1.0"
-description = "Convert Suthana-lab in-lab navigation recordings (iEEG, scalp EEG, motion capture) into NWB files."
+description = "Convert Zhang-lab ferret hyperscanning recordings (SpikeGadgets .rec plus multicamera video) into per-subject NWB files."
 requires-python = ">=3.10"
 dependencies = [
   "numpy",
-  "pandas",
-  # The raw files are MATLAB v7.3 (HDF5), read directly rather than through
-  # a .mat-specific reader, because the conversion has to follow the object
-  # references MATLAB uses to store cell arrays.
-  "h5py",
   "PyYAML",
-  "hdmf",
   "pynwb",
-  "neuroconv",
+  # SpikeGadgetsRecordingInterface lives behind neuroconv's spikegadgets extra
+  # (spikeinterface and neo), ExternalVideoInterface behind its video extra
+  # (opencv-python-headless).
+  "neuroconv[spikegadgets,video]",
   # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr
   # 0.14.0 (2026-09-22) moved to zarr>=3.4, so an unbounded resolve installs
   # zarr 3 and `import neuroconv` fails. Drop this bound once a neuroconv
   # release imports under zarr 3.
   "zarr<3",
+  # Zone database for the configured session timezone, independent of the host.
+  "tzdata",
   # Progress bar for the batch driver.
   "tqdm",
 ]
@@ -40,6 +40,11 @@ dependencies = [
 # only adds the runner itself.
 test = [
   "pytest>=7",
+]
+# tests/generate_fixtures.py writes the synthetic AVI fixtures with PyAV.
+dev = [
+  "pytest>=7",
+  "av",
 ]
 
 # The package carries no importable modules; installing it only realises the

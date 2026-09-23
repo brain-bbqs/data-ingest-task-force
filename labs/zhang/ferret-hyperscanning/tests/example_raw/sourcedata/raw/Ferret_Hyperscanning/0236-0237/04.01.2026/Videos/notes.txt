@@ -1,0 +1,1 @@
+stray file the converter must report and ignore

@@ -23,6 +23,11 @@ dependencies = [
   "pynwb",
   # DeepLabCutInterface lives behind neuroconv's deeplabcut extra.
   "neuroconv[deeplabcut]",
+  # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr
+  # 0.14.0 (2026-09-22) moved to zarr>=3.4, so an unbounded resolve installs
+  # zarr 3 and `import neuroconv` fails. Drop this bound once a neuroconv
+  # release imports under zarr 3.
+  "zarr<3",
   # The converter imports cv2 to read video frames. The headless build supplies
   # the same module without the GUI stack, which the container has no use for
   # and which would otherwise drag in libGL.

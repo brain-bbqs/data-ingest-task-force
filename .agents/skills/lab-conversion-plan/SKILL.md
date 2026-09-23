@@ -5,7 +5,7 @@ description: Turn a completed lab intake into a reviewable conversion plan for a
 
 # Lab conversion plan
 
-Produce the document a human signs off on before any scaffolding happens: which standard, how every source file maps into it, and what the output will look like. The kemere setup log (`labs/kemere/prompts/initial.md`) is the model for all three parts.
+Produce the document a human signs off on before any scaffolding happens: which standard, how every source file maps into it, and what the output will look like. The Kemere setup log (`labs/kemere/prompts/initial.md`) is the model for all three parts.
 
 The plan exists for the coding agent, not the requester. Its purpose is to make the eventual conversion scripts correct: every mapping row, identity rule, and metadata field written down here is one the code will not have to guess at. It is not a vehicle for the agent to steer strategy. The requester is the main specification for what the conversion should be, above all which standard it targets.
 
@@ -18,7 +18,7 @@ The target standard is the requester's decision. Treat the standard the intake n
 - Standard named in the intake: adopt it. If the data seems to fit it badly, raise that as a question alongside the plan. The requester's call stands.
 - No standard named: propose one as a recommendation, with a short justification grounded in the decision guide and the precedent labs, and mark it clearly as awaiting the requester's decision at sign-off. Do not build past the plan on an unconfirmed proposal.
 
-Pin down the output granularity the same way. One NWB file per session is the default. Precedented variations exist for good reasons: a raw plus processed pair per session (shepherd), one file per subject-walk (inman). Note which one applies and why, and flag it for sign-off when it is a real choice rather than a consequence of the data.
+Pin down the output granularity the same way. One NWB file per session is the default. Precedented variations exist for good reasons: a raw plus processed pair per session (Shepherd), one file per subject-walk (Inman). Note which one applies and why, and flag it for sign-off when it is a real choice rather than a consequence of the data.
 
 ## Step 2: Map every source file
 
@@ -28,7 +28,7 @@ Write a mapping table from the verbatim source tree to the standardized output. 
 - merged into another output's metadata (a BIDS sidecar block, an NWB field),
 - out of scope, which the converter must still report rather than silently skip.
 
-The kemere table is the reference shape:
+The Kemere table is the reference shape:
 
 | Source | Output |
 | --- | --- |
@@ -37,7 +37,7 @@ The kemere table is the reference shape:
 | `overhead_video.settings` | merged into the video sidecar under `TrackingSettings` |
 | `notes.txt`, `*.srt` | out of scope, reported and ignored |
 
-Derive the identity rules while doing this: how the subject label and the session label are computed from the tree, and what sanitization applies (DANDI labels are alphanumeric). Present these as documented decisions that are easy to change, and plan for each to live in a single function once they reach code (kemere's `derive_session_label` is the precedent).
+Derive the identity rules while doing this: how the subject label and the session label are computed from the tree, and what sanitization applies (DANDI labels are alphanumeric). Present these as documented decisions that are easy to change, and plan for each to live in a single function once they reach code (Kemere's `derive_session_label` is the precedent).
 
 ## Step 3: Draft the expected output example
 

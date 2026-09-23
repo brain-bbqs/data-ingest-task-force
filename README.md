@@ -24,6 +24,9 @@ labs/
                            (see labs/suthana/in-lab/README.md)
     seeber-2024/          Seeber et al. (2024/2025) derived group-subject data -> NWB
                            (see labs/suthana/seeber-2024/README.md)
+  zhang/                Zhang lab, one directory per project
+    ferret-hyperscanning/ ferret dyads: SpikeGadgets wireless ephys + multicamera video -> NWB
+                           (see labs/zhang/ferret-hyperscanning/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
                          (see dispatch/README.md), including its own
                          containers/dandi.Dockerfile -- the portable dandi

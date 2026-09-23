@@ -44,7 +44,7 @@ DOIs or links, one per line. These become `related_publications` in NWB metadata
 
 - What each file is, per extension or name, including files that should be ignored.
 - File formats and rough sizes. This matters later for memory and parallelism choices.
-- How sessions appear in the tree. This becomes the project's `sessions.json` include glob, and only directories count as sessions.
+- How sessions appear in the tree. This becomes the project's `sessions.json` include glob, and only directories count as sessions. Their basenames must be unique across the whole tree, since dispatch keys sessions by basename (Zhang's date folders repeat under every animal pair, so the recording directory inside them is the session there).
 - How subject and session identity are encoded (folder names, filenames, a spreadsheet, nowhere yet).
 
 ## Metadata provided

@@ -112,6 +112,25 @@
         "--output",
         "{standardized_dir}/sourcedata/nwb/Seeber_etal_2024_data_code"
       ]
+    },
+    {
+      "lab": "zhang",
+      "project": "ferret-hyperscanning",
+      "incoming_dandiset_id": "000480",
+      "standardized_dandiset_id": "000547",
+      "script_path": "labs/zhang/ferret-hyperscanning/code/_zhang_ferret_hyperscanning_to_nwb.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/zhang-ferret-hyperscanning-r34da061924-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/zhang/ferret-hyperscanning/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/zhang/ferret-hyperscanning/code/config.yaml"
+      ]
     }
   ]
 }

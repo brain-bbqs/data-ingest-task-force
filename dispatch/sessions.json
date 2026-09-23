@@ -24,6 +24,10 @@
     "suthana/seeber-2024": {
       "include": ["sourcedata/raw/Seeber_etal_2024_data_code"],
       "exclude": []
+    },
+    "zhang/ferret-hyperscanning": {
+      "include": ["sourcedata/raw/Ferret_Hyperscanning/*/*/*.rec"],
+      "exclude": []
     }
   }
 }
