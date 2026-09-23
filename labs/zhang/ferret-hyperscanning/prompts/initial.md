@@ -490,3 +490,11 @@ Q16 in `../OPEN_QUESTIONS.md` is now "Investigate video transcoding",
 replacing the question about DANDI's validation of the `.avi` assets. The
 dispatch note keeps that validation caveat, since it concerns the upload
 settings.
+
+## Request 9 — Multisubject question
+
+> Add Q to implement multisubject
+
+Added as Q17 in `../OPEN_QUESTIONS.md`: a follow-up to link each
+session's two per-animal files, likely through `ndx-multisubjects` as
+the Sanes conversion does.

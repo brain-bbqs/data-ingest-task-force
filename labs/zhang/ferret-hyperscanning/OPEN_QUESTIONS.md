@@ -3,7 +3,7 @@
 The questions this conversion still depends on, and where their answers
 land. Numbers match the conversion plan in `prompts/initial.md`, so they
 stay citable from follow-up PRs, commit messages and the `PROVISIONAL`
-comments in `code/config.yaml`. Q16 was added during scaffolding.
+comments in `code/config.yaml`. Q16 and Q17 were added after the plan.
 
 When a question is answered, quote the answer into `prompts/initial.md` as
 a new request, make the code change, and move the entry to "Resolved" below
@@ -24,6 +24,7 @@ with a pointer to the change.
 | [Q14](#q14-sessions-to-exclude) | Should sessions without usable data be excluded? | Deferred, all converted | Which sessions publish |
 | [Q15](#q15-calibration-videos) | Calibration videos in the NWB or as plain assets? | Implemented as proposed, unconfirmed | Calibration video placement |
 | [Q16](#q16-investigate-video-transcoding) | Investigate video transcoding | Deferred to a follow-up | Video size and format |
+| [Q17](#q17-implement-multisubject) | Implement multisubject | Deferred to a follow-up | One file linking each session's pair |
 
 ## Deferred to follow-ups
 
@@ -100,6 +101,15 @@ cameras triggered together.
 - **Follow-up work:** investigate video transcoding.
 - **Current handling:** the AVIs are carried into the standardized
   dandiset unchanged, about 172 GB per session (Request 2).
+
+### Q17. Implement multisubject
+
+- **Follow-up work:** implement multisubject.
+- **Current handling:** each session writes one NWB file per animal, and
+  each file names its partner only in its description and notes.
+- **Likely shape:** a session-level file linking the two per-animal files
+  through `ndx-multisubjects`, the Sanes pattern. It can be added on top of
+  the current output without redoing the ephys.
 
 ## Implemented as proposed, awaiting confirmation
 
