@@ -94,7 +94,7 @@ dandiset was not inspected and the tree above is the only view of the data.
   shows six of the 31 logged dates for `0236-0237` and no `0235-*` pair, so
   the upload is partial or in progress.
 - **Not provided:** sex, age or date of birth, experimenters, timezone,
-  electrode type and coordinates, which DIN carries the frame trigger, where
+  electrode type and coordinates, which digital input carries the frame trigger, where
   the Trodes comments live, standard, papers, prior code.
 
 Size arithmetic that shapes the plan: at 30 fps, a 29.47 GB video is 20.8
@@ -152,7 +152,7 @@ default that is easy to change. The precedents referenced are
 6. **Where are the Trodes comments?** Trodes writes `<rec>.trodesComments`
    next to the `.rec`; nothing like it is in the tree. If they were not
    uploaded, the human-interference intervals cannot be built.
-7. **Which DIN carries the camera frame trigger,** and is every camera's
+7. **Which digital input carries the camera frame trigger,** and is every camera's
    first frame the first pulse? The converter will pick the digital channel
    with a pulse rate near 30 Hz and report the pulse count against each
    video's frame count, but the channel id should be confirmed.
@@ -236,10 +236,10 @@ the date directories are not, and dispatch keys sessions by basename).
 | `Ferret_Hyperscanning/<pair>/<MM.DD.YYYY>/<rec>.rec/` | One session: `sub-0236/sub-0236_ses-20260401T130419_behavior+ecephys.nwb` and `sub-0237/sub-0237_ses-20260401T130419_behavior+ecephys.nwb` |
 | `<rec>.rec/<rec>.rec`, XML header | `session_start_time` (from `systemTimeAtCreation`, timezone `PROVISIONAL`), sampling rate, per-channel gain (`spikeScalingToUv`), nTrode-to-headstage assignment, `Device` entries |
 | `<rec>.rec/<rec>.rec`, ephys packets | `acquisition/ElectricalSeries`, this animal's 32 channels only, int16 with `conversion` from the header gain, timestamps from the Trodes clock (rate + starting time when the clock is continuous, explicit timestamps if the packet timestamps show gaps) |
-| `<rec>.rec/<rec>.rec`, digital inputs | Rising-edge times of the camera frame DIN become the `timestamps` of every behavior-video `ImageSeries`; the DIN state changes are also kept as `processing/behavior/BehavioralEvents/camera_frame_trigger` (`TimeSeries`, 0/1 at transitions) |
+| `<rec>.rec/<rec>.rec`, digital inputs | Rising-edge times of the camera frame digital input become the `timestamps` of every behavior-video `ImageSeries`; the digital input's state changes are also kept as `processing/behavior/BehavioralEvents/camera_frame_trigger` (`TimeSeries`, 0/1 at transitions) |
 | `<rec>.rec/<rec>.rec`, headstage sensor block | `acquisition/HeadstageAccelerometer` (`TimeSeries`, x/y/z, unit and rate `PROVISIONAL`) |
 | `<rec>.trodesComments` (expected next to the `.rec`, not in the tree) | `intervals/human_interference` (`TimeIntervals`, start at `hi`, stop at `ho`, unpaired comments reported); skipped with a report when the file is absent |
-| `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` (`ImageSeries`, `format="external"`, relative `external_file`, timestamps from the frame DIN, `description` naming the camera and the original filename); the file itself is placed under the host subject's directory (see Step 3) |
+| `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` (`ImageSeries`, `format="external"`, relative `external_file`, timestamps from the frame digital input, `description` naming the camera and the original filename); the file itself is placed under the host subject's directory (see Step 3) |
 | `Videos/cam<NN>-cal-<ts>-0000.avi` | `acquisition/CalibrationVideoCam<NN>` (`ImageSeries`, external, `rate=30.0`, `starting_time` derived from the filename offset to the behavior video and the first frame pulse, `description` noting the ChArUco board) |
 | Spreadsheet `Session Info` row (matched by pair and date, nearest start time when two rows share a date) | Belly-up flag selects the channel map; usable-data text and notes go to `notes`; start and end times are cross-checked against the `.rec` and reported |
 | Spreadsheet `Other Meta Data` | Channel maps, animal identification marks, comment legend, and rates land in `config.yaml` at scaffold time |
@@ -323,13 +323,13 @@ general/
 acquisition/
   ElectricalSeries         32 x N int16, 20 kHz, conversion 1e-6 * spikeScalingToUv
   HeadstageAccelerometer   TimeSeries, N x 3, unit PROVISIONAL
-  BehaviorVideoCam14 ...   ImageSeries external, timestamps = frame DIN rising edges
+  BehaviorVideoCam14 ...   ImageSeries external, timestamps = frame digital input rising edges
   CalibrationVideoCam14 .. ImageSeries external, rate 30.0, starting_time derived
 intervals/
   human_interference       TimeIntervals, start_time (hi), stop_time (ho)
 processing/behavior/
   BehavioralEvents/
-    camera_frame_trigger   TimeSeries, DIN state at each transition
+    camera_frame_trigger   TimeSeries, digital input state at each transition
 ```
 
 The partner's file is identical in shape with its own 32 channels, its own
@@ -379,7 +379,7 @@ The partner's file is identical in shape with its own 32 channels, its own
   give seconds from recording start. Use them rather than assuming a
   continuous sample count; wireless and datalogger recordings can have
   gaps, and a gap turns `rate + starting_time` into explicit timestamps.
-- **Frame sync.** Rising edges of the frame DIN are the video timestamps.
+- **Frame sync.** Rising edges of the frame digital input are the video timestamps.
   Compare the edge count with `ffprobe`'s frame count per video; a mismatch
   is reported, and the shorter of the two truncates, never silently.
 - **Two animals, one file.** The header's nTrode assignments say which
@@ -400,7 +400,7 @@ The partner's file is identical in shape with its own 32 channels, its own
   numpy, PyYAML, tqdm. System: FFmpeg (`ffprobe`). No MATLAB, no
   proprietary binaries.
 - **Tests.** Golden-file pattern: a synthetic `.rec` (XML header plus a few
-  hundred packets with a 30 Hz DIN, two headstages, a sensor block),
+  hundred packets with a 30 Hz digital input, two headstages, a sensor block),
   tiny AVIs, a `.trodesComments` file and a two-row session log under
   `tests/example_raw/`; the two expected NWB files compared structurally
   (field by field, not byte-exact, since HDF5 is not deterministic).
@@ -474,3 +474,10 @@ keep their numbers.
 
 Q5 in `../OPEN_QUESTIONS.md` is now "Temporal synchronization protocols",
 asking the lab for information on them, without the timestamp specifics.
+
+## Request 7 — Spell out digital input
+
+> dont use DIN as abbreviation
+
+Every "DIN" in this lab's docs, including the plan above and Q7 of
+`../OPEN_QUESTIONS.md`, now reads "digital input".

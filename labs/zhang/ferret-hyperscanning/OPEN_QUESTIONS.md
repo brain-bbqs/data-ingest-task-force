@@ -14,7 +14,7 @@ with a pointer to the change.
 | # | Question | Status | Blocks |
 | --- | --- | --- | --- |
 | [Q5](#q5-temporal-synchronization-protocols) | Request information regarding temporal synchronization protocols | Deferred to the sync follow-up | Video timing |
-| [Q7](#q7-which-din-carries-the-camera-frame-trigger) | Which DIN carries the camera frame trigger? | Deferred to the sync follow-up | Video timing |
+| [Q7](#q7-which-digital-input-carries-the-camera-frame-trigger) | Which digital input carries the camera frame trigger? | Deferred to the sync follow-up | Video timing |
 | [Q8](#q8-channel-numbering-per-headstage) | How are channels split between the two headstages? | Deferred | Correct ephys in every file |
 | [Q9](#q9-subject-and-session-metadata) | Sex, age, experimenters, institution, timezone | Deferred | DANDI-ready metadata |
 | [Q10](#q10-electrodes) | Electrode type, geometry, coordinates, filtering, references | Deferred | Electrode table detail |
@@ -34,12 +34,12 @@ with a pointer to the change.
 - **Current handling:** every video starts at the recording start,
   `video.starting_time` in `code/config.yaml`, marked `PROVISIONAL`.
 
-### Q7. Which DIN carries the camera frame trigger?
+### Q7. Which digital input carries the camera frame trigger?
 
 The lab says one digital input pulses once per camera frame, with all five
 cameras triggered together.
 
-- **Ask the lab:** which DIN channel, and is each camera's first frame the
+- **Ask the lab:** which digital input channel, and is each camera's first frame the
   first pulse?
 - **Follow-up work:** neo's SpikeGadgets reader does not expose the digital
   inputs, so this needs a small packet reader of our own. The rising edges

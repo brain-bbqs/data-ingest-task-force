@@ -50,7 +50,7 @@ output:
   ([Q8](OPEN_QUESTIONS.md#q8-channel-numbering-per-headstage)).
 - Videos are not yet synchronized to the ephys and start at the recording
   start ([Q5](OPEN_QUESTIONS.md#q5-temporal-synchronization-protocols),
-  [Q7](OPEN_QUESTIONS.md#q7-which-din-carries-the-camera-frame-trigger)).
+  [Q7](OPEN_QUESTIONS.md#q7-which-digital-input-carries-the-camera-frame-trigger)).
 - Subject and session metadata are placeholders
   ([Q9](OPEN_QUESTIONS.md#q9-subject-and-session-metadata)).
 
