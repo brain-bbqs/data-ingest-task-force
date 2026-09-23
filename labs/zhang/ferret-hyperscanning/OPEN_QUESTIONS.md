@@ -23,7 +23,7 @@ with a pointer to the change.
 | [Q13](#q13-two-recordings-on-one-date) | Layout of days with two recordings of one pair | Implemented as proposed, unverified | Video matching |
 | [Q14](#q14-sessions-to-exclude) | Should sessions without usable data be excluded? | Deferred, all converted | Which sessions publish |
 | [Q15](#q15-calibration-videos) | Calibration videos in the NWB or as plain assets? | Implemented as proposed, unconfirmed | Calibration video placement |
-| [Q16](#q16-dandi-validation-of-the-avi-assets) | Does DANDI accept `.avi` files next to the NWB files? | Unknown until the first upload | Upload |
+| [Q16](#q16-investigate-video-transcoding) | Investigate video transcoding | Deferred to a follow-up | Video size and format |
 
 ## Deferred to follow-ups
 
@@ -95,15 +95,11 @@ cameras triggered together.
   would go in `exclude` in `dispatch/sessions.json` or a flag in the
   session log.
 
-### Q16. DANDI validation of the `.avi` assets
+### Q16. Investigate video transcoding
 
-- **Unknown:** whether DANDI's default upload validation accepts the `.avi`
-  files placed next to the NWB files under `sub-<id>/`. The only precedent
-  for non-NWB assets, Kemere, keeps its BIDS tree under `sourcedata/`.
-- **If it does not:** set `upload_validation: ignore` in
-  `dispatch/projects.json`, or move the videos. The first real upload
-  answers this.
-- **Related:** transcoding the videos is a planned follow-up (Request 2).
+- **Follow-up work:** investigate video transcoding.
+- **Current handling:** the AVIs are carried into the standardized
+  dandiset unchanged, about 172 GB per session (Request 2).
 
 ## Implemented as proposed, awaiting confirmation
 

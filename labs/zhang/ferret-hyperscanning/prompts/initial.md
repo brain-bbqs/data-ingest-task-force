@@ -481,3 +481,12 @@ asking the lab for information on them, without the timestamp specifics.
 
 Every "DIN" in this lab's docs, including the plan above and Q7 of
 `../OPEN_QUESTIONS.md`, now reads "digital input".
+
+## Request 8 — Rephrase Q16
+
+> rephrase Q16 as investigate video transcoding
+
+Q16 in `../OPEN_QUESTIONS.md` is now "Investigate video transcoding",
+replacing the question about DANDI's validation of the `.avi` assets. The
+dispatch note keeps that validation caveat, since it concerns the upload
+settings.
