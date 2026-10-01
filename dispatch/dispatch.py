@@ -115,9 +115,12 @@ def apptainer_env(
 
 
 def git_head(repo_root: Path, /) -> str | None:
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False
-    )
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+        )
+    except FileNotFoundError:
+        return None
     commit = result.stdout.strip() if result.returncode == 0 else None
     return commit
 

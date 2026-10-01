@@ -622,3 +622,8 @@ def test_main_marks_standardized_id_shared_only_when_registered_twice(tmp_path, 
 
     assert len(calls) == 2
     assert all(kwargs["shared_standardized"] for kwargs in calls)
+
+
+def test_git_head_is_none_without_git(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))  # no git on PATH, as in the dandi image CI tests run in
+    assert dispatch.git_head(tmp_path) is None
