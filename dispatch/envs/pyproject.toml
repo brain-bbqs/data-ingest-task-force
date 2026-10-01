@@ -1,7 +1,8 @@
 # Environment for dispatch.py itself (repo-level cron infra, not a lab).
 # Not pinned/containerized: dispatch runs directly on the self-hosted runner,
-# which is also expected to already have the `dandi` CLI installed and
-# configured (dispatch shells out to it; see ../README.md).
+# which is also expected to already have apptainer, git-annex, datalad,
+# datalad-container, and con-duct installed (dispatch shells out to them;
+# see ../README.md).
 #
 # dispatch.py/registry.py/state.py are standard-library only at run time
 # (the registry is plain JSON) -- dependencies is only the test extra below.

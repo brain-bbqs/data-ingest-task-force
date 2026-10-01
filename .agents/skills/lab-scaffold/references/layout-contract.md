@@ -74,6 +74,7 @@ The interpreter version (3.13) is pinned by the Dockerfile base image and the CI
 - System packages only for real system-level dependencies (Kemere adds FFmpeg). Keep the apt layer minimal.
 - A dedicated venv (`/opt/venv`) rather than `--break-system-packages`, Debian's interpreter is PEP 668 externally managed.
 - `COPY envs/pyproject.toml` then `pip install "/tmp/build[test]"`, so the same image can run the test suite against mounted code.
+- `python3` on `PATH` (the venv's `ENV PATH` line does this). Dispatch runs every conversion under `dispatch/record_run.py` inside the image, through Apptainer, as the runner's own user with the image filesystem read-only. Write only to the mounted output directory.
 - `CMD ["python", "--version"]`. CI smoke-tests the image by running its default command, so it must exit 0 fast.
 - The image holds only the environment. Code and data are bind-mounted at run time, so one image serves any revision of the converter.
 

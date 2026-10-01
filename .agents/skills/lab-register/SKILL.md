@@ -47,7 +47,7 @@ Append a note paragraph in the "Adding a project" section stating the registrati
 
 - A dandiset id not yet assigned gets a plausible placeholder plus an explicit note in `dispatch/README.md` (Kemere's incoming id is the precedent). Never leave a placeholder undocumented.
 - An empty incoming dandiset is fine. The batch driver exits 0 having found nothing, so the first cron pass succeeds.
-- The runner authenticates per instance via `<INSTANCE>_API_KEY` env vars and needs `docker login` for private GHCR images. Both are runner-side setup, nothing to commit here, but say so in the note if the lab needs anything unusual.
+- The runner authenticates per instance via `<INSTANCE>_API_KEY` env vars. Dispatch resolves and pulls images anonymously (through Apptainer, into the tracking dataset), so a lab's GHCR image must be public. Both are runner-side constraints, nothing to commit here, but say so in the note if the lab needs anything unusual.
 
 ## Validate
 

@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # dispatch/
 from registry import Project  # noqa: E402
 from sessions import SessionSpec  # noqa: E402
 from state import IngestState, manifest_filename  # noqa: E402
+from tracking import TrackedImage, TrackingDataset  # noqa: E402
 
 import dispatch  # noqa: E402
 
@@ -35,6 +37,32 @@ def make_project(**overrides) -> Project:
     return Project(**defaults)
 
 
+def fake_image(self, *, image: str, dry_run: bool) -> TrackedImage:
+    name = image.rsplit("/", 1)[-1].split(":")[0]
+    tracked = TrackedImage(name=name, path=self.root / "envs" / f"{name}.sif", url=f"docker://{image}@sha256:abc")
+    return tracked
+
+
+@pytest.fixture
+def tracking(tmp_path, monkeypatch) -> TrackingDataset:
+    """A tracking dataset whose images are already up to date, so a test's
+    recorded subprocess calls are only the steps themselves."""
+    monkeypatch.setattr(TrackingDataset, "image", fake_image)
+    return TrackingDataset(root=tmp_path / "tracking")
+
+
+def record_calls(monkeypatch) -> list:
+    calls = []
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, **kwargs: calls.append((cmd, kwargs)))
+    return calls
+
+
+def step_calls(calls: list) -> list:
+    """Drop the `git add` of each record's context.json."""
+    steps = [(cmd, kwargs) for cmd, kwargs in calls if cmd[:2] != ["git", "add"]]
+    return steps
+
+
 def make_repo(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
     script = repo_root / "labs" / "test-lab" / "code" / "convert.py"
@@ -43,14 +71,13 @@ def make_repo(tmp_path: Path) -> Path:
     return repo_root
 
 
-def test_process_project_converts_new_sessions_and_records_state(tmp_path, monkeypatch):
+def test_process_project_converts_new_sessions_and_records_state(tmp_path, monkeypatch, tracking):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
     (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project()
     dispatch.process_project(
@@ -59,16 +86,19 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
     )
 
-    # download skipped + upload skipped -> only the conversion command ran.
-    assert len(calls) == 1
-    cmd, cwd = calls[0]
-    assert cmd[0] == "python3"
+    # download skipped + upload skipped -> only the conversion ran, recorded
+    # with `datalad run` on the host since the project names no image.
+    (step,) = step_calls(calls)
+    cmd, kwargs = step
+    assert cmd[:2] == ["datalad", "run"]
+    assert kwargs["cwd"] == tracking.root
     assert str(repo_root / "labs" / "test-lab" / "code" / "convert.py") in cmd
     assert str(incoming_root / "000001") in cmd
     assert str(standardized_root / "000002") in cmd
@@ -82,7 +112,7 @@ def test_process_project_converts_new_sessions_and_records_state(tmp_path, monke
     assert state.script_sha256 is not None
 
 
-def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
+def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch, tracking):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
@@ -95,8 +125,7 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
     state.mark_converted("ses-1", source_path="x", converted_at="t")
     state.save(state_dir)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     dispatch.process_project(
         project,
@@ -104,6 +133,7 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
@@ -112,7 +142,7 @@ def test_process_project_skips_when_nothing_new(tmp_path, monkeypatch):
     assert calls == []  # no conversion, no upload
 
 
-def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, monkeypatch):
+def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, monkeypatch, tracking):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
@@ -125,8 +155,7 @@ def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, mo
     state.mark_converted("ses-1", source_path="x", converted_at="t")
     state.save(state_dir)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     dispatch.process_project(
         project,
@@ -134,6 +163,7 @@ def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, mo
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=False,
@@ -142,7 +172,7 @@ def test_process_project_nothing_new_skips_upload_even_when_enabled(tmp_path, mo
     assert calls == []  # upload enabled, but nothing new -> nothing runs
 
 
-def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypatch):
+def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypatch, tracking):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
@@ -154,8 +184,7 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
     state.mark_converted("ses-1", source_path="x", converted_at="t")
     state.save(state_dir)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     dispatch.process_project(
         project,
@@ -163,13 +192,14 @@ def test_process_project_forces_overwrite_when_script_changes(tmp_path, monkeypa
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
     )
-    assert len(calls) == 1
-    assert "--overwrite" in calls[0][0]
+    (step,) = step_calls(calls)
+    assert "--overwrite" in step[0]
 
     reloaded = IngestState.load(state_dir)
     assert reloaded.script_sha256 == dispatch.hash_file(project.script_abspath(repo_root))
@@ -183,28 +213,24 @@ def test_dandi_credentials_name_the_ember_instances_own_env_var():
     assert dispatch.DANDI_API_KEY_ENV_VAR == "EMBER_DANDI_API_KEY"
 
 
-def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
+def test_dandi_download_runs_in_container(tmp_path, monkeypatch, tracking):
     monkeypatch.setenv("EMBER_DANDI_API_KEY", "secret-value")
     incoming_root = tmp_path / "incoming"
     incoming_dir = incoming_root / "000001"
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project()
-    dispatch.dandi_download(project, incoming_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+    dispatch.dandi_download(project, incoming_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
 
-    assert len(calls) == 2  # docker pull, then docker run
-    pull_cmd, _ = calls[0]
-    assert pull_cmd == ["docker", "pull", DANDI_IMAGE]
-    run_cmd, _ = calls[1]
-    assert run_cmd[:2] == ["docker", "run"]
-    assert f"{incoming_root}:{incoming_root}" in run_cmd
-    assert "EMBER_DANDI_API_KEY" in run_cmd
-    assert not any("secret-value" in token for token in run_cmd)
-    assert "DANDI_CACHE=ignore" in run_cmd  # sidesteps a joblib/fscacher digest-cache race
-    assert run_cmd[-8:] == [
-        DANDI_IMAGE,
+    (step,) = calls  # a plain download is not recorded in the tracking dataset
+    run_cmd, kwargs = step
+    sif = str(tracking.root / "envs" / "dandi-cli.sif")
+    assert run_cmd == [
+        "apptainer",
+        "exec",
+        "--cleanenv",
+        sif,
         "dandi",
         "download",
         "-o",
@@ -213,28 +239,26 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch):
         "refresh",
         "dandi://ember-dandi/000001",
     ]
-    assert incoming_root.is_dir()  # created ahead of the mount
+    env = kwargs["env"]
+    assert env["APPTAINER_BIND"] == f"{incoming_root}:{incoming_root}"
+    assert env["APPTAINERENV_EMBER_DANDI_API_KEY"] == "secret-value"
+    assert env["APPTAINERENV_DANDI_CACHE"] == "ignore"  # sidesteps a joblib/fscacher digest-cache race
+    assert incoming_root.is_dir()  # created ahead of the bind
 
 
-def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
+def test_dandi_upload_runs_in_container_and_is_recorded(tmp_path, monkeypatch, tracking):
     standardized_dir = tmp_path / "standardized" / "000002"
     standardized_dir.mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project()
-    dispatch.dandi_upload(project, standardized_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+    dispatch.dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
 
-    assert len(calls) == 3  # docker pull, fetch dandiset.yaml, then docker run upload
-    pull_cmd, _ = calls[0]
-    assert pull_cmd == ["docker", "pull", DANDI_IMAGE]
-    fetch_cmd, _ = calls[1]
-    assert fetch_cmd[:2] == ["docker", "run"]
-    assert f"{standardized_dir.parent}:{standardized_dir.parent}" in fetch_cmd
-    assert "DANDI_CACHE=ignore" in fetch_cmd
-    assert fetch_cmd[-10:] == [
-        DANDI_IMAGE,
+    fetch, upload = step_calls(calls)
+    fetch_cmd, fetch_kwargs = fetch
+    assert fetch_cmd[:4] == ["apptainer", "exec", "--cleanenv", str(tracking.root / "envs" / "dandi-cli.sif")]
+    assert fetch_cmd[4:] == [
         "dandi",
         "download",
         "-o",
@@ -245,13 +269,22 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
         "dandiset.yaml",
         "dandi://ember-dandi/000002",
     ]
-    run_cmd, cwd = calls[2]
-    assert run_cmd[:2] == ["docker", "run"]
-    assert f"{standardized_dir}:{standardized_dir}" in run_cmd
-    assert "-w" in run_cmd and str(standardized_dir) in run_cmd
-    assert "DANDI_CACHE=ignore" in run_cmd
-    assert run_cmd[-6:] == ["dandi", "upload", "-i", "ember-dandi", "--existing", "refresh"]
-    assert cwd is None  # working directory is set inside the container (-w), not on the host
+    assert fetch_kwargs["env"]["APPTAINER_BIND"] == f"{standardized_dir.parent}:{standardized_dir.parent}"
+
+    upload_cmd, upload_kwargs = upload
+    assert upload_cmd[:4] == ["datalad", "containers-run", "--container-name", "dandi-cli"]
+    assert upload_cmd[-6:] == ["dandi", "upload", "-i", "ember-dandi", "--existing", "refresh"]
+    assert upload_kwargs["cwd"] == tracking.root
+    env = upload_kwargs["env"]
+    assert env["APPTAINER_BIND"] == f"{standardized_dir}:{standardized_dir}"
+    assert env["APPTAINER_PWD"] == str(standardized_dir)
+    assert env["APPTAINERENV_DANDI_CACHE"] == "ignore"
+
+    (record_dir,) = (tracking.root / "records" / "test-lab").iterdir()
+    assert record_dir.name.endswith("-upload")
+    assert env["DUCT_OUTPUT_PREFIX"] == f"{record_dir}/"
+    context = json.loads((record_dir / "context.json").read_text())
+    assert context["image"] == f"docker://{DANDI_IMAGE}@sha256:abc"
 
 
 @pytest.mark.parametrize(
@@ -263,65 +296,46 @@ def test_dandi_upload_runs_in_container(tmp_path, monkeypatch):
     ],
 )
 def test_dandi_upload_names_validation_only_when_it_departs_from_the_default(
-    tmp_path, monkeypatch, upload_validation, expected_tail
+    tmp_path, monkeypatch, tracking, upload_validation, expected_tail
 ):
     """The default stays byte-identical, so the flag showing up in a logged
     command is itself the signal that a project uploads unvalidated."""
     standardized_dir = tmp_path / "standardized" / "000002"
     standardized_dir.mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project(upload_validation=upload_validation)
-    dispatch.dandi_upload(project, standardized_dir, dandi_image=DANDI_IMAGE, dry_run=False)
+    dispatch.dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
 
-    run_cmd, _ = calls[2]
-    assert run_cmd[-len(expected_tail) :] == expected_tail
+    _, (upload_cmd, _) = step_calls(calls)
+    assert upload_cmd[-len(expected_tail) :] == expected_tail
 
 
-def test_containerize_mounts_paths_and_wraps_cmd(monkeypatch):
-    monkeypatch.delenv("EMBER_DANDI_API_KEY", raising=False)
-    cmd = dispatch.containerize(
-        ["python3", "/repo/labs/x/code/convert.py"],
-        image="ghcr.io/example/x-ingest:latest",
-        repo_root=Path("/repo"),
-        incoming_dir=Path("/incoming/000001"),
-        standardized_dir=Path("/standardized/000002"),
+@pytest.mark.parametrize("key_set", [True, False])
+def test_apptainer_env_forwards_variables_only_through_the_environment(monkeypatch, key_set):
+    if key_set:
+        monkeypatch.setenv("EMBER_DANDI_API_KEY", "super-secret-value")
+    else:
+        monkeypatch.delenv("EMBER_DANDI_API_KEY", raising=False)
+    env = dispatch.apptainer_env(
+        binds={Path("/repo"): ":ro", Path("/incoming/000001"): ""},
+        workdir=Path("/repo"),
+        forward_env=("EMBER_DANDI_API_KEY",),
     )
-    assert cmd[:3] == ["docker", "run", "--rm"]
-    assert "-v" in cmd
-    assert "/repo:/repo:ro" in cmd
-    assert "/incoming/000001:/incoming/000001" in cmd
-    assert "/standardized/000002:/standardized/000002" in cmd
-    assert cmd[-3:] == ["ghcr.io/example/x-ingest:latest", "python3", "/repo/labs/x/code/convert.py"]
-    assert "EMBER_DANDI_API_KEY" not in cmd  # not set in the environment -> not forwarded
+    assert env["APPTAINER_BIND"] == "/repo:/repo:ro,/incoming/000001:/incoming/000001"
+    assert env["APPTAINER_PWD"] == "/repo"
+    assert ("APPTAINERENV_EMBER_DANDI_API_KEY" in env) == key_set
 
 
-def test_containerize_forwards_dandi_api_key_by_name_only(monkeypatch):
+def test_process_project_runs_conversion_in_container_when_configured(tmp_path, monkeypatch, tracking):
     monkeypatch.setenv("EMBER_DANDI_API_KEY", "super-secret-value")
-    cmd = dispatch.containerize(
-        ["python3", "/repo/labs/x/code/convert.py"],
-        image="ghcr.io/example/x-ingest:latest",
-        repo_root=Path("/repo"),
-        incoming_dir=Path("/incoming/000001"),
-        standardized_dir=Path("/standardized/000002"),
-    )
-    assert "EMBER_DANDI_API_KEY" in cmd
-    # By name only ("-e EMBER_DANDI_API_KEY", no "=value") -- docker reads
-    # the current value from its own environment, so the secret itself
-    # never appears in the argv.
-    assert not any("super-secret-value" in token for token in cmd)
-
-
-def test_process_project_runs_conversion_in_container_when_configured(tmp_path, monkeypatch):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
     (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project(container_image="ghcr.io/example/test-lab-ingest:latest")
     dispatch.process_project(
@@ -330,24 +344,88 @@ def test_process_project_runs_conversion_in_container_when_configured(tmp_path, 
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
+        task_force_commit="0123abc",
     )
 
-    # docker pull, then the conversion itself wrapped in docker run.
-    assert len(calls) == 2
-    pull_cmd, _ = calls[0]
-    assert pull_cmd == ["docker", "pull", "ghcr.io/example/test-lab-ingest:latest"]
-    run_cmd, _ = calls[1]
-    assert run_cmd[:2] == ["docker", "run"]
+    (step,) = step_calls(calls)
+    run_cmd, kwargs = step
+    assert run_cmd[:4] == ["datalad", "containers-run", "--container-name", "test-lab-ingest"]
+    (record_dir,) = (tracking.root / "records" / "test-lab").iterdir()
+    separator = run_cmd.index("--")
+    assert run_cmd[separator - 4 : separator] == [
+        "--output",
+        str(record_dir.relative_to(tracking.root)),
+        "--message",
+        "[test-lab] Convert 1 session(s)",
+    ]
+    # The lab command runs under record_run.py, inside the image.
+    assert run_cmd[separator + 1 : separator + 3] == ["python3", str(repo_root / "dispatch" / "record_run.py")]
     assert run_cmd[-1] == "--overwrite"  # appended after the templated convert_command
     assert str(standardized_root / "000002") in run_cmd  # convert_command's {standardized_dir} token, unrewritten
-    assert "python3" in run_cmd
+    assert not any("super-secret-value" in token for token in run_cmd)
+
+    env = kwargs["env"]
+    assert env["APPTAINERENV_EMBER_DANDI_API_KEY"] == "super-secret-value"
+    assert f"{repo_root}:{repo_root}:ro" in env["APPTAINER_BIND"].split(",")
+    assert f"{record_dir}:{record_dir}" in env["APPTAINER_BIND"].split(",")
+
+    context = json.loads((record_dir / "context.json").read_text())
+    assert context["sessions"] == ["ses-1"]
+    assert context["task_force_commit"] == "0123abc"
+    assert context["image"] == "docker://ghcr.io/example/test-lab-ingest:latest@sha256:abc"
 
 
-def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
+def test_record_escapes_braces_datalad_would_treat_as_placeholders(tmp_path, monkeypatch):
+    calls = record_calls(monkeypatch)
+    tracking = TrackingDataset(root=tmp_path / "tracking")
+    tracking.record(
+        cmd=["echo", "{not-a-placeholder}"],
+        container="x",
+        record_dir=tracking.root / "records" / "lab" / "stamp-convert",
+        context={},
+        message="m",
+        env={},
+        dry_run=False,
+    )
+    (step,) = step_calls(calls)
+    assert step[0][-2:] == ["echo", "{{not-a-placeholder}}"]
+
+
+def test_record_saves_a_failed_run_and_reraises(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:2] == ["datalad", "containers-run"]:
+            raise dispatch.subprocess.CalledProcessError(4, cmd)
+
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+    tracking = TrackingDataset(root=tmp_path / "tracking")
+    with pytest.raises(dispatch.subprocess.CalledProcessError):
+        tracking.record(
+            cmd=["false"],
+            container="x",
+            record_dir=tracking.root / "records" / "lab" / "stamp-convert",
+            context={},
+            message="[lab] Convert 1 session(s)",
+            env={},
+            dry_run=False,
+        )
+    assert calls[-1] == [
+        "datalad",
+        "save",
+        "--message",
+        "[lab] Convert 1 session(s) (failed)",
+        str(Path("records") / "lab" / "stamp-convert"),
+    ]
+
+
+def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch, tracking):
     """convert_command doesn't need to name a metadata key -- each entry
     becomes its own --<key> <value> flag, appended automatically."""
     repo_root = make_repo(tmp_path)
@@ -355,8 +433,7 @@ def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
     standardized_root = tmp_path / "standardized"
     (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project(
         convert_command=["python3", "{repo_root}/labs/test-lab/code/convert.py"],
@@ -368,17 +445,18 @@ def test_process_project_auto_appends_metadata_as_flags(tmp_path, monkeypatch):
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
     )
-    cmd, _ = calls[0]
+    ((cmd, _),) = step_calls(calls)
     # --overwrite (first-ever run) lands after the auto-appended flags.
     assert cmd[-5:] == ["--species", "Mus musculus", "--some-key", "some-value", "--overwrite"]
 
 
-def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path, monkeypatch):
+def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path, monkeypatch, tracking):
     """{key} templating inside convert_command still works too, for a value
     that needs to land somewhere other than a trailing --<key> <value> flag
     (e.g. embedded in a longer token)."""
@@ -387,8 +465,7 @@ def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path,
     standardized_root = tmp_path / "standardized"
     (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project(
         convert_command=["python3", "{repo_root}/labs/test-lab/code/convert-{species}.py"],
@@ -400,12 +477,13 @@ def test_process_project_still_supports_explicit_metadata_placeholders(tmp_path,
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=True,
         skip_upload=True,
         dry_run=False,
     )
-    cmd, _ = calls[0]
+    ((cmd, _),) = step_calls(calls)
     assert str(repo_root / "labs" / "test-lab" / "code" / "convert-mus-musculus.py") in cmd
 
 
@@ -434,6 +512,16 @@ def test_main_defaults_incoming_and_standardized_root_to_repo_root_siblings(tmp_
     (kwargs,) = calls
     assert kwargs["incoming_root"] == repo_root.parent / "ember-incoming"
     assert kwargs["standardized_root"] == repo_root.parent / "ember-standardized"
+    assert kwargs["tracking"].root == repo_root.parent / "ember-tracking"
+
+
+def test_main_refuses_a_real_run_without_a_tracking_dataset(tmp_path, monkeypatch):
+    repo_root = make_full_repo(tmp_path)
+    calls = []
+    monkeypatch.setattr(dispatch, "process_project", lambda project, **kwargs: calls.append(kwargs))
+
+    assert dispatch.main(["--repo-root", str(repo_root), "--tracking", str(tmp_path / "missing")]) == 2
+    assert calls == []
 
 
 def test_main_resolves_relative_repo_root_and_incoming_root_to_absolute(tmp_path, monkeypatch):
@@ -451,14 +539,13 @@ def test_main_resolves_relative_repo_root_and_incoming_root_to_absolute(tmp_path
     assert kwargs["standardized_root"].is_absolute()  # untouched default, still resolved
 
 
-def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch):
+def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch, tracking):
     repo_root = make_repo(tmp_path)
     incoming_root = tmp_path / "incoming"
     standardized_root = tmp_path / "standardized"
     (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
 
-    calls = []
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    calls = record_calls(monkeypatch)
 
     project = make_project()
     dispatch.process_project(
@@ -467,6 +554,7 @@ def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch
         incoming_root=incoming_root,
         standardized_root=standardized_root,
         session_spec=SESSION_SPEC,
+        tracking=tracking,
         dandi_image=DANDI_IMAGE,
         skip_download=False,
         skip_upload=False,
@@ -476,7 +564,7 @@ def test_dry_run_makes_no_filesystem_or_subprocess_changes(tmp_path, monkeypatch
     assert not (standardized_root / "000002").exists()
 
 
-def test_process_project_gives_shared_standardized_dir_a_per_project_manifest(tmp_path, monkeypatch):
+def test_process_project_gives_shared_standardized_dir_a_per_project_manifest(tmp_path, monkeypatch, tracking):
     """Two sibling projects (same lab, different `project`) may point at the
     same standardized_dandiset_id -- each nested under its own subdirectory
     -- without clobbering each other's conversion-state manifest."""
@@ -486,7 +574,7 @@ def test_process_project_gives_shared_standardized_dir_a_per_project_manifest(tm
     (incoming_root / "000001" / "one" / "ses-1").mkdir(parents=True)
     (incoming_root / "000001" / "two" / "ses-2").mkdir(parents=True)
 
-    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, cwd=None, check=True: None)
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, **kwargs: None)
 
     for project_name, session_dir in (("one", "one"), ("two", "two")):
         project = make_project(project=project_name, convert_command=["python3", "convert.py"])
@@ -496,6 +584,7 @@ def test_process_project_gives_shared_standardized_dir_a_per_project_manifest(tm
             incoming_root=incoming_root,
             standardized_root=standardized_root,
             session_spec=SessionSpec(include=[f"{session_dir}/*"]),
+            tracking=tracking,
             dandi_image=DANDI_IMAGE,
             skip_download=True,
             skip_upload=True,
