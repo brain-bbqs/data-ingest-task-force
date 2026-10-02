@@ -9,9 +9,9 @@ registered project (see projects.json):
   3. If there's new work (or the conversion script itself changed), run the
      lab's conversion command, writing into ``<standardized-root>/<id>``.
      If the project names a container_image, the command runs inside it
-     (docker pull + docker run) rather than directly on the runner host --
-     the image holds only the lab's runtime environment (e.g. ffmpeg), not
-     the code or data, which are bind-mounted in at the same host paths.
+     (via Apptainer) rather than directly on the runner host -- the image
+     holds only the lab's runtime environment (e.g. ffmpeg), not the code
+     or data, which are bind-mounted in at the same host paths.
   4. ``dandi upload`` the standardized directory (first fetching just its
      dandiset.yaml, since ``dandi upload`` needs one already on disk to
      know which dandiset it's uploading to). Skipped entirely when step 3
@@ -19,34 +19,38 @@ registered project (see projects.json):
      local dandiset every pass (DANDI_CACHE=ignore), which is not free.
 
 Every external tool this script drives -- dandi and each lab's own
-conversion script -- runs inside a container, not directly on the runner
-host: steps 1 and 4 run in --dandi-image (default: this repo's published
-dandi-cli image), and step 3 runs in the project's own container_image.
-The runner host itself only needs `python3` (to run this orchestrator)
-and `docker` (to run everything it drives).
+conversion script -- runs inside an Apptainer container, not directly on
+the runner host: steps 1 and 4 in --dandi-image (default: this repo's
+published dandi-cli image), and step 3 in the project's own
+container_image. Images are pulled from their registries as .sif files into
+the tracking dataset (--tracking, see tracking.py), pinned to the digest
+their tag points at, and steps 3 and 4 run through ``datalad
+containers-run`` under con-duct there, so each conversion and upload
+becomes one commit holding its logs, resource usage, and output manifest.
+The runner host itself needs `python3` (to run this orchestrator),
+`apptainer`, `git-annex`, `datalad`, `datalad-container`, and `con-duct`.
 
 Intended to run unattended on a self-hosted runner via cron
-(see data-ingest-runner's .github/workflows/cron_ingest.yml). Every side
-effect (download/convert/upload/state write) is skippable with --dry-run,
-and any project can be excluded/selected with --only.
+(see data-ingest-runner's .github/workflows/scheduled_ingest.yml). Every
+side effect (download/convert/upload/state write/tracking commit) is
+skippable with --dry-run, and any project can be excluded/selected with
+--only.
 
---incoming-root/--standardized-root default to 'ember-incoming'/
-'ember-standardized' siblings of --repo-root (created as needed) -- no
-caller-supplied path required for the common case. Whatever is supplied
-or defaulted is always resolved to an absolute path before use, since a
-relative one would reach `docker run -v` as a relative host path, which
-Docker rejects.
+--incoming-root/--standardized-root/--tracking default to 'ember-incoming'/
+'ember-standardized'/'ember-tracking' siblings of --repo-root -- no
+caller-supplied path required for the common case. Whatever is supplied or
+defaulted is always resolved to an absolute path before use, since a
+relative one would reach APPTAINER_BIND as a relative host path.
 
 Credentials: this script does not manage DANDI or container-registry auth
 itself. `dandi` runs only inside --dandi-image; its credentials come from
 EMBER_DANDI_API_KEY in this process's own environment. That name is
 dandi-cli's own convention, not this script's: the instance name, upper-
-cased, '-' -> '_', suffixed '_API_KEY'. Every docker-run subprocess this
-script starts forwards that variable into its container by name only
-(`docker run -e EMBER_DANDI_API_KEY`), never as a literal value on the
-argv. `docker` itself must already be logged in for any private image
-(--dandi-image or a project's container_image) this script names
-(`docker login ghcr.io`).
+cased, '-' -> '_', suffixed '_API_KEY'. Every container this script starts
+receives that variable through the environment (APPTAINERENV_<name>, which
+survives --cleanenv), never as a literal value on an argv, so it never
+lands in a logged command or a tracking-dataset run record. Images are
+resolved anonymously, so only public images are supported for now.
 """
 
 from __future__ import annotations
@@ -60,9 +64,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+from commands import run
 from registry import DEFAULT_UPLOAD_VALIDATION, Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
 from state import IngestState, hash_file, manifest_filename
+from tracking import TrackingDataset, TrackingError
 
 log = logging.getLogger("dispatch")
 
@@ -75,81 +81,85 @@ DEFAULT_DANDI_IMAGE = "ghcr.io/brain-bbqs/dandi-cli:latest"
 DANDI_INSTANCE = "ember-dandi"
 DANDI_API_KEY_ENV_VAR = "EMBER_DANDI_API_KEY"
 
+RECORD_RUN_SCRIPT = Path("dispatch") / "record_run.py"
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def run(cmd: list[str], *, cwd: Path | None = None, dry_run: bool) -> None:
-    printable = " ".join(cmd)
-    if dry_run:
-        log.info("[dry-run] would run: %s%s", printable, f"  (cwd={cwd})" if cwd else "")
-        return
-    log.info("running: %s%s", printable, f"  (cwd={cwd})" if cwd else "")
-    subprocess.run(cmd, cwd=cwd, check=True)
-
-
-def docker_run_prefix(
+def apptainer_env(
     *,
-    image: str,
-    mounts: dict[Path, str],
+    binds: dict[Path, str],
     workdir: Path | None = None,
     forward_env: tuple[str, ...] = (),
     literal_env: dict[str, str] | None = None,
-) -> list[str]:
-    """The 'docker run --rm ...' argv prefix shared by every containerized
-    step: bind-mount host paths (mounts maps host path -> a docker -v mode
-    suffix, e.g. "" for read-write or ":ro"), set a working directory,
-    forward named environment variables by name only -- "-e NAME" with no
-    "=value" makes docker read the current value from this process's own
-    environment, so a secret never appears as a literal on the argv, where
-    `ps` or process-listing tools could see it -- and set literal_env
-    entries with an explicit "=value" (for non-secret config, not
-    credentials)."""
-    prefix = ["docker", "run", "--rm"]
-    for host_path, mode in mounts.items():
-        prefix += ["-v", f"{host_path}:{host_path}{mode}"]
+) -> dict[str, str]:
+    """The environment for an Apptainer call, carrying everything that
+    differs between steps so the command line itself stays the same: bind
+    host paths at identical container paths (binds maps host path -> "" for
+    read-write or ":ro"), set a working directory, and pass variables
+    through --cleanenv. A forwarded variable's value only ever travels in
+    the environment, never on an argv, where `ps`, a log line, or a DataLad
+    run record could capture it."""
+    env = dict(os.environ)
+    env["APPTAINER_BIND"] = ",".join(f"{path}:{path}{mode}" for path, mode in binds.items())
     if workdir is not None:
-        prefix += ["-w", str(workdir)]
+        env["APPTAINER_PWD"] = str(workdir)
     for var in forward_env:
         if var in os.environ:
-            prefix += ["-e", var]
+            env[f"APPTAINERENV_{var}"] = os.environ[var]
     for key, value in (literal_env or {}).items():
-        prefix += ["-e", f"{key}={value}"]
-    prefix.append(image)
-    return prefix
+        env[f"APPTAINERENV_{key}"] = value
+    return env
+
+
+def git_head(repo_root: Path, /) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+        )
+    except FileNotFoundError:
+        return None
+    commit = result.stdout.strip() if result.returncode == 0 else None
+    return commit
 
 
 # dandi-cli caches file checksums on disk (fscacher, keyed by DANDI_CACHE)
 # to avoid rehashing unchanged files across runs -- a benefit this script
-# never gets anyway, since every dandi container is `--rm` and starts with
-# an empty cache dir every time. Worse, a checksum computed in a fresh cache
-# dir has a known joblib race (JobLibCollisionWarning between two identically
-# named get_digest functions) that can fail an upload outright ("failed to
+# never gets anyway, since every dandi container starts from a fresh
+# environment. Worse, a checksum computed in a fresh cache dir has a known
+# joblib race (JobLibCollisionWarning between two identically named
+# get_digest functions) that can fail an upload outright ("failed to
 # compute digest: ... func_code.py"). Disabling it costs nothing here and
 # sidesteps that race, so every dandi invocation sets DANDI_CACHE=ignore.
 DANDI_CACHE_ENV = {"DANDI_CACHE": "ignore"}
 
 
-def dandi_download(project: Project, incoming_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
+def dandi_download(
+    project: Project, incoming_dir: Path, *, tracking: TrackingDataset, dandi_image: str, dry_run: bool
+) -> None:
     url = f"dandi://{DANDI_INSTANCE}/{project.incoming_dandiset_id}"
     if not dry_run:
         incoming_dir.parent.mkdir(parents=True, exist_ok=True)
-    run(["docker", "pull", dandi_image], dry_run=dry_run)
-    cmd = docker_run_prefix(
-        image=dandi_image,
-        mounts={incoming_dir.parent: ""},
+    image = tracking.image(image=dandi_image, dry_run=dry_run)
+    env = apptainer_env(
+        binds={incoming_dir.parent: ""},
         forward_env=(DANDI_API_KEY_ENV_VAR,),
         literal_env=DANDI_CACHE_ENV,
-    ) + ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
-    run(cmd, dry_run=dry_run)
+    )
+    cmd = ["apptainer", "exec", "--cleanenv", str(image.path)]
+    cmd += ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
+    run(cmd, env=env, dry_run=dry_run)
 
 
-def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, dry_run: bool) -> None:
+def dandi_upload(
+    project: Project, standardized_dir: Path, *, tracking: TrackingDataset, dandi_image: str, dry_run: bool
+) -> None:
     if not dry_run and not standardized_dir.is_dir():
         log.info("[%s] no standardized output yet at %s, skipping upload", project.key, standardized_dir)
         return
-    run(["docker", "pull", dandi_image], dry_run=dry_run)
+    image = tracking.image(image=dandi_image, dry_run=dry_run)
     forward_env = (DANDI_API_KEY_ENV_VAR,)
     # `dandi upload` identifies its target dandiset from a dandiset.yaml it
     # walks up from cwd to find -- one only ever lands here via a prior
@@ -158,50 +168,42 @@ def dandi_upload(project: Project, standardized_dir: Path, *, dandi_image: str, 
     # (the only one dispatch downloads). Fetch just that file -- not the
     # whole dandiset -- so upload works before any such download has.
     url = f"dandi://{DANDI_INSTANCE}/{project.standardized_dandiset_id}"
-    fetch_dandiset_yaml_cmd = docker_run_prefix(
-        image=dandi_image,
-        mounts={standardized_dir.parent: ""},
+    fetch_env = apptainer_env(
+        binds={standardized_dir.parent: ""},
         forward_env=forward_env,
         literal_env=DANDI_CACHE_ENV,
-    ) + ["dandi", "download", "-o", str(standardized_dir.parent), "-e", "refresh", "--download", "dandiset.yaml", url]
-    run(fetch_dandiset_yaml_cmd, dry_run=dry_run)
-    cmd = docker_run_prefix(
-        image=dandi_image,
-        mounts={standardized_dir: ""},
-        workdir=standardized_dir,
-        forward_env=forward_env,
-        literal_env=DANDI_CACHE_ENV,
-    ) + ["dandi", "upload", "-i", DANDI_INSTANCE, "--existing", "refresh"]
+    )
+    fetch_dandiset_yaml_cmd = ["apptainer", "exec", "--cleanenv", str(image.path)]
+    fetch_dandiset_yaml_cmd += ["dandi", "download", "-o", str(standardized_dir.parent), "-e", "refresh"]
+    fetch_dandiset_yaml_cmd += ["--download", "dandiset.yaml", url]
+    run(fetch_dandiset_yaml_cmd, env=fetch_env, dry_run=dry_run)
+
+    cmd = ["dandi", "upload", "-i", DANDI_INSTANCE, "--existing", "refresh"]
     # Only named when the project departs from dandi's own default, so the
     # flag's presence in the logged command is the signal that this project
     # uploads without validation gating it.
     if project.upload_validation != DEFAULT_UPLOAD_VALIDATION:
         cmd += ["--validation", project.upload_validation]
-    run(cmd, dry_run=dry_run)
-
-
-def containerize(
-    cmd: list[str],
-    *,
-    image: str,
-    repo_root: Path,
-    incoming_dir: Path,
-    standardized_dir: Path,
-) -> list[str]:
-    """Wrap cmd to run inside a lab's published container image (portable
-    Python env only -- ffmpeg, etc. -- not the code or data, which are
-    mounted in at run time). Host paths are mounted at identical paths
-    inside the container, so cmd's own {repo_root}/{incoming_dir}/
-    {standardized_dir}-based tokens (already resolved, absolute) need no
-    rewriting. The DANDI API key env var is forwarded too, in case the
-    conversion script itself needs to talk to DANDI."""
-    prefix = docker_run_prefix(
-        image=image,
-        mounts={repo_root: ":ro", incoming_dir: "", standardized_dir: ""},
-        workdir=repo_root,
-        forward_env=(DANDI_API_KEY_ENV_VAR,),
+    upload_env = apptainer_env(
+        binds={standardized_dir: ""},
+        workdir=standardized_dir,
+        forward_env=forward_env,
+        literal_env=DANDI_CACHE_ENV,
     )
-    return prefix + cmd
+    tracking.record(
+        cmd=cmd,
+        container=image.name,
+        record_dir=tracking.new_record_dir(project_key=project.key, step="upload"),
+        context={
+            "project": project.key,
+            "step": "upload",
+            "standardized_dandiset_id": project.standardized_dandiset_id,
+            "image": image.url,
+        },
+        message=f"[{project.key}] Upload {standardized_dir.name} to {DANDI_INSTANCE}",
+        env=upload_env,
+        dry_run=dry_run,
+    )
 
 
 def convert(
@@ -210,6 +212,10 @@ def convert(
     repo_root: Path,
     incoming_dir: Path,
     standardized_dir: Path,
+    tracking: TrackingDataset,
+    sessions: list[str],
+    script_sha256: str | None,
+    task_force_commit: str | None,
     force_overwrite: bool,
     dry_run: bool,
 ) -> None:
@@ -232,18 +238,55 @@ def convert(
         cmd.append(project.overwrite_flag)
     if not dry_run:
         standardized_dir.mkdir(parents=True, exist_ok=True)
+
+    record_dir = tracking.new_record_dir(project_key=project.key, step="convert")
+    # Runs under the image's own python3 when containerized, so the manifest
+    # of what the conversion wrote is produced inside the recorded run.
+    recorded_cmd = [
+        "python3",
+        str(repo_root / RECORD_RUN_SCRIPT),
+        "--cwd",
+        str(repo_root),
+        "--root",
+        str(standardized_dir),
+        "--manifest",
+        str(record_dir / "manifest.json"),
+        "--",
+    ] + cmd
+    context = {
+        "project": project.key,
+        "step": "convert",
+        "incoming_dandiset_id": project.incoming_dandiset_id,
+        "standardized_dandiset_id": project.standardized_dandiset_id,
+        "task_force_commit": task_force_commit,
+        "script_path": project.script_path,
+        "script_sha256": script_sha256,
+        "force_overwrite": force_overwrite,
+        "sessions": sessions,
+    }
+    message = f"[{project.key}] Convert {len(sessions)} session(s)"
     if project.container_image:
-        # Refresh a floating tag (e.g. :latest) rather than trusting
-        # whatever's already cached locally on the runner.
-        run(["docker", "pull", project.container_image], dry_run=dry_run)
-        cmd = containerize(
-            cmd,
-            image=project.container_image,
-            repo_root=repo_root,
-            incoming_dir=incoming_dir,
-            standardized_dir=standardized_dir,
+        image = tracking.image(image=project.container_image, dry_run=dry_run)
+        context["image"] = image.url
+        # The DANDI API key is forwarded too, in case the conversion script
+        # itself needs to talk to DANDI.
+        env = apptainer_env(
+            binds={repo_root: ":ro", incoming_dir: "", standardized_dir: "", record_dir: ""},
+            forward_env=(DANDI_API_KEY_ENV_VAR,),
         )
-    run(cmd, dry_run=dry_run)
+        container = image.name
+    else:
+        env = dict(os.environ)
+        container = None
+    tracking.record(
+        cmd=recorded_cmd,
+        container=container,
+        record_dir=record_dir,
+        context=context,
+        message=message,
+        env=env,
+        dry_run=dry_run,
+    )
 
 
 def process_project(
@@ -253,18 +296,20 @@ def process_project(
     incoming_root: Path,
     standardized_root: Path,
     session_spec: SessionSpec,
+    tracking: TrackingDataset,
     dandi_image: str,
     skip_download: bool,
     skip_upload: bool,
     dry_run: bool,
     shared_standardized: bool = False,
+    task_force_commit: str | None = None,
 ) -> None:
     incoming_dir = incoming_root / project.incoming_dandiset_id
     standardized_dir = standardized_root / project.standardized_dandiset_id
     log.info("=== %s: %s -> %s ===", project.key, project.incoming_dandiset_id, project.standardized_dandiset_id)
 
     if not skip_download:
-        dandi_download(project, incoming_dir, dandi_image=dandi_image, dry_run=dry_run)
+        dandi_download(project, incoming_dir, tracking=tracking, dandi_image=dandi_image, dry_run=dry_run)
     else:
         log.info("[%s] --skip-download set, using existing local copy", project.key)
 
@@ -302,17 +347,22 @@ def process_project(
     else:
         log.info("[%s] %d new session(s): %s", project.key, len(new_sessions), ", ".join(new_sessions))
 
+    touched = discovered if script_changed else new_sessions
     convert(
         project,
         repo_root=repo_root,
         incoming_dir=incoming_dir,
         standardized_dir=standardized_dir,
+        tracking=tracking,
+        sessions=touched,
+        script_sha256=current_script_hash,
+        task_force_commit=task_force_commit,
         force_overwrite=script_changed,
         dry_run=dry_run,
     )
 
     converted_at = now_iso()
-    for session_id in discovered if script_changed else new_sessions:
+    for session_id in touched:
         state.mark_converted(
             session_id,
             source_path=str(session_paths_by_id[session_id]),
@@ -321,14 +371,13 @@ def process_project(
     if current_script_hash is not None:
         state.script_sha256 = current_script_hash
     state.last_run_at = converted_at
-    touched = discovered if script_changed else new_sessions
     if not dry_run:
         state.save(standardized_dir, manifest_name=manifest_name)
     else:
         log.info("[%s] [dry-run] would write state for %d session(s)", project.key, len(touched))
 
     if not skip_upload:
-        dandi_upload(project, standardized_dir, dandi_image=dandi_image, dry_run=dry_run)
+        dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=dandi_image, dry_run=dry_run)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -367,6 +416,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "(default: an 'ember-standardized' sibling of --repo-root, created as needed).",
     )
     parser.add_argument(
+        "--tracking",
+        type=Path,
+        default=None,
+        help="Local clone of the data-ingest-runner-tracking DataLad dataset, which holds the container images "
+        "and a record of every conversion and upload (default: an 'ember-tracking' sibling of --repo-root).",
+    )
+    parser.add_argument(
         "--dandi-image",
         default=DEFAULT_DANDI_IMAGE,
         help="Container image the dandi CLI (download/upload) runs inside.",
@@ -399,14 +455,25 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
 
     # Resolve to absolute paths unconditionally: relative --incoming-root/
-    # --standardized-root/--repo-root values would otherwise reach `docker
-    # run -v` as relative host paths, which Docker rejects outright.
+    # --standardized-root/--repo-root values would otherwise reach
+    # APPTAINER_BIND as relative host paths.
     args.repo_root = args.repo_root.resolve()
     args.incoming_root = (args.incoming_root or args.repo_root.parent / "ember-incoming").resolve()
     args.standardized_root = (args.standardized_root or args.repo_root.parent / "ember-standardized").resolve()
+    args.tracking = (args.tracking or args.repo_root.parent / "ember-tracking").resolve()
     log.info("repo_root=%s", args.repo_root)
     log.info("incoming_root=%s", args.incoming_root)
     log.info("standardized_root=%s", args.standardized_root)
+    log.info("tracking=%s", args.tracking)
+
+    tracking = TrackingDataset(root=args.tracking)
+    if not args.dry_run:
+        try:
+            tracking.check()
+        except TrackingError as error:
+            log.error("%s", error)
+            return 2
+    commit = git_head(args.repo_root)
 
     registry_path = args.registry or (args.repo_root / "dispatch" / "projects.json")
     sessions_path = args.sessions or (args.repo_root / "dispatch" / "sessions.json")
@@ -439,11 +506,13 @@ def main(argv: list[str] | None = None) -> int:
                 incoming_root=args.incoming_root,
                 standardized_root=args.standardized_root,
                 session_spec=spec,
+                tracking=tracking,
                 dandi_image=args.dandi_image,
                 skip_download=args.skip_download,
                 skip_upload=args.skip_upload,
                 dry_run=args.dry_run,
                 shared_standardized=standardized_id_counts[project.standardized_dandiset_id] > 1,
+                task_force_commit=commit,
             )
         except Exception:
             log.exception("[%s] failed; continuing with remaining projects", project.key)

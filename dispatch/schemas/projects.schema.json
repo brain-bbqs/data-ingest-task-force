@@ -66,7 +66,7 @@
         },
         "container_image": {
           "type": ["string", "null"],
-          "description": "Optional image (e.g. ghcr.io/brain-bbqs/<lab>-ingest:latest) to run convert_command inside via 'docker run', instead of directly on the runner host. Holds only the lab's runtime environment -- code and data are bind-mounted in at run time, not baked into the image."
+          "description": "Optional image (e.g. ghcr.io/brain-bbqs/<lab>-ingest:latest) to run convert_command inside (via Apptainer, pulled into the tracking dataset), instead of directly on the runner host. Holds only the lab's runtime environment -- code and data are bind-mounted in at run time, not baked into the image. Must provide python3, which runs dispatch/record_run.py around the conversion."
         },
         "upload_validation": {
           "type": "string",

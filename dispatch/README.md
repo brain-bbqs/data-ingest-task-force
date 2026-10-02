@@ -5,15 +5,15 @@ It is repo-level infra, not a lab — it doesn't do any conversion itself, it ju
 
 ## What one run does, per registered project
 
-1. `dandi download` the project's incoming dandiset (from the `ember-dandi` instance, the only archive this pipeline uses) into `<ember-incoming>/<incoming_dandiset_id>/`. Runs inside `--dandi-image` (`docker pull` + `docker run`), not directly on the runner host.
+1. `dandi download` the project's incoming dandiset (from the `ember-dandi` instance, the only archive this pipeline uses) into `<ember-incoming>/<incoming_dandiset_id>/`. Runs inside `--dandi-image` (through Apptainer), not directly on the runner host.
 2. Discover its sessions (per `sessions.json`'s spec for the project) and diff them against the project's manifest (`<ember-standardized>/<standardized_dandiset_id>/.ingest_state.json`) to find sessions with no conversion recorded yet.
 3. If there are new sessions, **or** the conversion script's contents have changed since the manifest was last written (sha256, so any edit forces a full reprocess via `overwrite_flag`), run the lab's conversion command.
-   If the project names a `container_image`, this step runs inside it (`docker pull` + `docker run`) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
+   If the project names a `container_image`, this step runs inside it (through Apptainer) instead of directly on the runner host — the image holds only the lab's runtime environment (e.g. FFmpeg for Kemere), not the code or data, which are bind-mounted in at run time from the same host paths. Otherwise it runs directly on the runner host, which must then already have whatever the conversion script needs installed.
 4. `dandi upload` the standardized directory, also inside `--dandi-image` — first fetching just that dandiset's `dandiset.yaml` (not a full download), since `dandi upload` needs one already on disk to know which dandiset it's uploading to, and one only lands there on its own when `standardized_dandiset_id` happens to equal `incoming_dandiset_id`. This step is skipped entirely when step 3 had nothing to do — upload's no-op check still re-checksums the whole local dandiset every pass (`DANDI_CACHE=ignore` disables the digest cache), a cost that grows with the dandiset. The tradeoff: if a run converts sessions but dies before its upload finishes, the next pass will not retry that upload on its own (the manifest already records the sessions). Recover by re-uploading manually, or by touching the conversion script so the hash change forces a reprocess + upload.
 
-Every external tool dispatch drives runs in a container, not directly on the runner host — steps 1 and 4 in `--dandi-image` (default: this repo's own `dispatch/containers/dandi.Dockerfile`, published as `ghcr.io/brain-bbqs/dandi-cli`), step 3 in the project's own `container_image`. The runner host itself only needs `python3` (to run `dispatch.py` — see the top-level docstring for why that part stays native) and `docker`.
+Every external tool dispatch drives runs in a container, not directly on the runner host — steps 1 and 4 in `--dandi-image` (default: this repo's own `dispatch/containers/dandi.Dockerfile`, published as `ghcr.io/brain-bbqs/dandi-cli`), step 3 in the project's own `container_image`. The runner host itself needs `python3` (to run `dispatch.py` — see the top-level docstring for why that part stays native), `apptainer`, `git-annex`, `datalad`, `datalad-container`, and `con-duct`.
 
-Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container is `--rm` and starts with an empty cache dir anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
+Every dandi invocation (steps 1 and 4) also sets `DANDI_CACHE=ignore`, disabling dandi-cli's on-disk checksum cache: it buys nothing here, since every `--dandi-image` container starts from a fresh environment anyway, and a fresh cache dir has a known joblib race that can fail an upload outright (`failed to compute digest: ... func_code.py`).
 
 Each project needs one entry in `projects.json` (dandiset ids, conversion command) and one in `sessions.json` (how to discover its sessions) — see each file for the field reference, and the Kemere entries as a worked example.
 Most labs contribute a single project and are keyed by the lab name alone. A lab running several data collections names each one with the optional `project` field, and the pair keys it everywhere dispatch refers to it (`--only`, `sessions.json`, log lines): `suthana/in-lab`.
@@ -31,6 +31,10 @@ dispatch/
   projects.json      The project registry: dandiset ids + conversion command, one entry per project
   sessions.json       The session-discovery registry: one entry per project
   schemas/           JSON Schemas for both registry files (editor validation, see below)
+  tracking.py        The tracking dataset: container images and run records (see below)
+  images.py          Resolves an image tag to the digest it currently points at
+  record_run.py      Runs a conversion inside its container and writes its output manifest
+  commands.py        The one subprocess runner, honoring --dry-run
   containers/        dandi.Dockerfile -- the portable dandi CLI runtime the
                        download/upload steps run inside (see container_images.yml)
   envs/              Python env declaration (pytest) for dispatch.py itself
@@ -51,7 +55,7 @@ Session discovery doesn't reduce to a single glob in general — a project may n
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
 | `convert_command` | Argv list to run the conversion. Tokens may use `{repo_root}`, `{incoming_dir}`, `{standardized_dir}`, plus any key from `metadata` (e.g. `{species}`) — rarely needed, since `metadata` entries are auto-appended as flags (see below); only reach for a placeholder when a value needs to land somewhere other than a trailing flag. |
 | `overwrite_flag` | Optional single flag appended to `convert_command` when `script_path`'s hash has changed, so the script reprocesses sessions it would otherwise skip. |
-| `container_image` | Optional image (e.g. `ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest`) to run `convert_command` inside via `docker run`, rather than directly on the runner host. Holds only the lab's runtime environment — code and data are bind-mounted in at run time, not baked into the image. Omit to run directly on the host. |
+| `container_image` | Optional image (e.g. `ghcr.io/brain-bbqs/kemere-r34da059514-ingest:latest`) to run `convert_command` inside (through Apptainer), rather than directly on the runner host. Holds only the lab's runtime environment — code and data are bind-mounted in at run time, not baked into the image. Must be public and provide `python3`, which runs `record_run.py` around the conversion. Omit to run directly on the host. |
 | `upload_validation` | Optional, one of `require` (the default), `ignore` or `skip`, passed straight to `dandi upload --validation` when it is not `require`. `require` refuses to upload output that fails DANDI validation. `ignore` still validates and logs the errors, then uploads anyway. `skip` does not validate at all. Set it only for a project knowingly publishing output that does not validate yet, and record why below. |
 | `metadata` | Optional object of project-wide string values (e.g. `{"species": "Ovis aries"}`). Each entry is automatically appended to `convert_command` as its own `--<key> <value>` flag (underscores in the key become dashes) — a lab's own command template doesn't need to name it. Keys may not reuse the reserved `repo_root`/`incoming_dir`/`standardized_dir` placeholder names. |
 
@@ -83,20 +87,30 @@ pip install "./dispatch/envs"
 python3 dispatch/dispatch.py --dry-run   # or drop --dry-run to actually run
 ```
 
-`--incoming-root`/`--standardized-root` default to `ember-incoming`/`ember-standardized` siblings of `--repo-root`, created as needed — no path required for the common case. Pass them explicitly to put the data somewhere else. Whatever is supplied or defaulted is always resolved to an absolute path before use (a relative one would reach `docker run -v` as a relative host path, which Docker rejects).
+`--incoming-root`/`--standardized-root` default to `ember-incoming`/`ember-standardized` siblings of `--repo-root`, created as needed — no path required for the common case. Pass them explicitly to put the data somewhere else. Whatever is supplied or defaulted is always resolved to an absolute path before use (a relative one would reach `APPTAINER_BIND` as a relative host path). `--tracking` likewise defaults to an `ember-tracking` sibling, which must already be a clone of the tracking dataset (see below) for anything but `--dry-run`.
 
-Useful flags: `--only <project key>` (repeatable, restrict to specific projects — a lab name, or `<lab>/<project>`), `--skip-download`, `--skip-upload`, `--dry-run` (log every action, touch nothing), `--repo-root` (defaults to this checkout), `--registry` (defaults to `dispatch/projects.json`), `--sessions` (defaults to `dispatch/sessions.json`), `--dandi-image` (defaults to `ghcr.io/brain-bbqs/dandi-cli:latest`, this repo's own `dispatch/containers/dandi.Dockerfile`).
+Useful flags: `--only <project key>` (repeatable, restrict to specific projects — a lab name, or `<lab>/<project>`), `--skip-download`, `--skip-upload`, `--dry-run` (log every action, touch nothing), `--repo-root` (defaults to this checkout), `--registry` (defaults to `dispatch/projects.json`), `--sessions` (defaults to `dispatch/sessions.json`), `--dandi-image` (defaults to `ghcr.io/brain-bbqs/dandi-cli:latest`, this repo's own `dispatch/containers/dandi.Dockerfile`), `--tracking` (defaults to `ember-tracking`).
 
 A run is safe to repeat: with nothing new and an unchanged conversion script, every project is a no-op — download refresh, then straight to the next project, no conversion and no upload.
 
 Projects are processed one at a time, but each project's converter parallelizes over the sessions in its own dandiset (one worker per CPU by default) and prints a tqdm progress bar as they complete. To cap that, add `--jobs <n>` to the project's `convert_command` in `projects.json`.
 
+## Tracking dataset
+
+Every container image and every conversion and upload is tracked in a DataLad dataset, [`data-ingest-runner-tracking`](https://github.com/brain-bbqs/data-ingest-runner-tracking), cloned once on the runner (`--tracking`, an `ember-tracking` sibling of the checkout by default). See `tracking.py` for the details.
+
+- **Images.** Each image tag is resolved to the digest it points at every run. When that digest is new, `datalad containers-add` builds `envs/<image name>.sif` from the digest-pinned `docker://` URL, so an image change is its own commit. The `.sif` files are annexed and stay on the runner. Only git history goes to GitHub, and the pinned URL (`datalad.containers.<name>.updateurl`) rebuilds any image on a fresh clone.
+- **Runs.** Conversions and uploads run through `datalad containers-run` with the call format `duct --fail-time 0 apptainer exec --cleanenv {img} {cmd}`. Each lands as one commit holding `records/<project key>/<UTC stamp>-<convert|upload>/`, with `context.json` (project, dandisets, pinned image, task-force commit, sessions), con-duct's `info.json`, `usage.jsonl`, `stdout`, and `stderr`, and for conversions `manifest.json` (every output file written, with its sha256, from `record_run.py`). A failed step is saved too, with `(failed)` in its commit message.
+- **Push.** Dispatch only commits. The runner workflow pushes the dataset's git history to GitHub after each run.
+
+Downloads aren't recorded, since they only mirror the incoming dandiset.
+
 ## Credentials
 
 `dispatch.py` does not manage DANDI or container-registry credentials itself:
 
-- `dandi` runs only inside `--dandi-image`, never on the bare runner host, so its credentials come entirely from an env var already present in dispatch's own environment (e.g. set by the calling workflow — see `data-ingest-runner`'s README). The var is `EMBER_DANDI_API_KEY`, named by dandi-cli's own convention (not this script's): the instance name, upper-cased, `-` → `_`, suffixed `_API_KEY` (see `DANDI_API_KEY_ENV_VAR`) — there is no generic `DANDI_API_KEY` that authenticates every instance. Dispatch forwards that variable into every container it starts by name only (`docker run -e EMBER_DANDI_API_KEY`, no `=value`), never as a literal value on the argv. This same key is also forwarded into a project's `container_image` when one's set, so a lab's conversion step can use it too, without the secret ever appearing in a logged command line;
-- `docker` itself, which must already be logged in for any private image dispatch names — `--dandi-image` or a project's `container_image` (e.g. `docker login ghcr.io`, run once on the runner) — GHCR packages default to private.
+- `dandi` runs only inside `--dandi-image`, never on the bare runner host, so its credentials come entirely from an env var already present in dispatch's own environment (e.g. set by the calling workflow — see `data-ingest-runner`'s README). The var is `EMBER_DANDI_API_KEY`, named by dandi-cli's own convention (not this script's): the instance name, upper-cased, `-` → `_`, suffixed `_API_KEY` (see `DANDI_API_KEY_ENV_VAR`) — there is no generic `DANDI_API_KEY` that authenticates every instance. Dispatch forwards that variable into every container it starts through the environment only (as `APPTAINERENV_EMBER_DANDI_API_KEY`, which survives `--cleanenv`), never as a literal value on an argv. This same key is also forwarded into a project's `container_image` when one's set, so a lab's conversion step can use it too, without the secret ever appearing in a logged command line or a tracking-dataset run record;
+- container images, which dispatch resolves and pulls anonymously. Every image it names, `--dandi-image` or a project's `container_image`, must be public (GHCR packages default to private).
 
 ## Adding a project
 
