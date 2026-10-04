@@ -150,6 +150,33 @@ def test_headstage_channel_ids(position, expected):
     assert selected == expected
 
 
+@pytest.mark.parametrize("position", [0, 1])
+def test_headstage_channel_ids_single_headstage_file(position):
+    channel_ids = [str(channel) for channel in range(32)]
+    selected = core.headstage_channel_ids(channel_ids=channel_ids, position=position, channels_per_headstage=32)
+    assert selected == channel_ids
+
+
+def test_merged_rec_path(tmp_path):
+    rec_dir = make_rec_dir(tmp_path)
+    identity = core.parse_rec_identity(rec_dir)
+    paths = [core.merged_rec_path(identity=identity, headstage=headstage) for headstage in identity.headstages]
+    assert paths == [
+        rec_dir / "0236HS3" / f"{REC_STEM}_0236HS3_merged.rec",
+        rec_dir / "0237HS4" / f"{REC_STEM}_0237HS4_merged.rec",
+    ]
+
+
+def test_convert_session_fails_before_placing_videos_without_merged_ephys(tmp_path, monkeypatch):
+    rec_dir = make_rec_dir(tmp_path)
+    placed = []
+    monkeypatch.setattr(core, "place_videos", lambda **kwargs: placed.append(kwargs))
+    cfg = core.load_cfg(PROJECT / "code" / "config.yaml")
+    with pytest.raises(FileNotFoundError, match="0236HS3_merged.rec"):
+        core.convert_session(rec=rec_dir, output_dir=tmp_path / "out", cfg=cfg)
+    assert placed == []
+
+
 def test_discover_recordings_reports_strays(tmp_path):
     first = make_rec_dir(tmp_path)
     second = make_rec_dir(tmp_path, pair="0235-0237", stem="0235HS1_0237HS4_20260401_150800")

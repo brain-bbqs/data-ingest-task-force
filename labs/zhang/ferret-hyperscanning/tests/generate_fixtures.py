@@ -3,8 +3,9 @@
 
 Writes ``tests/example_raw/``, a tiny but structurally faithful stand-in for
 one uploaded recording (see ``code/README.md`` for the real layout): a
-synthetic SpikeGadgets ``.rec`` with two 32-channel headstages and a camera
-frame pulse on a digital input, plus ten small AVI files named like the
+synthetic base-station SpikeGadgets ``.rec`` with a camera frame pulse on a
+digital input, one synthetic merged ``.rec`` per animal with its 32-channel
+headstage, plus ten small AVI files named like the
 lab's behavior and calibration videos. Then runs the converter over it and
 writes ``tests/expected_output/summary.json``, the golden structural
 summary the integration test compares against.
@@ -40,6 +41,7 @@ EXPECTED_OUTPUT = TESTS / "expected_output"
 CONFIG = PROJECT / "code" / "config.yaml"
 
 REC_STEM = "0236HS3_0237HS4_20260401_130419"
+HEADSTAGE_TAGS = ("0236HS3", "0237HS4")
 PAIR = "0236-0237"
 DATE_DIRNAME = "04.01.2026"
 CAMERAS = (14, 46, 58, 67, 68)
@@ -61,7 +63,6 @@ CALIBRATION_STAMPS = {
 SYSTEM_TIME_AT_CREATION_MS = 1775063059000
 SAMPLING_RATE = 20000
 CHANNELS_PER_CHIP = 32
-CHIP_COUNT = 2
 PACKET_COUNT = 200
 FRAME_PERIOD_PACKETS = 667
 VIDEO_FRAMES = {"video": 6, "calibration": 3}
@@ -69,15 +70,15 @@ FRAME_WIDTH = 16
 FRAME_HEIGHT = 12
 
 
-def write_synthetic_rec(path, /):
+def write_synthetic_rec(path, /, *, chip_count, seed):
     """A minimal Trodes file: XML configuration, then fixed-size packets neo can parse."""
     trodes = []
-    for chip in range(CHIP_COUNT):
+    for chip in range(chip_count):
         channels = "".join(
             f'<SpikeChannel hwChan="{chip * CHANNELS_PER_CHIP + channel}"/>' for channel in range(CHANNELS_PER_CHIP)
         )
         trodes.append(f'<SpikeNTrode id="{chip + 1}" spikeScalingToUv="0.195">{channels}</SpikeNTrode>')
-    channel_count = CHANNELS_PER_CHIP * CHIP_COUNT
+    channel_count = CHANNELS_PER_CHIP * chip_count
     header = (
         "<Configuration>\n"
         f'<GlobalConfiguration systemTimeAtCreation="{SYSTEM_TIME_AT_CREATION_MS}" timestampAtCreation="0" '
@@ -88,7 +89,7 @@ def write_synthetic_rec(path, /):
         f'<SpikeConfiguration device="intan" chanPerChip="{CHANNELS_PER_CHIP}">{"".join(trodes)}</SpikeConfiguration>\n'
         "</Configuration>\n"
     )
-    rng = numpy.random.default_rng(0)
+    rng = numpy.random.default_rng(seed)
     with open(path, "wb") as handle:
         handle.write(header.encode())
         for index in range(PACKET_COUNT):
@@ -119,7 +120,10 @@ def build_example_raw():
     date_dir = EXAMPLE_RAW / batch_convert.RAW_SUBTREE / PAIR / DATE_DIRNAME
     rec_dir = date_dir / f"{REC_STEM}.rec"
     rec_dir.mkdir(parents=True)
-    write_synthetic_rec(rec_dir / f"{REC_STEM}.rec")
+    write_synthetic_rec(rec_dir / f"{REC_STEM}.rec", chip_count=0, seed=0)
+    for seed, tag in enumerate(HEADSTAGE_TAGS, start=1):
+        (rec_dir / tag).mkdir()
+        write_synthetic_rec(rec_dir / tag / f"{REC_STEM}_{tag}_merged.rec", chip_count=1, seed=seed)
     videos_dir = date_dir / "Videos"
     videos_dir.mkdir()
     for camera in CAMERAS:

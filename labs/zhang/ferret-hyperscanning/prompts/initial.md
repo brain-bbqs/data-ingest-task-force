@@ -498,3 +498,17 @@ settings.
 Added as Q17 in `../OPEN_QUESTIONS.md`: a follow-up to link each
 session's two per-animal files, likely through `ndx-multisubjects` as
 the Sanes conversion does.
+
+## Request 10 — Conversion failures on the runner
+
+> look into the zhang conversion failures
+
+The first full run on the runner failed every recording with
+`AssertionError: stream_id trodes is not in []`. The uploaded `.rec` next
+to each recording's name is the base-station file, with no ephys, which is
+what the plan's first question suspected. Each animal's ephys sits in its
+own merged file, `<stem>.rec/<A>HS<n>/<stem>_<A>HS<n>_merged.rec`. The
+converter now reads each animal's file from there, keeps the base-station
+header for the session start time, and checks both merged files exist
+before placing the videos. The fixture follows the same layout, so the
+golden summary's data hashes and the second animal's channel names changed.

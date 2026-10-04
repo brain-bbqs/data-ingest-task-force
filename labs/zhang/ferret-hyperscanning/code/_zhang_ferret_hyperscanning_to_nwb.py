@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Convert one Zhang-lab ferret hyperscanning recording into NWB files.
 
-A recording is one SpikeGadgets ``.rec`` directory holding a Trodes file of
-the same name, with the five behavior videos and five calibration videos of
-that session in a sibling ``Videos/`` directory::
+A recording is one SpikeGadgets ``.rec`` directory. It holds the base-station
+Trodes file of the same name and, per animal, a subdirectory with the Trodes
+file that merges in that animal's datalogger ephys. The five behavior videos
+and five calibration videos of that session sit in a sibling ``Videos/``
+directory::
 
     Ferret_Hyperscanning/<pair>/<MM.DD.YYYY>/
-      <A>HS<n>_<B>HS<m>_<YYYYMMDD>_<HHMMSS>.rec/
-        <A>HS<n>_<B>HS<m>_<YYYYMMDD>_<HHMMSS>.rec
+      <stem>.rec/                 <stem> is <A>HS<n>_<B>HS<m>_<YYYYMMDD>_<HHMMSS>
+        <stem>.rec                base station, no ephys
+        <A>HS<n>/<stem>_<A>HS<n>_merged.rec
+        <B>HS<m>/<stem>_<B>HS<m>_merged.rec
       Videos/
         cam<NN>-<MMDDYYYYHHMMSS>-0000.avi
         cam<NN>-cal-<MMDDYYYYHHMMSS>-0000.avi
 
-The recording holds both animals' headstages. It becomes two NWB files, one
-per animal, in the DANDI layout, with the shared videos placed next to the
+The recording becomes two NWB files, one per animal, in the DANDI layout, with the shared videos placed next to the
 lower-numbered animal's file and referenced from both::
 
     <output>/
@@ -115,6 +118,13 @@ def resolve_rec_file(rec, /):
     rec = Path(rec)
     rec_path = rec / rec.name if rec.is_dir() else rec
     return rec_path
+
+
+def merged_rec_path(*, identity, headstage):
+    """The Trodes file holding *headstage*'s ephys, merged from its datalogger."""
+    tag = f"{headstage.subject}HS{headstage.headstage}"
+    path = identity.rec_path.parent / tag / f"{identity.rec_path.stem}_{tag}_merged.rec"
+    return path
 
 
 def derive_session_label(rec_stem, /):
@@ -251,7 +261,14 @@ def select_channel_map(*, belly_up, cfg):
 
 
 def headstage_channel_ids(*, channel_ids, position, channels_per_headstage):
-    """This headstage's hardware channel ids, assuming headstages occupy consecutive blocks (PROVISIONAL)."""
+    """This headstage's hardware channel ids within a merged file.
+
+    A file holding exactly one headstage's channels is all this headstage. A
+    file holding more is split assuming headstages occupy consecutive blocks
+    in basename order (PROVISIONAL, Q8).
+    """
+    if len(channel_ids) == channels_per_headstage:
+        return list(channel_ids)
     low = position * channels_per_headstage
     high = low + channels_per_headstage
     selected = [channel_id for channel_id in channel_ids if low <= int(channel_id) < high]
@@ -372,7 +389,8 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
     ecephys_cfg = cfg["ecephys"]
     channel_map = select_channel_map(belly_up=belly_up, cfg=cfg)
 
-    interface = SpikeGadgetsRecordingInterface(file_path=identity.rec_path)
+    ephys_path = merged_rec_path(identity=identity, headstage=headstage)
+    interface = SpikeGadgetsRecordingInterface(file_path=ephys_path)
     recording = interface.recording_extractor
     channel_ids = headstage_channel_ids(
         channel_ids=recording.get_channel_ids(),
@@ -381,14 +399,11 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
     )
     if not channel_ids:
         raise ValueError(
-            f"no channels for headstage HS{headstage.headstage} (position {headstage.position}) in {identity.rec_path}"
+            f"no channels for headstage HS{headstage.headstage} (position {headstage.position}) in {ephys_path}"
         )
     subset = recording.select_channels(channel_ids)
     local_channels = numpy.array(
-        [
-            int(channel_id) - headstage.position * ecephys_cfg["channels_per_headstage"]
-            for channel_id in subset.get_channel_ids()
-        ]
+        [int(channel_id) % ecephys_cfg["channels_per_headstage"] for channel_id in subset.get_channel_ids()]
     )
     regions = numpy.array([channel_map["odd" if channel % 2 else "even"] for channel in local_channels])
     subset.set_property("group_name", regions)
@@ -464,6 +479,14 @@ def convert_session(*, rec, output_dir, cfg, session_log=None, overwrite=False):
     """Convert one recording into its two subject files; returns the written NWB paths."""
     identity = parse_rec_identity(rec)
     output_dir = Path(output_dir)
+    # Checked before the videos are placed, which copies about 170 GB when it cannot hard-link.
+    missing_ephys = [
+        path
+        for path in (merged_rec_path(identity=identity, headstage=headstage) for headstage in identity.headstages)
+        if not path.is_file()
+    ]
+    if missing_ephys:
+        raise FileNotFoundError(f"no merged ephys file at {', '.join(str(path) for path in missing_ephys)}")
     matched, unmatched = match_videos(identity.rec_path)
     for path in unmatched:
         print(f"Ignoring unrecognized file in {VIDEOS_DIRNAME}/: {path.name}", flush=True)
