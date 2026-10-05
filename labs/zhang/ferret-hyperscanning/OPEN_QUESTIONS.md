@@ -53,10 +53,14 @@ cameras triggered together.
 - **Ask the lab:** does the odd/even map (0 to 31) apply to each animal's
   32 channels separately? How does the `.rec` header say which nTrodes
   belong to `HS3` and which to `HS4`?
-- **Current handling:** the first animal in the basename takes hardware
-  channels 0 to 31 and the second 32 to 63 (`headstage_channel_ids`,
+- **Current handling:** each animal's ephys is read from its own merged
+  file, `<stem>.rec/<A>HS<n>/<stem>_<A>HS<n>_merged.rec`. A file holding
+  exactly 32 channels is taken whole. A file holding more falls back to
+  the first animal in the basename taking hardware channels 0 to 31 and
+  the second 32 to 63 (`headstage_channel_ids`,
   `ecephys.channels_per_headstage` in `code/config.yaml`, marked
-  `PROVISIONAL`). The header of a real merged file settles this.
+  `PROVISIONAL`). The first real conversion's electrode table settles which
+  case applies.
 
 ### Q9. Subject and session metadata
 

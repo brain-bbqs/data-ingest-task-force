@@ -54,9 +54,9 @@ devices:
     manufacturer: Teledyne FLIR
 
 ecephys:
-  # PROVISIONAL (Q8). Assumes the merged .rec carries the headstages in the order
-  # the basename lists them, 32 hardware channels each (0-31, then 32-63).
-  # Confirm against a real file's SpikeConfiguration before trusting the split.
+  # Each animal's merged .rec is expected to hold only its own 32 channels. If a
+  # merged file holds more, the split is PROVISIONAL (Q8). It assumes the
+  # headstages sit in basename order, 32 hardware channels each (0-31, then 32-63).
   channels_per_headstage: 32
   electrical_series_description: "Raw wideband extracellular recording from one animal's 32-channel headstage at 20 kHz"
   regions:

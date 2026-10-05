@@ -6,8 +6,10 @@ the reviewed plan live in `../prompts/initial.md`.
 
 ## What the converter does
 
-One recording is one SpikeGadgets `.rec` directory. It holds a Trodes file of
-the same name with both animals' headstages, and shares a sibling `Videos/`
+One recording is one SpikeGadgets `.rec` directory. It holds the base-station
+Trodes file of the same name, which has no ephys, and one subdirectory per
+animal with the Trodes file that merges in that animal's datalogger ephys.
+It shares a sibling `Videos/`
 directory with any other recording made on the same day. The converter
 writes two NWB files per recording, one per animal, and places the
 session's videos next to the lower-numbered animal's file so both files can
@@ -16,7 +18,7 @@ reference them by relative path.
 Each file is assembled by a NeuroConv `ConverterPipe`. The ephys goes
 through `SpikeGadgetsRecordingInterface`, which reads the `trodes` stream
 through spikeinterface and neo and builds the device, electrode groups and
-electrode table; each animal's file takes only that headstage's channels.
+electrode table from that animal's merged file.
 Each video goes through its own `ExternalVideoInterface`, which reads the
 frame rate and frame count from the file header and links the camera
 device. That interface stores the absolute path it read the file from, so
@@ -29,8 +31,12 @@ before writing, which is what DANDI resolves after upload.
 <incoming>/sourcedata/raw/Ferret_Hyperscanning/
   <pair>/                         e.g. 0236-0237
     <MM.DD.YYYY>/                 e.g. 04.01.2026
-      <A>HS<n>_<B>HS<m>_<YYYYMMDD>_<HHMMSS>.rec/
-        <same name>.rec           Trodes recording, both headstages
+      <stem>.rec/                 <stem> is <A>HS<n>_<B>HS<m>_<YYYYMMDD>_<HHMMSS>
+        <stem>.rec                base-station Trodes file, no ephys
+        <A>HS<n>/
+          <stem>_<A>HS<n>_merged.rec    animal A's datalogger ephys merged in
+        <B>HS<m>/
+          <stem>_<B>HS<m>_merged.rec    animal B's
       Videos/
         cam<NN>-<MMDDYYYYHHMMSS>-0000.avi        behavior video, one per camera
         cam<NN>-cal-<MMDDYYYYHHMMSS>-0000.avi    ChArUco calibration video, one per camera
@@ -41,8 +47,8 @@ before writing, which is what DANDI resolves after upload.
 | Source | Output |
 | --- | --- |
 | `<rec>.rec/` directory | One session, two files: `sub-0236/sub-0236_ses-20260401T130419_behavior+ecephys.nwb` and `sub-0237/sub-0237_ses-20260401T130419_behavior+ecephys.nwb` |
-| `.rec` XML header | `session_start_time` from `systemTimeAtCreation` in the configured timezone (falls back to the basename's timestamp), sampling rate, per-channel gain |
-| `.rec` ephys packets | `acquisition/ElectricalSeries`, this animal's 32 channels only, int16 with the header's `spikeScalingToUv` as `conversion` |
+| Base-station `.rec` XML header | `session_start_time` from `systemTimeAtCreation` in the configured timezone (falls back to the basename's timestamp) |
+| `<A>HS<n>/<stem>_<A>HS<n>_merged.rec` ephys packets | Animal A's `acquisition/ElectricalSeries`, its 32 channels, int16 with the header's `spikeScalingToUv` as `conversion`. Sampling rate and per-channel gain from that file's header |
 | `.rec` digital inputs and headstage sensor block | Not read yet. Frame-pulse sync and the accelerometer are follow-ups |
 | `<rec>.trodesComments` | Not read yet. Human-interference intervals are a follow-up once the lab says where the comments live |
 | `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` via NeuroConv's `ExternalVideoInterface` (external `ImageSeries`, rate and frame count from the file header, `starting_time` 0.0 PROVISIONAL), file placed as `sub-<host>/sub-<host>_ses-<label>_cam<NN>_video.avi` |
