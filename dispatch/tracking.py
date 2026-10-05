@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -133,6 +134,13 @@ class TrackingDataset:
             ]
             if "image" in config:
                 add_cmd.append("--update")
+            # containers-add --update removes the old image itself, but that
+            # remove refuses to run when the image's content is present here,
+            # misreading it as uninstalling the whole dataset. Unstaging it
+            # first leaves --update only the new image to add. The old content
+            # stays in the local annex, so earlier records can still be rerun.
+            if os.path.lexists(path):
+                run(["git", "rm", "-q", "--", f"{ENVS_DIRNAME}/{name}.sif"], cwd=self.root, dry_run=False)
             run(add_cmd, cwd=self.root, dry_run=False)
         tracked = TrackedImage(name=name, path=path, url=url)
         self._images[image] = tracked

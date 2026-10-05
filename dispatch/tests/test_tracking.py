@@ -63,6 +63,7 @@ def test_image_is_left_alone_when_its_digest_has_not_moved(tmp_path, calls):
     ],
 )
 def test_image_is_rebuilt_when_moved_or_missing(tmp_path, calls, updateurl, sif_present, expect_update_flag):
+    """The old image is unstaged before an update re-adds it (see TrackingDataset.image)."""
     if updateurl is None:
         (tmp_path / ".datalad").mkdir()
         (tmp_path / ".datalad" / "config").write_text('[datalad "dataset"]\n\tid = 1234\n')
@@ -74,7 +75,8 @@ def test_image_is_rebuilt_when_moved_or_missing(tmp_path, calls, updateurl, sif_
 
     tracking.TrackingDataset(root=tmp_path).image(image=IMAGE, dry_run=False)
 
-    config_cmd, add_cmd = calls
+    config_cmd, *unstage_cmds, add_cmd = calls
+    assert unstage_cmds == ([["git", "rm", "-q", "--", "envs/lab-ingest.sif"]] if sif_present else [])
     assert config_cmd[-2:] == ["datalad.containers.lab-ingest.updateurl", PINNED]
     assert add_cmd[:5] == ["datalad", "containers-add", "lab-ingest", "--url", PINNED]
     assert add_cmd[add_cmd.index("--call-fmt") + 1] == tracking.CALL_FORMAT
