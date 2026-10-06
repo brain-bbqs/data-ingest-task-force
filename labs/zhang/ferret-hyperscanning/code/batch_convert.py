@@ -22,7 +22,11 @@ standardized tree unless the two directories share a filesystem and the
 copy becomes a hard link, so a large pool would only contend for disk.
 
 A failed recording does not stop the batch. The remaining recordings are
-still converted and the exit code reports whether any failed.
+still converted and the exit code reports whether any failed. With
+``--results`` the batch also writes which recordings it left unconverted,
+split into ``pending`` (inputs not uploaded yet, such as a missing merged
+ephys file) and ``failed`` (anything else), keyed by ``.rec`` directory
+name. Dispatch reads it to keep and upload the recordings that did convert.
 
 Example CLI usage
 -----------------
@@ -35,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import json
 import multiprocessing
 import os
 import sys
@@ -52,6 +57,7 @@ import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _zhang_ferret_hyperscanning_to_nwb import (  # noqa: E402
+    MissingInputError,
     convert_session,
     load_cfg,
     load_session_log_for,
@@ -112,7 +118,18 @@ def resolve_worker_count(*, requested, task_count):
     return worker_count
 
 
-def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False, max_workers=None):
+def write_results(path, /, *, failures):
+    """Record which recordings were left unconverted, split by whether their inputs are missing."""
+    results = {"pending": {}, "failed": {}}
+    for rec_dir, error in failures:
+        kind = "pending" if isinstance(error, MissingInputError) else "failed"
+        results[kind][rec_dir.name] = str(error)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n")
+
+
+def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False, max_workers=None, results_path=None):
     incoming_dir = Path(incoming_dir)
     standardized_dir = Path(standardized_dir)
     recordings, ignored = discover_recordings(incoming_dir)
@@ -155,7 +172,7 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
             if error is not None:
                 traceback.print_exception(error)
                 print(f"FAILED: {rec_dir}: {error}", file=sys.stderr, flush=True)
-                failed.append(rec_dir)
+                failed.append((rec_dir, error))
                 continue
             converted += 1
             tqdm.tqdm.write(f"Converted {rec_dir.name} -> {', '.join(str(path) for path in written)}")
@@ -163,6 +180,8 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     print(
         f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(recordings)} recording(s)", flush=True
     )
+    if results_path is not None:
+        write_results(results_path, failures=failed)
     exit_code = 1 if failed else 0
     return exit_code
 
@@ -215,6 +234,9 @@ def parse_args():
         default=None,
         help=f"Recordings to convert in parallel (default: {DEFAULT_JOBS}, capped at the CPU and recording counts)",
     )
+    parser.add_argument(
+        "--results", type=Path, default=None, help="Write the recordings left unconverted to this JSON file"
+    )
     arguments = parser.parse_args()
     return arguments
 
@@ -227,6 +249,7 @@ def main():
         config_path=args.config,
         overwrite=args.overwrite,
         max_workers=args.jobs,
+        results_path=args.results,
     )
     return exit_code
 
