@@ -13,6 +13,7 @@ Run with::
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import sys
 from pathlib import Path
@@ -222,6 +223,37 @@ def test_skip_and_overwrite_bookkeeping(tmp_path, monkeypatch, capsys):
     )
     assert exit_code == 0
     assert "Converted 1, skipped 0, failed 0 of 1" in capsys.readouterr().out
+
+
+def test_results_split_missing_inputs_from_failures(tmp_path, monkeypatch):
+    converts = make_rec_dir(tmp_path)
+    missing = make_rec_dir(tmp_path, date_dirname="04.02.2026", stem="0236HS3_0237HS4_20260402_130419")
+    breaks = make_rec_dir(tmp_path, pair="0235-0237", stem="0235HS1_0237HS4_20260401_150800")
+
+    def fake_convert(*, rec, output_dir, cfg, session_log=None, overwrite=False):
+        if Path(rec) == missing:
+            raise core.MissingInputError("no merged ephys file at somewhere")
+        if Path(rec) == breaks:
+            raise ValueError("bad header")
+        return []
+
+    monkeypatch.setattr(batch_convert, "convert_session", fake_convert)
+    results_path = tmp_path / "record" / "results.json"
+
+    exit_code = batch_convert.convert_batch(
+        incoming_dir=tmp_path,
+        standardized_dir=tmp_path / "out",
+        config_path=PROJECT / "code" / "config.yaml",
+        max_workers=1,
+        results_path=results_path,
+    )
+
+    assert exit_code == 1
+    assert json.loads(results_path.read_text()) == {
+        "pending": {missing.name: "no merged ephys file at somewhere"},
+        "failed": {breaks.name: "bad header"},
+    }
+    assert converts.name not in results_path.read_text()
 
 
 @pytest.mark.parametrize(

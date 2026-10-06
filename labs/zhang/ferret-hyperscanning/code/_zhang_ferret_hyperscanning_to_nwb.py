@@ -79,6 +79,10 @@ HEADER_END_TAG = b"</Configuration>"
 HEADER_READ_LIMIT = 64 * 1024 * 1024
 
 
+class MissingInputError(FileNotFoundError):
+    """A recording whose inputs aren't all uploaded yet, as opposed to one that failed to convert."""
+
+
 @dataclasses.dataclass(frozen=True)
 class Headstage:
     """One animal's headstage as the ``.rec`` basename lists it."""
@@ -486,7 +490,7 @@ def convert_session(*, rec, output_dir, cfg, session_log=None, overwrite=False):
         if not path.is_file()
     ]
     if missing_ephys:
-        raise FileNotFoundError(f"no merged ephys file at {', '.join(str(path) for path in missing_ephys)}")
+        raise MissingInputError(f"no merged ephys file at {', '.join(str(path) for path in missing_ephys)}")
     matched, unmatched = match_videos(identity.rec_path)
     for path in unmatched:
         print(f"Ignoring unrecognized file in {VIDEOS_DIRNAME}/: {path.name}", flush=True)

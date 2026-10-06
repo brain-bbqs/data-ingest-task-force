@@ -39,7 +39,7 @@ REQUIRED_FIELDS = (
 
 # Names convert_command tokens can already template; a metadata key reusing
 # one would silently shadow it, so it's rejected at load time instead.
-RESERVED_TEMPLATE_NAMES = ("repo_root", "incoming_dir", "standardized_dir")
+RESERVED_TEMPLATE_NAMES = ("repo_root", "incoming_dir", "standardized_dir", "results")
 
 # Mirrors `dandi upload --validation`. "require" is dandi's own default and
 # this registry's: a project only departs from it deliberately, by naming the

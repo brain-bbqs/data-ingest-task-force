@@ -512,3 +512,15 @@ converter now reads each animal's file from there, keeps the base-station
 header for the session start time, and checks both merged files exist
 before placing the videos. The fixture follows the same layout, so the
 golden summary's data hashes and the second animal's channel names changed.
+
+## Request 11 — Stop failing runs over missing merged files
+
+> yo I keep getting notifications about the workflow failing
+
+The first full run converted 60 of 68 recordings. The other 8 have no
+merged ephys file for one or both animals, which failed the whole project,
+so nothing was uploaded or recorded and every run started over. The batch
+now writes `--results`, splitting unconverted recordings into `pending`
+(a missing merged file, raised as `MissingInputError`) and `failed`
+(anything else). Dispatch records and uploads the rest, retries only those
+next run, and reports `pending` ones as a warning instead of a failure.
