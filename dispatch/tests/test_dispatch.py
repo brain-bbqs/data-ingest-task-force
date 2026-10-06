@@ -627,3 +627,108 @@ def test_main_marks_standardized_id_shared_only_when_registered_twice(tmp_path, 
 def test_git_head_is_none_without_git(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", str(tmp_path))  # no git on PATH, as in the dandi image CI tests run in
     assert dispatch.git_head(tmp_path) is None
+
+
+def conversion_reporting(results: dict | None):
+    """A fake subprocess.run whose conversion step writes *results* to its
+    --results path (when given) and then exits nonzero."""
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if cmd[:2] == ["datalad", "run"]:
+            if results is not None:
+                Path(cmd[cmd.index("--results") + 1]).write_text(json.dumps(results))
+            raise dispatch.subprocess.CalledProcessError(1, cmd)
+
+    return calls, fake_run
+
+
+def run_partial(tmp_path, monkeypatch, tracking, *, results):
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    for session in ("ses-1", "ses-2", "ses-3"):
+        (incoming_root / "000001" / "raw" / session).mkdir(parents=True)
+    calls, fake_run = conversion_reporting(results)
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+    monkeypatch.setattr(dispatch, "dandi_upload", lambda *args, **kwargs: calls.append((["upload"], {})))
+    project = make_project(
+        convert_command=[
+            "python3",
+            "{repo_root}/labs/test-lab/code/convert.py",
+            "{incoming_dir}",
+            "{standardized_dir}",
+            "--results",
+            "{results}",
+        ]
+    )
+    run = lambda: dispatch.process_project(  # noqa: E731
+        project,
+        repo_root=repo_root,
+        incoming_root=incoming_root,
+        standardized_root=standardized_root,
+        session_spec=SESSION_SPEC,
+        tracking=tracking,
+        dandi_image=DANDI_IMAGE,
+        skip_download=True,
+        skip_upload=False,
+        dry_run=False,
+    )
+    return run, calls, standardized_root / "000002"
+
+
+def test_pending_sessions_are_retried_while_the_rest_upload(tmp_path, monkeypatch, tracking):
+    run, calls, standardized_dir = run_partial(
+        tmp_path, monkeypatch, tracking, results={"pending": {"ses-2": "no merged ephys file"}, "failed": {}}
+    )
+
+    run()
+
+    state = IngestState.load(standardized_dir)
+    assert set(state.converted_sessions) == {"ses-1", "ses-3"}
+    assert state.script_sha256 is not None
+    assert (["upload"], {}) in calls
+    assert state.new_sessions(["ses-1", "ses-2", "ses-3"]) == ["ses-2"]
+
+
+def test_failed_sessions_fail_the_project_after_the_rest_upload(tmp_path, monkeypatch, tracking):
+    run, calls, standardized_dir = run_partial(
+        tmp_path, monkeypatch, tracking, results={"pending": {}, "failed": {"ses-3": "ValueError: bad header"}}
+    )
+
+    with pytest.raises(dispatch.ConversionIncomplete, match="ses-3: ValueError: bad header"):
+        run()
+
+    assert set(IngestState.load(standardized_dir).converted_sessions) == {"ses-1", "ses-2"}
+    assert (["upload"], {}) in calls
+
+
+@pytest.mark.parametrize(
+    "results",
+    [
+        None,  # no results file written
+        {"pending": {}, "failed": {}},  # nothing listed, so the failure is unexplained
+        {"pending": {"ses-9": "unknown"}, "failed": {}},  # names a session it wasn't given
+    ],
+)
+def test_unexplained_conversion_failure_fails_the_whole_project(tmp_path, monkeypatch, tracking, results):
+    run, calls, standardized_dir = run_partial(tmp_path, monkeypatch, tracking, results=results)
+
+    with pytest.raises(dispatch.subprocess.CalledProcessError):
+        run()
+
+    assert IngestState.load(standardized_dir).converted_sessions == {}
+    assert (["upload"], {}) not in calls
+
+
+def test_upload_is_skipped_when_every_session_is_still_pending(tmp_path, monkeypatch, tracking):
+    pending = {session: "no merged ephys file" for session in ("ses-1", "ses-2", "ses-3")}
+    run, calls, standardized_dir = run_partial(
+        tmp_path, monkeypatch, tracking, results={"pending": pending, "failed": {}}
+    )
+
+    run()
+
+    assert (["upload"], {}) not in calls
+    assert IngestState.load(standardized_dir).converted_sessions == {}

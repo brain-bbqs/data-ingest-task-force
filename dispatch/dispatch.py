@@ -56,6 +56,7 @@ resolved anonymously, so only public images are supported for now.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import subprocess
@@ -82,6 +83,8 @@ DANDI_INSTANCE = "ember-dandi"
 DANDI_API_KEY_ENV_VAR = "EMBER_DANDI_API_KEY"
 
 RECORD_RUN_SCRIPT = Path("dispatch") / "record_run.py"
+# Where a convert_command's {results} placeholder points, inside the run's record.
+RESULTS_FILENAME = "results.json"
 
 
 def now_iso() -> str:
@@ -218,12 +221,22 @@ def convert(
     task_force_commit: str | None,
     force_overwrite: bool,
     dry_run: bool,
-) -> None:
+) -> dict[str, dict[str, str]]:
+    """Run the conversion. Returns the sessions it left unconverted, as
+    ``{"pending": {id: reason}, "failed": {id: reason}}``.
+
+    A command that writes the ``{results}`` file may fail for some sessions
+    without failing the step: those sessions are returned rather than
+    raised, so the rest are still recorded and uploaded.
+    """
+    record_dir = tracking.new_record_dir(project_key=project.key, step="convert")
+    results_path = record_dir / RESULTS_FILENAME
     cmd = [
         token.format(
             repo_root=repo_root,
             incoming_dir=incoming_dir,
             standardized_dir=standardized_dir,
+            results=results_path,
             **project.metadata,
         )
         for token in project.convert_command
@@ -239,7 +252,6 @@ def convert(
     if not dry_run:
         standardized_dir.mkdir(parents=True, exist_ok=True)
 
-    record_dir = tracking.new_record_dir(project_key=project.key, step="convert")
     # Runs under the image's own python3 when containerized, so the manifest
     # of what the conversion wrote is produced inside the recorded run.
     recorded_cmd = [
@@ -278,15 +290,41 @@ def convert(
     else:
         env = dict(os.environ)
         container = None
-    tracking.record(
-        cmd=recorded_cmd,
-        container=container,
-        record_dir=record_dir,
-        context=context,
-        message=message,
-        env=env,
-        dry_run=dry_run,
-    )
+    try:
+        tracking.record(
+            cmd=recorded_cmd,
+            container=container,
+            record_dir=record_dir,
+            context=context,
+            message=message,
+            env=env,
+            dry_run=dry_run,
+        )
+    except subprocess.CalledProcessError:
+        unconverted = read_results(results_path, sessions=sessions)
+        if unconverted is None:
+            raise
+        return unconverted
+    unconverted = read_results(results_path, sessions=sessions) or {"pending": {}, "failed": {}}
+    return unconverted
+
+
+def read_results(path: Path, /, *, sessions: list[str]) -> dict[str, dict[str, str]] | None:
+    """The unconverted sessions a conversion listed in its results file, or
+    None when it wrote none (or one naming sessions it wasn't given), in
+    which case a failed step stays a failure of the whole project."""
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text())
+    unconverted = {kind: dict(payload.get(kind) or {}) for kind in ("pending", "failed")}
+    listed = set(unconverted["pending"]) | set(unconverted["failed"])
+    if not listed or not listed <= set(sessions):
+        return None
+    return unconverted
+
+
+class ConversionIncomplete(RuntimeError):
+    """Some sessions failed to convert. The rest were still recorded and uploaded."""
 
 
 def process_project(
@@ -348,7 +386,7 @@ def process_project(
         log.info("[%s] %d new session(s): %s", project.key, len(new_sessions), ", ".join(new_sessions))
 
     touched = discovered if script_changed else new_sessions
-    convert(
+    unconverted = convert(
         project,
         repo_root=repo_root,
         incoming_dir=incoming_dir,
@@ -361,8 +399,10 @@ def process_project(
         dry_run=dry_run,
     )
 
+    # Unconverted sessions stay out of the state, so the next run retries them.
+    skipped = set(unconverted["pending"]) | set(unconverted["failed"])
     converted_at = now_iso()
-    for session_id in touched:
+    for session_id in (session for session in touched if session not in skipped):
         state.mark_converted(
             session_id,
             source_path=str(session_paths_by_id[session_id]),
@@ -376,8 +416,26 @@ def process_project(
     else:
         log.info("[%s] [dry-run] would write state for %d session(s)", project.key, len(touched))
 
-    if not skip_upload:
+    if skip_upload:
+        pass
+    elif skipped >= set(touched):
+        # Only retried sessions still waiting on inputs: nothing new to
+        # upload, and the upload's no-op check re-checksums the whole dandiset.
+        log.info("[%s] no session converted this run, skipping upload", project.key)
+    else:
         dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=dandi_image, dry_run=dry_run)
+
+    if unconverted["pending"]:
+        # Waiting on inputs, not broken: a warning, so the run still passes.
+        summary = f"{len(unconverted['pending'])} session(s) waiting on missing inputs, retried next run"
+        log.warning("[%s] %s:", project.key, summary)
+        for session_id, reason in sorted(unconverted["pending"].items()):
+            log.warning("[%s]   %s: %s", project.key, session_id, reason)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"::warning title={project.key}::{summary}: {', '.join(sorted(unconverted['pending']))}", flush=True)
+    if unconverted["failed"]:
+        details = "; ".join(f"{session_id}: {reason}" for session_id, reason in sorted(unconverted["failed"].items()))
+        raise ConversionIncomplete(f"{len(unconverted['failed'])} session(s) failed to convert: {details}")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

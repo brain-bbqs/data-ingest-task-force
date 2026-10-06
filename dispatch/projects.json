@@ -129,7 +129,9 @@
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/zhang/ferret-hyperscanning/code/config.yaml"
+        "{repo_root}/labs/zhang/ferret-hyperscanning/code/config.yaml",
+        "--results",
+        "{results}"
       ]
     }
   ]
