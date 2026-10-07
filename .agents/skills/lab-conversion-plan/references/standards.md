@@ -53,7 +53,7 @@ Load-bearing details, verified for Kemere. Re-verify them against the PR's curre
 
 ## DANDI requirements that apply either way
 
-- Subject metadata must include species (Latin binomial), sex as one of `M`/`F`/`O`/`U`, and age as an ISO 8601 duration (`P30Y`, `P5W3D`) or a date of birth.
+- Subject metadata must include species (Latin binomial, or an NCBI taxonomy link such as `http://purl.obolibrary.org/obo/NCBITaxon_9669` for a subspecies, since DANDI's validation rejects trinomials like `Mustela putorius furo`), sex as one of `M`/`F`/`O`/`U`, and age as an ISO 8601 duration (`P30Y`, `P5W3D`) or a date of birth.
 - Subject and session labels are alphanumeric. Sanitize anything derived from folder or file names (`sanitize_label` in `labs/inman/code/batch_convert.py`).
 - Associated papers become `related_publications` DOI links in NWB session metadata.
 - Dandiset ids are six digits. Incoming and standardized may be one shared dandiset or two separate ones. See the field reference in `dispatch/README.md`.

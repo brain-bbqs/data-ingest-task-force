@@ -56,6 +56,7 @@ resolved anonymously, so only public images are supported for now.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -327,6 +328,36 @@ class ConversionIncomplete(RuntimeError):
     """Some sessions failed to convert. The rest were still recorded and uploaded."""
 
 
+def conversion_inputs(project: Project, /, *, repo_root: Path) -> list[Path]:
+    """The conversion script plus every repository file its convert_command
+    names, such as a batch driver or a config. A change to any of them
+    changes what the conversion writes."""
+    named = []
+    for token in project.convert_command:
+        if not token.startswith("{repo_root}/"):
+            continue
+        path = Path(token.replace("{repo_root}", str(repo_root), 1))
+        if path.is_file():
+            named.append(path)
+    script = project.script_abspath(repo_root)
+    inputs = [script] + sorted({path for path in named if path != script})
+    return inputs
+
+
+def conversion_hash(project: Project, /, *, repo_root: Path) -> str:
+    """sha256 identifying the conversion's code and config. With only the
+    script to hash it is the script's own hash, so projects whose command
+    names no other file keep the hash their manifests already record."""
+    inputs = conversion_inputs(project, repo_root=repo_root)
+    if len(inputs) == 1:
+        return hash_file(inputs[0])
+    digest = hashlib.sha256()
+    for path in inputs:
+        digest.update(f"{path.relative_to(repo_root)}\0{hash_file(path)}\n".encode())
+    combined = digest.hexdigest()
+    return combined
+
+
 def process_project(
     project: Project,
     *,
@@ -355,7 +386,7 @@ def process_project(
     state = IngestState.load(standardized_dir, manifest_name=manifest_name)
 
     script_path = project.script_abspath(repo_root)
-    current_script_hash = hash_file(script_path) if script_path.is_file() else None
+    current_script_hash = conversion_hash(project, repo_root=repo_root) if script_path.is_file() else None
     if current_script_hash is None:
         log.warning("[%s] conversion script not found at %s, cannot hash it", project.key, script_path)
     script_changed = current_script_hash is not None and current_script_hash != state.script_sha256
@@ -376,7 +407,7 @@ def process_project(
 
     if script_changed:
         log.info(
-            "[%s] conversion script changed (%s -> %s); reprocessing all %d discovered session(s)",
+            "[%s] conversion script or config changed (%s -> %s); reprocessing all %d discovered session(s)",
             project.key,
             state.script_sha256,
             current_script_hash,

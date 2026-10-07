@@ -33,7 +33,7 @@ session:
 
 subjects:
   defaults:
-    species: Mustela putorius furo
+    species: http://purl.obolibrary.org/obo/NCBITaxon_9669  # Mustela putorius furo (domestic ferret)
     sex: U        # PROVISIONAL (Q9) ("unknown"). Required by DANDI, should be one of "M", "F", "O", "U"
     age: P1Y      # PROVISIONAL (Q9). Required by DANDI, should be an ISO 8601 duration, or use date_of_birth instead
   "0235":

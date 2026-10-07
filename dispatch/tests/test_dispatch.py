@@ -732,3 +732,35 @@ def test_upload_is_skipped_when_every_session_is_still_pending(tmp_path, monkeyp
 
     assert (["upload"], {}) not in calls
     assert IngestState.load(standardized_dir).converted_sessions == {}
+
+
+def test_conversion_hash_is_the_script_hash_when_the_command_names_nothing_else(tmp_path):
+    repo_root = make_repo(tmp_path)
+    project = make_project()
+
+    combined = dispatch.conversion_hash(project, repo_root=repo_root)
+
+    assert combined == dispatch.hash_file(project.script_abspath(repo_root))
+
+
+def test_conversion_hash_covers_files_the_command_names(tmp_path):
+    repo_root = make_repo(tmp_path)
+    config = repo_root / "labs" / "test-lab" / "code" / "config.yaml"
+    config.write_text("species: a\n")
+    project = make_project(
+        convert_command=[
+            "python3",
+            "{repo_root}/labs/test-lab/code/convert.py",
+            "--config",
+            "{repo_root}/labs/test-lab/code/config.yaml",
+            "{repo_root}/labs/test-lab/code/not-a-file.yaml",
+        ]
+    )
+
+    before = dispatch.conversion_hash(project, repo_root=repo_root)
+    config.write_text("species: b\n")
+    after = dispatch.conversion_hash(project, repo_root=repo_root)
+
+    assert dispatch.conversion_inputs(project, repo_root=repo_root) == [project.script_abspath(repo_root), config]
+    assert before != after
+    assert before != dispatch.hash_file(project.script_abspath(repo_root))

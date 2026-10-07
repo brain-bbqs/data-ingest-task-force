@@ -524,3 +524,15 @@ now writes `--results`, splitting unconverted recordings into `pending`
 (a missing merged file, raised as `MissingInputError`) and `failed`
 (anything else). Dispatch records and uploads the rest, retries only those
 next run, and reports `pending` ones as a warning instead of a failure.
+
+## Request 12 — Uploads failing validation
+
+> cool ty keep watching the runs for issues
+
+The first run that kept its converted recordings uploaded every video but
+none of the 120 NWB files. DANDI rejected each one because the species,
+`Mustela putorius furo`, is a trinomial, and NWB Inspector accepts only a
+Latin binomial or an NCBI taxonomy link. `code/config.yaml` now gives the
+taxonomy link, `http://purl.obolibrary.org/obo/NCBITaxon_9669`. Dispatch
+now also reconverts when a file `convert_command` names changes, such as
+this config, so the fix reaches the recordings already converted.

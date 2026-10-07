@@ -229,7 +229,7 @@
         "age": "P1Y",
         "description": "Ferret 0236, no shave",
         "sex": "U",
-        "species": "Mustela putorius furo",
+        "species": "http://purl.obolibrary.org/obo/NCBITaxon_9669",
         "subject_id": "0236"
       },
       "videos": {
@@ -540,7 +540,7 @@
         "age": "P1Y",
         "description": "Ferret 0237, identified by a shaved upper back",
         "sex": "U",
-        "species": "Mustela putorius furo",
+        "species": "http://purl.obolibrary.org/obo/NCBITaxon_9669",
         "subject_id": "0237"
       },
       "videos": {
