@@ -44,7 +44,7 @@ A lab spreadsheet that carries per-session facts (a session log, per-animal flag
 For NWB labs, the single metadata source the converter consumes. `labs/inman/code/config.yaml` is the pattern:
 
 - A header comment pointing at the NWB GUIDE for field meanings.
-- `session` and `subject` blocks covering the DANDI-required fields (species, sex `M`/`F`/`O`/`U`, age as ISO 8601 duration or date of birth), plus start time with explicit format, experimenter style notes, and `related_publications` for the intake's DOIs.
+- `session` and `subject` blocks covering the DANDI-required fields (species as a Latin binomial or, for a subspecies, an NCBI taxonomy link, sex `M`/`F`/`O`/`U`, age as ISO 8601 duration or date of birth), plus start time with explicit format, experimenter style notes, and `related_publications` for the intake's DOIs.
 - Per-stream blocks (timeseries descriptions and units, devices, electrode groups, channel maps) matching the plan's metadata section.
 - Every unconfirmed value marked `PROVISIONAL` inline, with what would confirm it. A file-top comment says provisional values keep the conversion runnable and must be replaced with real lab metadata.
 
