@@ -12,7 +12,7 @@ source-to-output mapping for review before any conversion code is written.
 > lab-scaffold and lab-register. Finish with lab-lessons, encoding anything
 > this conversion taught back into the skills.
 >
-> - Lab / PI: Chang, Yale University 
+> - Lab / PI: Chang, Yale University
 > - Grant award number: U01DA063534
 > - Project name: Toward comprehensive models of naturalistic cooperation and competition in primates
 > - Incoming dandiset: https://dandi.emberarchive.org/dandiset/000517
