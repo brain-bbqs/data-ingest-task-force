@@ -59,6 +59,25 @@
     },
     {
       "lab": "sanes",
+      "project": "ssa-gt",
+      "incoming_dandiset_id": "000524",
+      "standardized_dandiset_id": "000606",
+      "script_path": "labs/sanes/ssa-gt/code/_sanes_ssa_gt_to_nwb.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/sanes-ssa-gt-u01da063581-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/sanes/ssa-gt/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}/sourcedata/raw/ssa_gt_data",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/sanes/ssa-gt/code/config.yaml"
+      ]
+    },
+    {
+      "lab": "sanes",
       "incoming_dandiset_id": "000522",
       "standardized_dandiset_id": "000523",
       "script_path": "labs/sanes/code/_sanes_to_nwb.py",

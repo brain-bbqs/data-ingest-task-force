@@ -158,6 +158,8 @@ Its `sessions.json` glob selects the `.rec` directory rather than the date direc
 It uses the default `upload_validation`. Whether DANDI accepts the `.avi` assets written next to the NWB files is unconfirmed until the first real upload; set `ignore` if it does not.
 Open questions that still affect the output are tracked in `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`.
 
+Note: Sanes SSA GT is registered as `sanes/ssa-gt` (incoming `000524`, standardized `000606`). Its batch driver converts each `sourcedata/raw/ssa_gt_data/experiment_*` directory into one direct-root `sub-multi_ses-experiment<ID>_behavior.nwb`, skipping existing outputs unless `--overwrite` is supplied. Its session glob selects experiment directories, and its metadata remains provisional as documented in `labs/sanes/ssa-gt/OPEN_QUESTIONS.md`. The project should remain excluded from real cron runs until its image is published and provisional metadata is replaced.
+
 ## Tests
 
 ```bash

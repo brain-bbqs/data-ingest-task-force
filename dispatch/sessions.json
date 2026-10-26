@@ -17,6 +17,10 @@
       "include": ["sourcedata/raw/*"],
       "exclude": []
     },
+    "sanes/ssa-gt": {
+      "include": ["sourcedata/raw/ssa_gt_data/experiment_*"],
+      "exclude": []
+    },
     "suthana/in-lab": {
       "include": ["sourcedata/raw/Suthana-R61MH135106_In-Lab/*"],
       "exclude": []
