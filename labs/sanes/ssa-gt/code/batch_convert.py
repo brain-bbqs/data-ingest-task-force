@@ -34,7 +34,9 @@ def main():
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    return convert_batch(incoming_dir=args.input_dir, standardized_dir=args.output_dir, config_path=args.config, overwrite=args.overwrite)
+    return convert_batch(
+        incoming_dir=args.input_dir, standardized_dir=args.output_dir, config_path=args.config, overwrite=args.overwrite
+    )
 
 
 if __name__ == "__main__":

@@ -6,15 +6,14 @@ import json
 import re
 import subprocess
 import tempfile
-from pathlib import Path
 
-import numpy
 import ndx_multisubjects
 import ndx_sound
-from neuroconv.tools.nwb_helpers import get_default_backend_configuration
+import numpy
+import pynwb
 import scipy.io.wavfile
 import yaml
-import pynwb
+from neuroconv.tools.nwb_helpers import get_default_backend_configuration
 from pynwb import NWBHDF5IO, NWBFile, TimeSeries
 from pynwb.behavior import EventsTable
 from pynwb.file import Subject
@@ -63,7 +62,23 @@ def _audio_shape(chunk, /):
 
 
 def _video_info(path, /):
-    result = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames,r_frame_rate", "-of", "json", str(path)], check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=nb_frames,r_frame_rate",
+            "-of",
+            "json",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     stream = json.loads(result.stdout)["streams"][0]
     numerator, denominator = (int(value) for value in stream["r_frame_rate"].split("/"))
     return int(stream["nb_frames"]), numerator / denominator
@@ -74,7 +89,10 @@ def _concatenate_videos(paths, output_path, /):
         for path in paths:
             listing.write(f"file '{path.resolve()}'\n")
         listing.flush()
-        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listing.name, "-c", "copy", str(output_path)], check=True)
+        subprocess.run(
+            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", listing.name, "-c", "copy", str(output_path)],
+            check=True,
+        )
 
 
 def _session_start(experiment_dir, /):
@@ -84,7 +102,9 @@ def _session_start(experiment_dir, /):
     for line in logs[0].read_text().splitlines():
         match = re.match(r"(?P<timestamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})>Started Experiment Now", line)
         if match:
-            return datetime.datetime.strptime(match["timestamp"], "%Y-%m-%d_%H-%M-%S").replace(tzinfo=datetime.timezone.utc)
+            return datetime.datetime.strptime(match["timestamp"], "%Y-%m-%d_%H-%M-%S").replace(
+                tzinfo=datetime.timezone.utc
+            )
     raise ValueError(f"No 'Started Experiment Now' entry found in {logs[0]}")
 
 
@@ -110,7 +130,9 @@ def _add_tracking(processing, csv_paths, /):
     for track, rows in sorted(by_track.items()):
         interface = TimeSeries(
             name=f"tracking_{sanitize_label(track) or 'unknown'}",
-            data=numpy.asarray([[_float_or_nan(row.get("nose.x", "")), _float_or_nan(row.get("nose.y", ""))] for row in rows]),
+            data=numpy.asarray(
+                [[_float_or_nan(row.get("nose.x", "")), _float_or_nan(row.get("nose.y", ""))] for row in rows]
+            ),
             unit="pixels",
             timestamps=numpy.asarray([float(row["frame_idx"]) for row in rows]),
             description="Nose x/y tracking from annotation CSV; full landmark fields are retained in the source CSV.",
@@ -149,13 +171,17 @@ def _write_track_nwbs(*, tracking_paths, output_dir, session_label, session_star
             ),
         )
         behavior = track_nwb.create_processing_module(name="behavior", description="Tracking annotations")
-        behavior.add(TimeSeries(
-            name="tracking",
-            data=numpy.asarray([[_float_or_nan(row.get("nose.x", "")), _float_or_nan(row.get("nose.y", ""))] for row in rows]),
-            unit="pixels",
-            timestamps=numpy.asarray([float(row["frame_idx"]) for row in rows]),
-            description="Nose x/y tracking for this animal; source CSV contains all landmarks and confidence scores.",
-        ))
+        behavior.add(
+            TimeSeries(
+                name="tracking",
+                data=numpy.asarray(
+                    [[_float_or_nan(row.get("nose.x", "")), _float_or_nan(row.get("nose.y", ""))] for row in rows]
+                ),
+                unit="pixels",
+                timestamps=numpy.asarray([float(row["frame_idx"]) for row in rows]),
+                description="Nose x/y tracking for this animal; source CSV contains all landmarks and confidence scores.",
+            )
+        )
         track_backend = get_default_backend_configuration(track_nwb, backend="hdf5")
         track_backend.apply_global_compression(compression_method="gzip", compression_options={"compression_opts": 4})
         with NWBHDF5IO(track_path, "w") as io:
@@ -211,16 +237,40 @@ def build_nwb(*, experiment_dir, output_path, config_path):
                     if not row["start_seconds"].strip() or not row["stop_seconds"].strip():
                         skipped_annotations += 1
                         continue
-                    annotation_rows.append({**row, "start_seconds": float(row["start_seconds"]) + offset, "stop_seconds": float(row["stop_seconds"]) + offset})
+                    annotation_rows.append(
+                        {
+                            **row,
+                            "start_seconds": float(row["start_seconds"]) + offset,
+                            "stop_seconds": float(row["stop_seconds"]) + offset,
+                        }
+                    )
         offset += len(audio_chunk) / rate
         audio_cursor += len(audio_chunk)
-    nwbfile.add_acquisition(ndx_sound.AcousticWaveformSeries(name="Multi-channel Acoustic Data", data=audio_data, rate=float(rate), unit="audio", description=cfg["audio"]["description"]))
+    nwbfile.add_acquisition(
+        ndx_sound.AcousticWaveformSeries(
+            name="Multi-channel Acoustic Data",
+            data=audio_data,
+            rate=float(rate),
+            unit="audio",
+            description=cfg["audio"]["description"],
+        )
+    )
     audio_data.flush()
     combined_video = output_path.with_name("combined_behavior.mp4")
     _concatenate_videos(video_paths, combined_video)
     video_rate = video_info[0][1]
     total_frames = sum(frame_count for frame_count, _ in video_info)
-    nwbfile.add_acquisition(pynwb.image.ImageSeries(name="External Behavioral Video (Combined)", unit="n/a", starting_time=0.0, rate=float(video_rate), external_file=[combined_video.name], format="external", description=cfg["video"]["description"]))
+    nwbfile.add_acquisition(
+        pynwb.image.ImageSeries(
+            name="External Behavioral Video (Combined)",
+            unit="n/a",
+            starting_time=0.0,
+            rate=float(video_rate),
+            external_file=[combined_video.name],
+            format="external",
+            description=cfg["video"]["description"],
+        )
+    )
     tracks = _add_tracking(behavior, tracking_paths)
     session_label = f"experiment{experiment_dir.name.split('_')[-1]}"
     track_nwbs = _write_track_nwbs(
