@@ -1,4 +1,4 @@
-# BIG_ARENA_2024_12 dataset (incoming 000601, standardized 000629), converted by the SSA GT pipeline.
+# BIG_ARENA_2024_12 dataset (incoming 000601, standardized 000629).
 # Provisional metadata. Replace every PROVISIONAL value before final upload.
 # See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
 # No experiment_metadata file yet, so every experiment uses session.description.

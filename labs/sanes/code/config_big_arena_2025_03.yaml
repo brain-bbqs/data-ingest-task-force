@@ -1,14 +1,13 @@
+# BIG_ARENA_2025_03 dataset (incoming 000602, standardized 000630).
 # Provisional metadata. Replace every PROVISIONAL value before final upload.
 # See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
-# Per-experiment descriptions come from the experiment_metadata file, resolved
-# relative to this config. Omit the key for a dataset without one.
-experiment_metadata: experiment_metadata.yaml
+# No experiment_metadata file yet, so every experiment uses session.description.
 session:
-  dataset: ssa-gt  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
+  dataset: big-arena-2025-03  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
   lab: Sanes
   institution: New York University
   experimenter: PROVISIONAL
-  description: SSA GT multi-animal audio, video, tracking, and annotation recording
+  description: BIG_ARENA March 2025 multi-animal audio, video, tracking, and annotation recording  # PROVISIONAL
   timezone: UTC  # PROVISIONAL: confirm recording computer timezone
   related_publications: []
 subject:

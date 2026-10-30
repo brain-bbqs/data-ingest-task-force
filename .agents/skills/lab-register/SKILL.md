@@ -19,7 +19,7 @@ Add one entry. The field reference lives in `dispatch/README.md`, and the existi
 - `container_image` is the lab's GHCR image with the `:latest` tag. The image only exists on GHCR after the branch merges to main and CI publishes it, so a real cron run cannot use the entry before that first merge.
 - Project-wide scalar metadata (Kemere's species) goes in the `metadata` map. Each entry is auto-appended to the command as `--<key> <value>`, so the command template does not name it.
 - Set `project` only for a multi-collection lab. It must match the `labs/<lab>/<project>/` directory.
-- A further dataset that an existing project's code already converts gets its own `project` key and a config beside that code, not a new directory or image (the Sanes BIG_ARENA datasets reuse `labs/sanes/ssa-gt/`). Point `script_path`, `container_image`, and `convert_command` at the existing project, and give it a distinct NWB identifier prefix so experiment numbers cannot collide across datasets.
+- A further dataset of an existing codebase gets its own `project` key and a dataset config beside that code, not a new directory or image (Sanes registers four datasets this way). Point `script_path`, `container_image`, and `convert_command` at the shared code, and give the config a distinct NWB identifier prefix so session names cannot collide across datasets. Every entry then shares one `script_path`, so a converter change reprocesses every dataset, live ones included. Say so in the PR.
 
 ## 2. `dispatch/sessions.json`
 
