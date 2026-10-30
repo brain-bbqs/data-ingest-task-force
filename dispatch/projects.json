@@ -62,18 +62,56 @@
       "project": "ssa-gt",
       "incoming_dandiset_id": "000524",
       "standardized_dandiset_id": "000606",
-      "script_path": "labs/sanes/ssa-gt/code/_sanes_ssa_gt_to_nwb.py",
+      "script_path": "labs/sanes/code/_sanes_to_nwb.py",
       "overwrite_flag": "--overwrite",
-      "container_image": "ghcr.io/brain-bbqs/sanes-ssa-gt-u01da063581-ingest:latest",
+      "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
       "convert_command": [
         "python3",
-        "{repo_root}/labs/sanes/ssa-gt/code/batch_convert.py",
+        "{repo_root}/labs/sanes/code/batch_convert.py",
         "--input",
         "{incoming_dir}/sourcedata/raw/ssa_gt_data",
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/sanes/ssa-gt/code/config.yaml"
+        "{repo_root}/labs/sanes/code/config_ssa_gt.yaml"
+      ]
+    },
+    {
+      "lab": "sanes",
+      "project": "big-arena-2024-12",
+      "incoming_dandiset_id": "000601",
+      "standardized_dandiset_id": "000629",
+      "script_path": "labs/sanes/code/_sanes_to_nwb.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/sanes/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}/sourcedata/raw",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/sanes/code/config_big_arena_2024_12.yaml"
+      ]
+    },
+    {
+      "lab": "sanes",
+      "project": "big-arena-2025-03",
+      "incoming_dandiset_id": "000602",
+      "standardized_dandiset_id": "000630",
+      "script_path": "labs/sanes/code/_sanes_to_nwb.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/sanes-r34da059513-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/sanes/code/batch_convert.py",
+        "--input",
+        "{incoming_dir}/sourcedata/raw",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/sanes/code/config_big_arena_2025_03.yaml"
       ]
     },
     {
@@ -88,7 +126,7 @@
         "python3",
         "{repo_root}/labs/sanes/code/batch_convert.py",
         "--input",
-        "{incoming_dir}",
+        "{incoming_dir}/sourcedata/raw",
         "--output",
         "{standardized_dir}",
         "--config",

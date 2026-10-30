@@ -57,5 +57,7 @@ repos:
   rev: v2.4.3
   hooks:
   - id: codespell
+    # Prompt records quote requests verbatim, typos included.
+    exclude: /prompts/
     additional_dependencies:
     - tomli

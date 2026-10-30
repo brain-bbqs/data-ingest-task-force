@@ -95,20 +95,6 @@ jobs:
       - name: Run the smoke test
         run: python -m pytest labs/sanes/tests/ -q
 
-  SanesSsaGtIntegration:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-      - name: Install test environment
-        run: pip install "./labs/sanes/ssa-gt/envs[test]"
-      - name: Run the integration test
-        run: python -m pytest labs/sanes/ssa-gt/tests/ -q
-
   SuthanaInLabIntegration:
     runs-on: ubuntu-latest
     steps:
