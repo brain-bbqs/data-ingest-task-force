@@ -19,7 +19,7 @@ labs/
                          (see labs/shepherd/README.md)
   sanes/                Sanes lab: multi-animal gerbil vocal interactions -> NWB
                          (see labs/sanes/README.md)
-    ssa-gt/               SSA GT audio/video/tracking annotations -> NWB
+    ssa-gt/               SSA GT and BIG_ARENA audio/video/tracking annotations -> NWB
                            (see labs/sanes/ssa-gt/README.md)
   suthana/              Suthana lab, one directory per project
     in-lab/               in-lab navigation: iEEG + scalp EEG + motion capture -> NWB

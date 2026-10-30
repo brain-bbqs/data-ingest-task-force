@@ -39,7 +39,7 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^[^/]+$",
-          "description": "Optional project name, for a lab contributing more than one data collection (e.g. 'in-lab'). Must match the labs/<lab>/<project>/ directory. When set, the project is keyed '<lab>/<project>' in sessions.json and --only. Omit for a lab with a single project."
+          "description": "Optional project name, for a lab contributing more than one data collection (e.g. 'in-lab'). Must match the labs/<lab>/<project>/ directory, unless it names a further dataset converted by a sibling project's code. When set, the project is keyed '<lab>/<project>' in sessions.json and --only. Omit for a lab with a single project."
         },
         "incoming_dandiset_id": {
           "$ref": "#/$defs/sixDigitDandisetId",

@@ -162,3 +162,10 @@ Setting up a separate Sanes lab conversion for the SSA GT project. The intake an
 > is that something that would accounted for when running in docker by the cron runner or however this repo is supposed to be used in actuatliy
 >
 > ok make that change then
+
+## Request 19 — Fix up the PR and add the BIG_ARENA datasets
+
+> Can you fixup https://github.com/brain-bbqs/data-ingest-task-force/pull/51 and add new datasets for the Sanes project
+>
+> * BIG_ARENA_2024_12 https://dandi.emberarchive.org/dandiset/000601?page=1&sortOption=0&sortDir=-1&showDrafts=true&showEmpty=false&pos=5 -> https://dandi.emberarchive.org/dandiset/000629
+> * BIG_ARENA_2025_03: https://dandi.emberarchive.org/dandiset/000602?page=1&sortOption=0&sortDir=-1&showDrafts=true&showEmpty=false&pos=7 -> https://dandi.emberarchive.org/dandiset/000630

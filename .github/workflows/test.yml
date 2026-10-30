@@ -100,12 +100,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Install test environment
         run: pip install "./labs/sanes/ssa-gt/envs[test]"
+
       - name: Run the integration test
         run: python -m pytest labs/sanes/ssa-gt/tests/ -q
 

@@ -1,17 +1,36 @@
 #!/usr/bin/env python3
-"""Batch driver for the Sanes SSA GT experiment-to-NWB conversion."""
+"""Batch driver for the Sanes SSA GT experiment-to-NWB conversion.
+
+Discovers every ``experiment_*`` directory directly under ``--input`` or one
+folder below it, and converts each into ``sub-multi/sub-multi_ses-experiment<ID>_behavior.nwb``
+plus one ``sub-<NN>/sub-<NN>_ses-experiment<ID>.nwb`` per tracked animal.
+Experiments whose multisubject file already exists are skipped unless
+``--overwrite`` is given.
+
+Experiments are converted one at a time, since each one stages its whole
+concatenated audio on disk next to the output.
+"""
 
 import argparse
+import sys
 from pathlib import Path
 
-try:
-    from ._sanes_ssa_gt_to_nwb import build_nwb
-except ImportError:
-    from _sanes_ssa_gt_to_nwb import build_nwb
+# The project directory is "ssa-gt", and a hyphen cannot appear in a Python
+# package name, so the sibling module is imported by name from this file's
+# own directory instead (Suthana in-lab and Zhang precedent).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _sanes_ssa_gt_to_nwb import build_nwb  # noqa: E402
+
+
+def discover_experiments(incoming_dir, /):
+    candidates = [*incoming_dir.glob("experiment_*"), *incoming_dir.glob("*/experiment_*")]
+    experiments = sorted(path for path in candidates if path.is_dir())
+    return experiments
 
 
 def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False):
-    experiments = sorted(incoming_dir.glob("experiment_*"))
+    experiments = discover_experiments(incoming_dir)
     if not experiments:
         print(f"No experiment_* directories found under {incoming_dir}")
         return 0

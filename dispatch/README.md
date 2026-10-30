@@ -50,7 +50,7 @@ Session discovery doesn't reduce to a single glob in general — a project may n
 | Field | Meaning |
 | --- | --- |
 | `lab` | Must match the `labs/<lab>/` directory. Alone, it is also the project's `sessions.json` key and `--only` value; with `project` set, that key becomes `<lab>/<project>`. |
-| `project` | Optional project name, for a lab contributing more than one data collection (e.g. `in-lab`). Must match the `labs/<lab>/<project>/` directory. Omit for a lab with a single project. |
+| `project` | Optional project name, for a lab contributing more than one data collection (e.g. `in-lab`). Must match the `labs/<lab>/<project>/` directory, unless the collection is a further dataset converted by a sibling project's code. Such an entry names the dataset and points `script_path` and `convert_command` at that sibling's code (the Sanes BIG_ARENA datasets use `labs/sanes/ssa-gt/`). Omit for a lab with a single project. |
 | `incoming_dandiset_id` | Six-digit dandiset id on the ember archive holding the raw upload. |
 | `standardized_dandiset_id` | Six-digit dandiset id the converted/standardized output is uploaded to. May equal `incoming_dandiset_id` if raw and standardized data share one dandiset (as with Kemere). |
 | `script_path` | Path (repo-root-relative) to the conversion script, hashed to detect when it changes. |
@@ -158,7 +158,9 @@ Its `sessions.json` glob selects the `.rec` directory rather than the date direc
 It uses the default `upload_validation`. Whether DANDI accepts the `.avi` assets written next to the NWB files is unconfirmed until the first real upload; set `ignore` if it does not.
 Open questions that still affect the output are tracked in `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`.
 
-Note: Sanes SSA GT is registered as `sanes/ssa-gt` (incoming `000524`, standardized `000606`). Its batch driver converts each `sourcedata/raw/ssa_gt_data/experiment_*` directory into one direct-root `sub-multi_ses-experiment<ID>_behavior.nwb`, skipping existing outputs unless `--overwrite` is supplied. Its session glob selects experiment directories, and its metadata remains provisional as documented in `labs/sanes/ssa-gt/OPEN_QUESTIONS.md`. The project should remain excluded from real cron runs until its image is published and provisional metadata is replaced.
+Note: Sanes SSA GT is registered as `sanes/ssa-gt` (incoming `000524`, standardized `000606`). Its batch driver converts each `sourcedata/raw/ssa_gt_data/experiment_*` directory into `sub-multi/sub-multi_ses-experiment<ID>_behavior.nwb`, its concatenated video, and one `sub-<NN>/sub-<NN>_ses-experiment<ID>.nwb` per tracked animal, skipping existing outputs unless `--overwrite` is supplied. Its session glob selects experiment directories, and its metadata remains provisional as documented in `labs/sanes/ssa-gt/OPEN_QUESTIONS.md`. It keeps the default `upload_validation` for now. While the subject age is `PROVISIONAL` its files fail validation, so a premature run publishes nothing. Once the metadata is real it will need `ignore`, like the `sanes` entry, because the multisubject files have no `Subject`. The project should remain excluded from real cron runs until its image is published and provisional metadata is replaced.
+
+Note: the Sanes BIG_ARENA datasets are registered as `sanes/big-arena-2024-12` (incoming `000601`, standardized `000629`) and `sanes/big-arena-2025-03` (incoming `000602`, standardized `000630`). Both run the SSA GT converter and image with their own config (`labs/sanes/ssa-gt/code/config_big_arena_*.yaml`), so they have no directory of their own. Their incoming layouts were not inspected before registration. The session glob and batch driver therefore accept `experiment_*` directories directly under `sourcedata/raw/` or one folder below it (Q6 in `labs/sanes/ssa-gt/OPEN_QUESTIONS.md`). Upload validation and cron readiness are the same as for `sanes/ssa-gt`.
 
 ## Tests
 

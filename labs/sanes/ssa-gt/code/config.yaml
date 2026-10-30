@@ -1,10 +1,13 @@
 # Provisional metadata. Replace every PROVISIONAL value before final upload.
 # See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
+# Per-experiment descriptions come from the experiment_metadata file, resolved
+# relative to this config. Omit the key for a dataset without one.
+experiment_metadata: experiment_metadata.yaml
 session:
+  dataset: ssa-gt  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
   lab: Sanes
   institution: New York University
   experimenter: PROVISIONAL
-  species: Meriones unguiculatus
   description: SSA GT multi-animal audio, video, tracking, and annotation recording
   timezone: UTC  # PROVISIONAL: confirm recording computer timezone
   related_publications: []
@@ -13,7 +16,6 @@ subject:
   sex: U  # PROVISIONAL
   age: PROVISIONAL
 audio:
-  channels: 10
   description: Synchronized microphone recordings
 video:
   description: Behavioral video

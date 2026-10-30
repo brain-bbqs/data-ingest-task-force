@@ -1,0 +1,20 @@
+# BIG_ARENA_2025_03 dataset (incoming 000602, standardized 000630), converted by the SSA GT pipeline.
+# Provisional metadata. Replace every PROVISIONAL value before final upload.
+# See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
+# No experiment_metadata file yet, so every experiment uses session.description.
+session:
+  dataset: big-arena-2025-03  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
+  lab: Sanes
+  institution: New York University
+  experimenter: PROVISIONAL
+  description: BIG_ARENA March 2025 multi-animal audio, video, tracking, and annotation recording  # PROVISIONAL
+  timezone: UTC  # PROVISIONAL: confirm recording computer timezone
+  related_publications: []
+subject:
+  species: Meriones unguiculatus
+  sex: U  # PROVISIONAL
+  age: PROVISIONAL
+audio:
+  description: Synchronized microphone recordings
+video:
+  description: Behavioral video
