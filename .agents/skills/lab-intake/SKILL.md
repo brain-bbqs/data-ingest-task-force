@@ -23,6 +23,8 @@ Every lab directory preserves the prompts that drove its conversion under `labs/
 
 A lab expected to contribute more than one distinct data collection nests one directory per project, so the path becomes `labs/<lab>/<project>/prompts/` (see `labs/suthana/in-lab/`). If the description hints at sibling collections, ask before choosing the flat layout. Renaming later means churn across the dispatch registry and CI.
 
+A new collection with the same source structure as one the lab already converts is a new dataset, not a new project, even when its sessions hold a different mix of data types. Record it as a dataset of the existing codebase: the converter is extended to convert whatever each session holds, and the dataset gets its own config and dispatch entry. Do not scaffold a sibling directory with a copy of the converter (Sanes precedent: R34, SSA GT, and BIG_ARENA share `labs/sanes/`).
+
 ## Step 2: Extract the facts
 
 Fill in `references/intake-template.md` with everything the description answers. Read any attached papers, trees, metadata files, and scripts before filling it in. Paste source-data trees verbatim rather than paraphrasing them.
