@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Batch driver for every Sanes dataset's session-to-NWB conversion.
 
-Discovers every session folder (a folder holding ``idx_*`` chunk folders) directly under ``--input`` or
+Discovers session folders holding ``idx_*`` chunks or ``concatenated_data_cam_mic_sync/`` under ``--input`` or
 one folder below it, and runs ``_sanes_to_nwb.build_nwb`` on each. The config picks the dataset, and its
 optional ``output_subdirectory`` nests everything under one folder of ``--output``. R34 uses it because
 that standardized dandiset already holds earlier, hand-made work at its root::
@@ -37,11 +37,13 @@ import tqdm
 # that directory on sys.path and import the sibling by name.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _sanes_to_nwb import build_nwb, load_cfg, multisubject_path  # noqa: E402
+from _sanes_to_nwb import SYNC_FOLDER, build_nwb, load_cfg, multisubject_path, session_label  # noqa: E402
 
 
 def _holds_chunks(directory, /):
-    holds = any(path.is_dir() and path.name.startswith("idx_") for path in directory.iterdir())
+    holds = (directory / SYNC_FOLDER).is_dir() or any(
+        path.is_dir() and path.name.startswith("idx_") for path in directory.iterdir()
+    )
     return holds
 
 
@@ -67,11 +69,18 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     cfg = load_cfg(config_path)
     output_dir = standardized_dir / cfg.get("output_subdirectory", "")
     sessions, ignored = discover_sessions(incoming_dir)
+    unsupported = []
     for candidate in ignored:
-        print(f"Ignoring (no idx_* chunk folders): {candidate}", flush=True)
+        print(f"Ignoring (no supported recording layout): {candidate}", flush=True)
+        if candidate.name.startswith("experiment_") or any(candidate.glob("experiment_*")):
+            unsupported.append(candidate)
+    labels = [session_label(session) for session in sessions]
+    if len(set(labels)) != len(labels):
+        print("FAILED: session labels collide after sanitization", file=sys.stderr, flush=True)
+        return 1
     if not sessions:
         print(f"No session folders found under {incoming_dir}")
-        return 0
+        return 1 if unsupported else 0
 
     skipped = 0
     pending = []
@@ -97,7 +106,7 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
         tqdm.tqdm.write(f"Converted {session_dir} -> {output_path}")
 
     print(f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(sessions)} session(s)", flush=True)
-    exit_code = 1 if failed else 0
+    exit_code = 1 if failed or unsupported else 0
     return exit_code
 
 
