@@ -50,6 +50,8 @@ Show concretely what the conversion will produce. This draft later becomes the g
 
 If the intake already includes an expected-output example, reproduce it in the plan and reconcile the mapping against it. Any difference is a question for the requester, not something to paper over.
 
+When reusing an existing converter, check the planned data shapes and required fields against the installed extension schemas. Prior output and successful writes do not establish schema validity. Include extension-specific validation in the implementation checks and record any validator limitations separately from missing metadata.
+
 ## Step 4: Draft the metadata plan
 
 List which metadata lands where, and what is still `PROVISIONAL`:
@@ -58,6 +60,8 @@ List which metadata lands where, and what is still `PROVISIONAL`:
 - Session fields: start time with timezone, description, experimenters, institution, lab.
 - Papers from the intake, as `related_publications` DOI links (NWB) or dataset-level references (BIDS).
 - Device, electrode group, and channel-map details for data with neural channels.
+
+For multi-subject recordings, state where the animal roster comes from independently of pose or tracking files. Audio/video without tracks still needs subject identities and metadata. If the plan omits per-animal NWBs, check whether the chosen extension supports roster rows without per-animal file links, and carry any unverified schema constraint explicitly into implementation checks.
 
 For NWB targets this list is the skeleton of the lab's future `code/config.yaml`. `labs/inman/code/config.yaml` is the house pattern, including its `PROVISIONAL` markers and its header pointing at the NWB GUIDE.
 
