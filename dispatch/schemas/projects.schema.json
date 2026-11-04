@@ -72,7 +72,7 @@
           "type": "string",
           "enum": ["require", "skip", "ignore"],
           "default": "require",
-          "description": "Optional. Passed to 'dandi upload --validation' when it is not the default 'require'. 'require' refuses to upload output that fails DANDI validation. 'ignore' still validates and logs the errors, then uploads anyway. 'skip' does not validate at all. Set this only for a project knowingly publishing output that does not validate yet, and say why in ../README.md."
+          "description": "Optional. Passed to 'dandi upload --validation' when it is not the default 'require'. 'require' refuses to upload each file that fails DANDI validation, but still uploads the files that pass, including external videos of a refused NWB file. 'ignore' still validates and logs the errors, then uploads anyway. 'skip' does not validate at all. Set this only for a project knowingly publishing output that does not validate yet, and say why in ../README.md."
         },
         "metadata": {
           "type": "object",

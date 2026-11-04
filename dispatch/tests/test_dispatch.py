@@ -722,16 +722,74 @@ def test_unexplained_conversion_failure_fails_the_whole_project(tmp_path, monkey
     assert (["upload"], {}) not in calls
 
 
-def test_upload_is_skipped_when_every_session_is_still_pending(tmp_path, monkeypatch, tracking):
+@pytest.mark.parametrize("earlier_upload_pending", [False, True])
+def test_every_session_still_pending_skips_the_upload_unless_an_earlier_one_is_pending(
+    tmp_path, monkeypatch, tracking, earlier_upload_pending
+):
     pending = {session: "no merged ephys file" for session in ("ses-1", "ses-2", "ses-3")}
     run, calls, standardized_dir = run_partial(
         tmp_path, monkeypatch, tracking, results={"pending": pending, "failed": {}}
     )
+    IngestState(upload_pending=earlier_upload_pending).save(standardized_dir)
 
     run()
 
-    assert (["upload"], {}) not in calls
-    assert IngestState.load(standardized_dir).converted_sessions == {}
+    assert ((["upload"], {}) in calls) == earlier_upload_pending
+    state = IngestState.load(standardized_dir)
+    assert state.converted_sessions == {}
+    assert state.upload_pending is False
+
+
+@pytest.mark.parametrize("first_upload", ["fails", "skipped"])
+def test_an_upload_that_never_succeeded_is_retried_next_run(tmp_path, monkeypatch, tracking, first_upload):
+    repo_root = make_repo(tmp_path)
+    incoming_root = tmp_path / "incoming"
+    standardized_root = tmp_path / "standardized"
+    standardized_dir = standardized_root / "000002"
+    (incoming_root / "000001" / "raw" / "ses-1").mkdir(parents=True)
+    calls = record_calls(monkeypatch)
+    uploads = []
+
+    def fake_upload(*args, **kwargs):
+        uploads.append(args)
+        if first_upload == "fails" and len(uploads) == 1:
+            raise dispatch.subprocess.CalledProcessError(1, ["dandi", "upload"])
+
+    monkeypatch.setattr(dispatch, "dandi_upload", fake_upload)
+    project = make_project()
+
+    def run(*, skip_upload):
+        dispatch.process_project(
+            project,
+            repo_root=repo_root,
+            incoming_root=incoming_root,
+            standardized_root=standardized_root,
+            session_spec=SESSION_SPEC,
+            tracking=tracking,
+            dandi_image=DANDI_IMAGE,
+            skip_download=True,
+            skip_upload=skip_upload,
+            dry_run=False,
+        )
+
+    if first_upload == "fails":
+        with pytest.raises(dispatch.subprocess.CalledProcessError):
+            run(skip_upload=False)
+    else:
+        run(skip_upload=True)
+    state = IngestState.load(standardized_dir)
+    assert set(state.converted_sessions) == {"ses-1"}
+    assert state.upload_pending is True
+
+    steps_before = len(step_calls(calls))
+    uploads_before = len(uploads)
+    run(skip_upload=False)
+    assert len(step_calls(calls)) == steps_before  # nothing reconverted
+    assert len(uploads) == uploads_before + 1
+    assert IngestState.load(standardized_dir).upload_pending is False
+
+    run(skip_upload=False)
+    assert len(uploads) == uploads_before + 1  # a succeeded upload is not repeated
 
 
 def test_conversion_hash_is_the_script_hash_when_the_command_names_nothing_else(tmp_path):
