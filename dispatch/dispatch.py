@@ -15,8 +15,11 @@ registered project (see projects.json):
   4. ``dandi upload`` the standardized directory (first fetching just its
      dandiset.yaml, since ``dandi upload`` needs one already on disk to
      know which dandiset it's uploading to). Skipped entirely when step 3
-     had nothing to do -- upload's no-op check still re-checksums the whole
-     local dandiset every pass (DANDI_CACHE=ignore), which is not free.
+     had nothing to do and no earlier upload is pending -- upload's no-op
+     check still re-checksums the whole local dandiset every pass
+     (DANDI_CACHE=ignore), which is not free. The manifest marks the upload
+     pending before it starts and clears the mark only once it succeeds, so
+     a failed, interrupted, or --skip-upload'ed upload is retried next run.
 
 Every external tool this script drives -- dandi and each lab's own
 conversion script -- runs inside an Apptainer container, not directly on
@@ -210,6 +213,24 @@ def dandi_upload(
     )
 
 
+def upload_pending_output(
+    *,
+    project: Project,
+    state: IngestState,
+    standardized_dir: Path,
+    manifest_name: str,
+    tracking: TrackingDataset,
+    dandi_image: str,
+    dry_run: bool,
+) -> None:
+    """Upload, then clear the manifest's pending mark. A failed upload
+    raises before the mark is cleared, so the next run retries it."""
+    dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=dandi_image, dry_run=dry_run)
+    state.upload_pending = False
+    if not dry_run:
+        state.save(standardized_dir, manifest_name=manifest_name)
+
+
 def convert(
     project: Project,
     *,
@@ -396,13 +417,28 @@ def process_project(
     discovered = list(session_paths_by_id)
     new_sessions = state.new_sessions(discovered)
 
+    upload_kwargs = dict(
+        project=project,
+        state=state,
+        standardized_dir=standardized_dir,
+        manifest_name=manifest_name,
+        tracking=tracking,
+        dandi_image=dandi_image,
+        dry_run=dry_run,
+    )
     if not new_sessions and not script_changed:
-        # No upload either: everything already recorded in the manifest was
-        # uploaded by the run that converted it, and re-checking costs a full
-        # local re-checksum of the dandiset (DANDI_CACHE=ignore) every pass.
-        log.info(
-            "[%s] nothing new (%d known sessions, script unchanged), skipping upload", project.key, len(discovered)
-        )
+        if not state.upload_pending or skip_upload:
+            # No upload either: without a pending mark, the last upload
+            # succeeded, and re-checking costs a full local re-checksum of the
+            # dandiset (DANDI_CACHE=ignore) every pass.
+            log.info(
+                "[%s] nothing new (%d known sessions, script unchanged), skipping upload",
+                project.key,
+                len(discovered),
+            )
+            return
+        log.info("[%s] nothing new to convert, retrying an upload that never succeeded", project.key)
+        upload_pending_output(**upload_kwargs)
         return
 
     if script_changed:
@@ -442,6 +478,10 @@ def process_project(
     if current_script_hash is not None:
         state.script_sha256 = current_script_hash
     state.last_run_at = converted_at
+    # Saved as pending before the upload starts, so a run that dies mid-upload
+    # still leaves the retry recorded.
+    if not skipped >= set(touched):
+        state.upload_pending = True
     if not dry_run:
         state.save(standardized_dir, manifest_name=manifest_name)
     else:
@@ -449,12 +489,13 @@ def process_project(
 
     if skip_upload:
         pass
-    elif skipped >= set(touched):
-        # Only retried sessions still waiting on inputs: nothing new to
-        # upload, and the upload's no-op check re-checksums the whole dandiset.
+    elif not state.upload_pending:
+        # Only retried sessions still waiting on inputs, and no earlier upload
+        # left pending: nothing new to upload, and the upload's no-op check
+        # re-checksums the whole dandiset.
         log.info("[%s] no session converted this run, skipping upload", project.key)
     else:
-        dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=dandi_image, dry_run=dry_run)
+        upload_pending_output(**upload_kwargs)
 
     if unconverted["pending"]:
         # Waiting on inputs, not broken: a warning, so the run still passes.

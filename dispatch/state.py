@@ -15,6 +15,10 @@ or they'd overwrite one another's ``script_sha256`` and
 ``converted_sessions``. ``manifest_filename`` picks the right name for
 either case; dispatch.py is the only caller that knows, from the full
 registry, whether a project's standardized_dandiset_id is shared.
+
+``upload_pending`` is set before every upload and cleared only once it
+succeeds, so the next run retries an upload that failed, was interrupted,
+or was skipped, even when it has nothing new to convert.
 """
 
 from __future__ import annotations
@@ -47,6 +51,7 @@ class IngestState:
     script_sha256: str | None = None
     converted_sessions: dict[str, dict] = field(default_factory=dict)
     last_run_at: str | None = None
+    upload_pending: bool = False
 
     @classmethod
     def load(cls, standardized_dir: Path, *, manifest_name: str = STATE_FILENAME) -> "IngestState":
@@ -58,6 +63,7 @@ class IngestState:
             script_sha256=payload.get("script_sha256"),
             converted_sessions=payload.get("converted_sessions", {}),
             last_run_at=payload.get("last_run_at"),
+            upload_pending=payload.get("upload_pending", False),
         )
 
     def save(self, standardized_dir: Path, *, manifest_name: str = STATE_FILENAME) -> None:
@@ -67,6 +73,7 @@ class IngestState:
             "script_sha256": self.script_sha256,
             "converted_sessions": self.converted_sessions,
             "last_run_at": self.last_run_at,
+            "upload_pending": self.upload_pending,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
