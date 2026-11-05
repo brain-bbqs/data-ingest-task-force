@@ -15,7 +15,7 @@ labs/
                          (see labs/kemere/README.md)
   inman/                Inman lab: restructured .mat walk sessions -> NWB
                          (see labs/inman/README.md)
-  shepherd/             Shepherd lab: multicamera rat feeding behavior -> NWB
+  shepherd/             Shepherd lab: multicamera mouse feeding behavior -> NWB
                          (see labs/shepherd/README.md)
   sanes/                Sanes lab: multi-animal gerbil vocal interactions -> NWB, one
                          codebase for the R34, SSA GT, and BIG_ARENA datasets

@@ -4,7 +4,7 @@ Data ingest codebase for the Shepherd lab, nested under `labs/shepherd/` in the
 [data-ingest-task-force](https://github.com/brain-bbqs/data-ingest-task-force)
 repo (see the [top-level README](../../README.md) for how labs are organized).
 
-It converts multicamera recordings of rat feeding behavior into NWB files. One
+It converts multicamera recordings of mouse feeding behavior into NWB files. One
 session produces two NWB files. A raw one holding the 50 kHz analog (thermistor,
 sound) and digital (TTL camera exposure, trigger) channels, and a processed one
 holding one `ImageSeries` per camera angle plus the DeepLabCut pose estimation.
@@ -37,9 +37,10 @@ repo root.)
 ## The port is verbatim
 
 Unlike `labs/inman/`, `shepherd_to_nwb.py` and `config.yaml` were not
-reformatted or lint-fixed on the way in. They are byte-for-byte the original
-work apart from a provenance note at the top of each file. To keep it that
-way, both are excluded from the formatters and linters in
+reformatted or lint-fixed on the way in. `shepherd_to_nwb.py` is byte-for-byte
+the original work apart from a provenance note at the top. `config.yaml` is
+too, except that its species and institution now carry the real lab values. To
+keep it that way, both are excluded from the formatters and linters in
 `.pre-commit-config.yaml` and from ruff in the root `pyproject.toml`.
 `batch_convert.py` (below) is new code alongside them and gets the normal
 treatment. A follow-up that takes ownership of the ported files should drop
@@ -75,9 +76,9 @@ These are all present in the original and were left alone. They are listed here
 so the follow-up has a starting point, and so nobody treats the current output as
 correct.
 
-- Institution never reaches the NWB file. `config.yaml` spells the key
-  `instiution` and the script reads `instituition`, so the lookup falls through
-  to its default and the field is silently dropped.
+- The script reads the institution from the misspelled key `instituition`.
+  `config.yaml` spells its key the same way so the value reaches the NWB file.
+  Rename both together when the script is taken over.
 - `--out` is used as a *stem*: the script appends `_desc-raw.nwb` and
   `_desc-processed.nwb` to it. The default value already ends in `.nwb`, so the
   default run writes `sub-XYZ_ses-1.nwb_desc-raw.nwb`. Pass `--out` explicitly,
@@ -86,10 +87,12 @@ correct.
   (`batch_convert.py` creates it before calling in.)
 - `--session` is declared `type=int`, while the usage example in
   `code/README.md` passes `--session ABC`.
-- The example `config.yaml` values are placeholders (subject 42, *Homo sapiens*,
-  descriptions saying mice) and `deep-lab-cut.config` points at an
-  `example_data/` path that is not in this repository. Real lab metadata and a
-  real DLC config path are needed before the standardized output is final.
+- Apart from the species (*Mus musculus*) and institution (Northwestern
+  University), the `config.yaml` values are placeholders. That covers the
+  subject age and sex, the experimenter, the start times, and the identifiers.
+  `deep-lab-cut.config` also points at an `example_data/` path that is not in
+  this repository. Real lab metadata and a real DLC config path are needed
+  before the standardized output is final.
 - Analog and digital samples are cast to `int16` while `config.yaml` declares
   their unit as volts, so the stored values are counts, not volts.
 - Every video is fully decoded into memory (`np.array(frames)`) before being
