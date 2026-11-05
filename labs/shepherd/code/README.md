@@ -1,10 +1,11 @@
 <!-- Original conversion notes written by Grace Bezold (gbezold1), ported
-verbatim from the original conversion work. The text below is unchanged. See
-../README.md for how the lab is wired into this repository. -->
+verbatim from the original conversion work. The text below is unchanged, apart
+from correcting the species from rat to mouse. See ../README.md for how the lab
+is wired into this repository. -->
 
 ## Overview
 
-This is the conversion script for converting data from the Shepherd team (R34DA059723). The experiment involves multicamera angles of rat eating behavior. You can find a subset of the data on EMBER-DANDI, ['Mouse food sniff'](https://dandi.emberarchive.org/dandiset/000463/draft).
+This is the conversion script for converting data from the Shepherd team (R34DA059723). The experiment involves multicamera angles of mouse eating behavior. You can find a subset of the data on EMBER-DANDI, ['Mouse food sniff'](https://dandi.emberarchive.org/dandiset/000463/draft).
 
 ### Data Overview
 The data includes analog signals at 50 kHz. Which includes thermister and sound data that is recorded simultaneously with video. It also includes digital signals, the TTL camera exposure (where False means it is on) and binary triggers. Lastly, there are video files and pose estimation data which was extracted using DeepLabCut
