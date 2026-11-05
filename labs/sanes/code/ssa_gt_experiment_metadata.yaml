@@ -1,0 +1,66 @@
+# Transcribed from the supplied metadata_SSA_GT document. Notes retain the
+# source wording where it carries experimental context.
+default:
+  species: Meriones unguiculatus
+  sex: F
+  family: AVR
+  date_of_birth: 2025-04-06
+  metadata_status: PROVISIONAL
+
+ranges:
+  - experiments: [280, 281]
+    description: SSL dropped mic setup with 10 microphones
+    notes: ["Experiment 280 tested the reverb wall", "Experiment 281 was the second run"]
+    animals_used: 2 of 3
+  - experiments: [282, 288]
+    description: SSL with improved lighting using four IR lights
+    notes: ["Two IR lights were shaved for identification from 2025-09-04 onward"]
+    animals_used: pairs, 3 in cage
+  - experiments: [308, 311]
+    description: SSL GT training recordings
+    notes: ["ISO 400 used from this range onward"]
+    animals_used: pairs
+  - experiments: [312, 315]
+    description: SSL using the same bedding as the females to elicit more vocalizations
+    family: ABX
+    sex: M
+    date_of_birth: 2025-06-24
+    animals_used: pairs, 5 in cage
+  - experiments: [316, 316]
+    description: SSL GT training recordings with females
+    animals_used: pairs
+  - experiments: [317, 318]
+    description: SSL using the same bedding as the females to elicit more vocalizations
+    family: ABX
+    sex: M
+    date_of_birth: 2025-06-24
+    animals_used: pairs, 5 in cage
+  - experiments: [319, 319]
+    description: SSL GT training recordings
+    animals_used: pairs, 3 in cage
+    notes: ["No habituation", "Precise camera concatenation and saturation adjustment were run"]
+  - experiments: [320, 321]
+    description: SSL using the same bedding as the females to elicit more vocalizations
+    family: ABX
+    sex: M
+    date_of_birth: 2025-06-24
+    animals_used: pairs, 5 in cage
+  - experiments: [345, 346]
+    description: SSL using bedding from the 14-day experiment to elicit more vocalizations
+    family: ABS
+    sex: M
+    date_of_birth: 2025-05-06
+    animals_used: pairs
+  - experiments: [347, 351]
+    description: SSL using bedding from the 14-day experiment to elicit more vocalizations
+    family: ABX
+    sex: M
+    date_of_birth: 2025-06-24
+    animals_used: pairs, 5 in cage
+  - experiments: [384, 389]
+    description: GT training recordings
+    animal_ids: [35-neck, 118-fluffy]
+    notes: ["Metadata document contains experiment-specific timing and video-concatenation notes for this range"]
+  - experiments: [395, 395]
+    description: GT training recording
+    animal_ids: [35-neck, 118-fluffy]

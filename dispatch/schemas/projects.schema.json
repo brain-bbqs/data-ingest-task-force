@@ -39,7 +39,7 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^[^/]+$",
-          "description": "Optional project name, for a lab contributing more than one data collection (e.g. 'in-lab'). Must match the labs/<lab>/<project>/ directory. When set, the project is keyed '<lab>/<project>' in sessions.json and --only. Omit for a lab with a single project."
+          "description": "Optional project name, for a lab contributing more than one data collection (e.g. 'in-lab'). Must match the labs/<lab>/<project>/ directory, unless one lab codebase converts several datasets, in which case it names the dataset. When set, the project is keyed '<lab>/<project>' in sessions.json and --only. Omit for a lab with a single project."
         },
         "incoming_dandiset_id": {
           "$ref": "#/$defs/sixDigitDandisetId",
@@ -72,7 +72,7 @@
           "type": "string",
           "enum": ["require", "skip", "ignore"],
           "default": "require",
-          "description": "Optional. Passed to 'dandi upload --validation' when it is not the default 'require'. 'require' refuses to upload output that fails DANDI validation. 'ignore' still validates and logs the errors, then uploads anyway. 'skip' does not validate at all. Set this only for a project knowingly publishing output that does not validate yet, and say why in ../README.md."
+          "description": "Optional. Passed to 'dandi upload --validation' when it is not the default 'require'. 'require' refuses to upload each file that fails DANDI validation, but still uploads the files that pass, including external videos of a refused NWB file. 'ignore' still validates and logs the errors, then uploads anyway. 'skip' does not validate at all. Set this only for a project knowingly publishing output that does not validate yet, and say why in ../README.md."
         },
         "metadata": {
           "type": "object",

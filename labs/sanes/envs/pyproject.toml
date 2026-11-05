@@ -1,85 +1,50 @@
-# Loose, declarative environment for the Sanes gerbil vocal-interaction to NWB
-# conversion pipeline.
+# Loose, declarative environment for the Sanes conversion pipeline, shared by every Sanes dataset.
 #
-# This file is the single source of truth for the Python environment. It is
-# intentionally NOT pinned: containers/sanes.Dockerfile resolves it fresh at
-# build time and the resulting image (by digest) is the reproducibility lock,
-# so there is no lockfile in the repository to keep in sync.
+# This file is the single source of truth for the Python environment. It is intentionally NOT pinned:
+# containers/sanes.Dockerfile resolves it fresh at build time and the resulting image (by digest) is the
+# reproducibility lock, so there is no lockfile in the repository to keep in sync. Only bounds that a
+# release demonstrably needs are set, each with its reason.
 #
-# The original conda environments the v1 notebook was written in are kept
-# verbatim under envs/original/ as provenance. They are a record, not an input
-# to any build. The v2 lab-supplied scripts this environment now targets did
-# not come with an environment export of their own.
+# The conda environments the original v1 notebook ran in are kept verbatim under envs/original/ as
+# provenance. They are a record, not an input to any build.
 #
-# The converter also shells out to `ffprobe` to read video duration and frame
-# count, and to `ffmpeg` (via ffmpeg-python) to concatenate chunk videos. Both
-# are external FFmpeg dependencies, a *system* package installed in
+# The converter also shells out to FFmpeg (ffprobe and ffmpeg), a system package installed in
 # containers/sanes.Dockerfile rather than a Python one.
 
 [project]
 name = "sanes-r34da059513-ingest"
 version = "0.1.0"
-description = "Convert Sanes-lab multi-animal gerbil vocal-interaction recordings into NWB files."
+description = "Convert Sanes-lab multi-animal gerbil recordings into NWB files."
 requires-python = ">=3.10"
 dependencies = [
   "numpy",
-  "pandas",
   "scipy",
   "natsort",
-  "python-dateutil",
   "PyYAML",
   "tqdm",
-  "hdmf",
-  # pynwb itself no longer carries an upper bound: v2 reads SLEAP pose data
-  # through sleap_io directly (see below) rather than through neuroconv's
-  # SLEAPInterface, so the ImageSeries/num_samples incompatibility that bound
-  # v1 to pynwb<3.2 no longer applies. Verified against pynwb 4.1.
-  "pynwb",
-  # sleap-io keeps an upper AND a lower bound, for a narrower reason than v1's:
-  # this pipeline needs sleap_io.model.matching.PATH_VIDEO_MATCHER (added in
-  # 0.5.1) to merge chunk .slp files by exact video path, and
-  # sleap_io.io.nwb.write_nwb's nwb_file_kwargs= signature (moved to
-  # sleap_io.io.nwb_predictions and re-exported through 0.5.7, then dropped
-  # in favor of a differently-shaped save_nwb() from 0.6 onward, where
-  # sleap_io.io.nwb also stops being reachable as a bare attribute without an
-  # explicit submodule import, because of sleap-io's lazy loader). No released
-  # version has both PATH_VIDEO_MATCHER and the old write_nwb() outside
-  # 0.5.1-0.5.7, so this pin is load-bearing, not a leftover from the v1 port.
-  "sleap-io>=0.5.1,<0.5.8",
-  # get_default_backend_configuration / configure_and_write_nwbfile for the
-  # (computed but, as ported, unapplied -- see ../README.md) gzip backend
-  # compression in sanes_multisubject_to_nwb.py. v2 no longer uses neuroconv's
-  # SLEAPInterface, so the sleap extra v1 needed is dropped and the upper bound
-  # that extra's SLEAPInterface required goes with it.
-  "neuroconv",
-  # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr
-  # 0.14.0 (2026-09-22) moved to zarr>=3.4, so an unbounded resolve installs
-  # zarr 3 and `import neuroconv` fails. Drop this bound once a neuroconv
-  # release imports under zarr 3.
-  "zarr<3",
-  # ndx-sound's AcousticWaveformSeries for the multichannel audio, replacing
-  # v1's plain TimeSeries.
-  "ndx-sound",
-  # ndx-multisubjects' NdxMultiSubjectsNWBFile/SubjectsTable for the
-  # multi-subject session layout, replacing v1's single Subject plus a
-  # DynamicTable workaround.
+  "h5py",
+  # pynwb.event.EventsTable, which stores the vocalization events, first shipped in pynwb 4.0.
+  "pynwb>=4",
   "ndx-multisubjects",
-  # Chunk-video concatenation into one combined external video is now part of
-  # the automated path (concat_sanes_data.py's concat_video_files), not a
-  # manual one-off cell, so this is a real runtime dependency rather than one
-  # kept only so a notebook cell still runs.
-  "ffmpeg-python",
+  # ndx-sound 0.2.2 failed to load its namespace under current HDMF ("Cannot extend float64 to float").
+  "ndx-sound>=0.2.3",
+  "ndx-pose",
+  # Only reads .slp files. Pose is written with ndx-pose directly.
+  "sleap-io",
+  "neuroconv",
+  # neuroconv 0.10.2 still imports zarr's 2.x codec registry, while hdmf-zarr 0.14.0 moved to zarr>=3.4,
+  # so an unbounded resolve installs zarr 3 and `import neuroconv` fails. Drop this bound once a
+  # neuroconv release imports under zarr 3.
+  "zarr<3",
 ]
 
 [project.optional-dependencies]
-# The converter's own dependencies double as the test runtime. The test extra
-# only adds the runner itself.
+# The converter's own dependencies double as the test runtime. The test extra only adds the runner.
 test = [
   "pytest>=7",
 ]
 
-# The package carries no importable modules; installing it only realises the
-# dependency sets above (the converter is run as a script, not imported).
+# Installing this only realizes the dependency set. The converter is run as a script, not imported.
 [tool.setuptools]
 py-modules = []
 

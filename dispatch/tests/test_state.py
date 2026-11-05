@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -30,6 +31,18 @@ def test_save_then_load_round_trips(tmp_path):
     assert reloaded.script_sha256 == "deadbeef"
     assert reloaded.converted_sessions.keys() == {"ses-1"}
     assert reloaded.last_run_at == "2026-08-06T00:00:00+00:00"
+
+
+@pytest.mark.parametrize("upload_pending", [False, True])
+def test_upload_pending_round_trips(tmp_path, upload_pending):
+    IngestState(upload_pending=upload_pending).save(tmp_path)
+    assert IngestState.load(tmp_path).upload_pending is upload_pending
+
+
+def test_manifest_written_before_upload_pending_existed_loads_as_not_pending(tmp_path):
+    payload = {"script_sha256": "deadbeef", "converted_sessions": {}, "last_run_at": None}
+    (tmp_path / STATE_FILENAME).write_text(json.dumps(payload))
+    assert IngestState.load(tmp_path).upload_pending is False
 
 
 def test_new_sessions_excludes_already_converted():
