@@ -1,11 +1,13 @@
-# Original config developed by Grace Bezold (gbezold1). Ported verbatim from the
-# original conversion work. The values below are the original example values,
-# not the real Shepherd metadata, and must be replaced before the standardized
-# output is treated as final.
+# Original config developed by Grace Bezold (gbezold1), ported from the original
+# conversion work. The species and institution are the real Shepherd lab values
+# (NIH R34DA059723, Northwestern University, mice). Every other value is still
+# an original example value, not real Shepherd metadata, and must be replaced
+# before the standardized output is treated as final.
 
 session:
   experimenter: ""
-  instiution: ""
+  # Spelled to match the key that the verbatim-ported shepherd_to_nwb.py reads.
+  instituition: "Northwestern University"
 
 nwb_raw:
   description: "Oromanual food handling in mice, raw data"
@@ -19,7 +21,7 @@ nwb_processed:
 
 subject:
   id: 42
-  species: "Homo sapiens"
+  species: "Mus musculus"
   age: "32"
   sex: "M"
 
