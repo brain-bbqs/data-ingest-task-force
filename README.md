@@ -18,7 +18,8 @@ labs/
   shepherd/             Shepherd lab: multicamera mouse feeding behavior -> NWB
                          (see labs/shepherd/README.md)
   sanes/                Sanes lab: multi-animal gerbil vocal interactions -> NWB, one
-                         codebase for the R34, SSA GT, and BIG_ARENA datasets
+                         codebase for the R34, SSA GT, and BIG_ARENA datasets, including
+                         manifest-synchronized microphones and multiple cameras
                          (see labs/sanes/README.md)
   suthana/              Suthana lab, one directory per project
     in-lab/               in-lab navigation: iEEG + scalp EEG + motion capture -> NWB

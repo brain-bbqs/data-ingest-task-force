@@ -1,0 +1,57 @@
+{
+  "audio_rate": 1000.0,
+  "audio_sha256": "9eee1b157835d658ed38c9ee0714830c0484fa58419aeaa53ba2a2b0842fb650",
+  "audio_shape": [
+    6000,
+    8
+  ],
+  "identifier": "sanes-big-arena-2024-12-experiment_109",
+  "segments": [
+    "000",
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "session_id": "experiment109",
+  "session_start_time": "2024-12-10T16:27:56-05:00",
+  "subjects_table": false,
+  "videos": {
+    "center": {
+      "external_file": [
+        "sub-multi_ses-experiment109_recording-center_video.mp4"
+      ],
+      "frames": 24,
+      "rate": 4.0
+    },
+    "gily_center": {
+      "external_file": [
+        "sub-multi_ses-experiment109_recording-gilycenter_video.mp4"
+      ],
+      "frames": 30,
+      "rate": 5.0
+    },
+    "gily_nest": {
+      "external_file": [
+        "sub-multi_ses-experiment109_recording-gilynest_video.mp4"
+      ],
+      "frames": 36,
+      "rate": 6.0
+    },
+    "gily_underground": {
+      "external_file": [
+        "sub-multi_ses-experiment109_recording-gilyunderground_video.mp4"
+      ],
+      "frames": 48,
+      "rate": 8.0
+    },
+    "underground": {
+      "external_file": [
+        "sub-multi_ses-experiment109_recording-underground_video.mp4"
+      ],
+      "frames": 60,
+      "rate": 10.0
+    }
+  }
+}

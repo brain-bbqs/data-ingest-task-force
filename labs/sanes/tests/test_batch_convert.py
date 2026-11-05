@@ -91,3 +91,30 @@ def test_cli_help(flag):
         [sys.executable, str(CODE / "batch_convert.py"), "--help"], capture_output=True, text=True, check=True
     )
     assert flag in completed.stdout
+
+
+@pytest.mark.parametrize("nesting", ["", "collection"])
+def test_discovers_manifest_sessions(tmp_path, nesting):
+    session = tmp_path / nesting / "experiment_109"
+    (session / "concatenated_data_cam_mic_sync").mkdir(parents=True)
+    sessions, ignored = batch_convert.discover_sessions(tmp_path)
+    assert sessions == [session]
+    assert ignored == []
+
+
+def test_unsupported_experiment_is_a_failure(tmp_path):
+    (tmp_path / "experiment_109" / "unknown_layout").mkdir(parents=True)
+    actual = batch_convert.convert_batch(
+        incoming_dir=tmp_path, standardized_dir=tmp_path / "out", config_path=CODE / "config_big_arena_2024_12.yaml"
+    )
+    assert actual == 1
+
+
+def test_colliding_session_labels_are_rejected(tmp_path, recorded_calls):
+    for name in ("experiment_109", "experiment109"):
+        _make_session(tmp_path / name)
+    actual = batch_convert.convert_batch(
+        incoming_dir=tmp_path, standardized_dir=tmp_path / "out", config_path=CODE / "config_big_arena_2024_12.yaml"
+    )
+    assert actual == 1
+    assert recorded_calls == []

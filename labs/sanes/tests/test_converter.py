@@ -4,14 +4,21 @@ Test functions take their arguments positionally by pytest's injection rules, so
 keyword-only and positional-only conventions do not apply to them.
 """
 
+import csv
+import hashlib
+import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 import h5py
+import hdmf.validate
 import numpy
 import pynwb
 import pytest
+import scipy.io.wavfile
+import yaml
 
 TESTS = Path(__file__).resolve().parent
 CODE = TESTS.parent / "code"
@@ -265,3 +272,212 @@ def test_sanitize_label(value, expected):
 def test_ffmpeg_on_path():
     actual = [shutil.which(tool) is not None for tool in ("ffmpeg", "ffprobe")]
     assert actual == [True, True]
+
+
+@pytest.fixture(scope="module")
+def sync_output(tmp_path_factory):
+    output = tmp_path_factory.mktemp("sync")
+    path = converter.build_nwb(
+        session_dir=TESTS / "example_raw" / "big_arena" / "experiment_109",
+        output_dir=output,
+        config_path=CODE / "config_big_arena_2024_12.yaml",
+    )
+    return path
+
+
+@pytest.mark.ai_generated
+def test_manifest_golden_structure_and_media(sync_output):
+    expected = json.loads((TESTS / "expected_output" / "big_arena.json").read_text())
+    with pynwb.NWBHDF5IO(sync_output, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.identifier == expected["identifier"]
+        assert nwbfile.session_id == expected["session_id"]
+        assert nwbfile.session_start_time.isoformat() == expected["session_start_time"]
+        audio = nwbfile.acquisition["channel_00"]
+        matrix = numpy.column_stack([nwbfile.acquisition[f"channel_{channel:02d}"].data[:] for channel in range(8)])
+        assert list(matrix.shape) == expected["audio_shape"]
+        assert hashlib.sha256(matrix.tobytes()).hexdigest() == expected["audio_sha256"]
+        assert audio.rate == expected["audio_rate"]
+        assert audio.unit == "n.a."
+        assert matrix[1000, :].tolist() == [2000 + channel * 100 for channel in range(8)]
+        assert (nwbfile.subjects_table is not None) == expected["subjects_table"]
+        assert "PROVISIONAL" in nwbfile.notes
+        assert len(nwbfile.processing) == 0
+        segments = nwbfile.intervals["source_segments"]
+        assert list(segments["segment_id"][:]) == expected["segments"]
+        assert segments["start_time"][:].tolist() == list(range(6))
+        assert segments["sample_start"][:].tolist() == list(range(0, 6000, 1000))
+        assert list(segments["audio_files"][0]) == [f"channel_{index:02d}_file_000.wav" for index in range(8)]
+        assert set(nwbfile.scratch) == {"source_sync_csv", "source_readme"}
+        for camera, wanted in expected["videos"].items():
+            series = nwbfile.acquisition[f"video_{camera}"]
+            assert list(series.external_file[:]) == wanted["external_file"]
+            assert series.num_samples == wanted["frames"]
+            assert series.rate == wanted["rate"]
+            path = sync_output.parent / series.external_file[0]
+            measured = converter._probe_sync_video(path)
+            assert len(measured["timestamps"]) == wanted["frames"]
+            assert measured["timestamps"].tolist() == pytest.approx(
+                numpy.arange(wanted["frames"]) / wanted["rate"], abs=1e-6
+            )
+    files = sorted(path.name for path in sync_output.parent.iterdir())
+    assert len(files) == 6
+    assert all(path.endswith((".nwb", ".mp4")) for path in files)
+    assert pynwb.validate(path=sync_output, namespace="ndx-multisubjects") == []
+    with pynwb.NWBHDF5IO(sync_output, "r") as io:
+        builder = io.read_builder()
+        validator = hdmf.validate.ValidatorMap(io.manager.namespace_catalog.get_namespace("ndx-sound"))
+        for channel in range(8):
+            assert validator.validate(builder.groups["acquisition"].groups[f"channel_{channel:02d}"]) == []
+    with h5py.File(sync_output, "r") as file:
+        assert file["acquisition/channel_00/data"].compression == "gzip"
+
+
+@pytest.fixture
+def synced_session(tmp_path):
+    incoming = tmp_path / "incoming"
+    shutil.copytree(TESTS / "example_raw" / "big_arena", incoming)
+    return incoming / "experiment_109"
+
+
+def _rewrite_manifest(*, folder, change):
+    path = folder / "sync.csv"
+    with path.open(newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    change(rows)
+    with path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["video", "audio", "timestamp"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "case", ["missing", "duplicate", "unsafe", "malformed", "gap", "readme", "audio", "video", "ambiguous"]
+)
+def test_manifest_rejects_invalid_sources(synced_session, tmp_path, case):
+    folder = synced_session / converter.SYNC_FOLDER
+    if case == "missing":
+        (folder / "channel_00_file_000.wav").unlink()
+    elif case == "duplicate":
+        _rewrite_manifest(folder=folder, change=lambda rows: rows[0].update(audio=repr(["channel_00_file_000"] * 8)))
+    elif case == "unsafe":
+        _rewrite_manifest(folder=folder, change=lambda rows: rows[0].update(audio=repr(["../channel_00_file_000"] * 8)))
+    elif case == "malformed":
+        _rewrite_manifest(folder=folder, change=lambda rows: rows[0].update(audio="__import__('os').getcwd()"))
+    elif case == "gap":
+        _rewrite_manifest(
+            folder=folder,
+            change=lambda rows: rows[0].update(timestamp=repr(["2024-12-10 16:27:54", "2024-12-10 16:27:55"])),
+        )
+    elif case == "readme":
+        path = folder / "README.txt"
+        path.write_text(path.read_text().replace("16:27:56", "16:27:55"))
+    elif case == "audio":
+        path = folder / "channel_00_file_000.wav"
+        rate, data = scipy.io.wavfile.read(path)
+        scipy.io.wavfile.write(path, rate, data[:-1])
+    elif case == "video":
+        path = folder / "video_center_000.mp4"
+        shortened = tmp_path / "short.mp4"
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(path), "-frames:v", "2", "-c:v", "copy", str(shortened)],
+            check=True,
+        )
+        shortened.replace(path)
+    elif case == "ambiguous":
+        (synced_session / "idx_000").mkdir()
+    with pytest.raises(ValueError):
+        converter.build_nwb(
+            session_dir=synced_session,
+            output_dir=tmp_path / "output",
+            config_path=CODE / "config_big_arena_2024_12.yaml",
+        )
+    assert list((tmp_path / "output").rglob("*.nwb")) == []
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize("metadata", ["missing", "roster", "birth", "collision"])
+def test_manifest_roster_is_independent_of_pose(synced_session, tmp_path, metadata, capsys):
+    cfg = converter.load_cfg(CODE / "config_big_arena_2024_12.yaml")
+    if metadata != "missing":
+        animal = {"id": "animal-1", "species": "Meriones unguiculatus", "sex": "F", "age": "P90D"}
+        if metadata == "birth":
+            animal.pop("age")
+            animal["date_of_birth"] = "2024-09-01T00:00:00-04:00"
+        cfg["session_subjects"] = {synced_session.name: [animal]}
+        if metadata == "collision":
+            cfg["session_subjects"][synced_session.name].append({**animal, "id": "animal1"})
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump(cfg))
+    if metadata == "collision":
+        with pytest.raises(ValueError, match="colliding"):
+            converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+        return
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        nwbfile = io.read()
+        if metadata == "missing":
+            assert nwbfile.subjects_table is None
+            assert "no animal metadata" in capsys.readouterr().out
+        else:
+            table = nwbfile.subjects_table
+            assert list(table["subject_id"][:]) == ["animal1"]
+            assert "individual_subj_link" not in table.colnames
+            assert table["subject_description"][0] == "Original lab animal ID: animal-1"
+    assert pynwb.validate(path=path, namespace="ndx-multisubjects") == []
+
+
+def _decoded_frames(path, /):
+    result = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout
+
+
+@pytest.mark.ai_generated
+def test_video_content_preserves_camera_and_segment_order(sync_output):
+    folder = TESTS / "example_raw" / "big_arena" / "experiment_109" / converter.SYNC_FOLDER
+    camera_hashes = set()
+    for camera in synthetic.SYNC_CAMERAS:
+        original = b"".join(_decoded_frames(folder / f"video_{camera}_{index:03d}.mp4") for index in range(6))
+        output = (
+            sync_output.parent / f"sub-multi_ses-experiment109_recording-{converter.sanitize_label(camera)}_video.mp4"
+        )
+        assert _decoded_frames(output) == original
+        camera_hashes.add(hashlib.sha256(original).hexdigest())
+    assert len(camera_hashes) == 5
+
+
+@pytest.mark.ai_generated
+def test_irregular_video_uses_frame_timestamps(synced_session, tmp_path):
+    source = synced_session / converter.SYNC_FOLDER / "video_center_000.mp4"
+    filtered = tmp_path / "filtered.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            str(source),
+            "-vf",
+            "select=not(eq(n\\,2))",
+            "-fps_mode",
+            "vfr",
+            "-c:v",
+            "mpeg4",
+            str(filtered),
+        ],
+        check=True,
+    )
+    filtered.replace(source)
+    path = converter.build_nwb(
+        session_dir=synced_session, output_dir=tmp_path / "out", config_path=CODE / "config_big_arena_2024_12.yaml"
+    )
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        series = io.read().acquisition["video_center"]
+        assert series.rate is None
+        assert series.timestamps[:5].tolist() == pytest.approx([0, 0.25, 0.75, 1, 1.25])

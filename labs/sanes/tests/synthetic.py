@@ -6,6 +6,7 @@ be on PATH to write the videos.
 """
 
 import csv
+import datetime
 import subprocess
 
 import numpy
@@ -110,4 +111,60 @@ def write_session(
                     {"name": "incomplete", "start_seconds": "", "stop_seconds": 0.2, "channel": 8},
                 ],
             )
+    return session
+
+
+SYNC_CAMERAS = ("center", "gily_center", "gily_nest", "gily_underground", "underground")
+SYNC_RATES = (4, 5, 6, 8, 10)
+
+
+def write_sync_session(*, root, segments=6):
+    """Synthetic one-second segments, eight distinct microphones and five colored camera views."""
+    session = root / "experiment_109"
+    folder = session / "concatenated_data_cam_mic_sync"
+    folder.mkdir(parents=True)
+    (folder / "temp").mkdir()
+    (folder / "temp" / "excluded.txt").write_text("Synthetic temporary artifact. Not conversion input.\n")
+    records = []
+    descriptions = ["Synthetic fixture, not lab data. Six one-second segments.\n"]
+    colors = ("red", "green", "blue", "yellow", "magenta")
+    for segment in range(segments):
+        audio = []
+        videos = []
+        for channel in range(8):
+            name = f"channel_{channel:02d}_file_{segment:03d}"
+            audio.append(name)
+            samples = numpy.arange(1000, dtype=numpy.int16) + segment * 2000 + channel * 100
+            scipy.io.wavfile.write(folder / f"{name}.wav", 1000, samples)
+        for camera, rate, color in zip(SYNC_CAMERAS, SYNC_RATES, colors):
+            name = f"video_{camera}_{segment:03d}"
+            videos.append(name)
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    f"color=c={color}:size=32x32:rate={rate}",
+                    "-frames:v",
+                    str(rate),
+                    "-vf",
+                    f"drawbox=x={segment * 3}:y=0:w=3:h=3:color=white:t=fill",
+                    "-c:v",
+                    "mpeg4",
+                    "-pix_fmt",
+                    "yuv420p",
+                    str(folder / f"{name}.mp4"),
+                ],
+                check=True,
+            )
+        start = datetime.datetime(2024, 12, 10, 16, 27, 56) + datetime.timedelta(seconds=segment)
+        timestamps = [(start + datetime.timedelta(seconds=offset)).isoformat(sep=" ") for offset in (0, 1)]
+        records.append({"video": repr(videos), "audio": repr(audio), "timestamp": repr(timestamps)})
+        descriptions.append(f"[{', '.join(videos)}] - [{', '.join(audio)}] - [{', '.join(timestamps)}]\n")
+    _write_rows(path=folder / "sync.csv", fieldnames=["video", "audio", "timestamp"], rows=records)
+    (folder / "README.txt").write_text("".join(descriptions))
     return session
