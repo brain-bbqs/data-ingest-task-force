@@ -299,12 +299,13 @@ def test_manifest_golden_summary(sync_output):
 def test_manifest_structure_and_media(sync_output):
     with pynwb.NWBHDF5IO(sync_output, "r") as io:
         nwbfile = io.read()
-        matrix = numpy.column_stack([nwbfile.acquisition[f"channel_{channel:02d}"].data[:] for channel in range(8)])
-        assert matrix[1000, :].tolist() == [2000 + channel * 100 for channel in range(8)]
-        for channel in range(8):
-            audio = nwbfile.acquisition[f"channel_{channel:02d}"]
-            actual = (audio.neurodata_type, audio.unit, audio.starting_time, audio.rate)
-            assert actual == ("AcousticWaveformSeries", "n.a.", 0.0, synthetic.AUDIO_RATE)
+        assert [name for name in nwbfile.acquisition if not name.startswith("video_")] == [
+            "Multi-channel Acoustic Data"
+        ]
+        audio = nwbfile.acquisition["Multi-channel Acoustic Data"]
+        actual = (audio.neurodata_type, audio.unit, audio.starting_time, audio.rate, audio.data.shape)
+        assert actual == ("AcousticWaveformSeries", "n.a.", 0.0, synthetic.AUDIO_RATE, (6000, 8))
+        assert audio.data[1000, :].tolist() == [2000 + channel * 100 for channel in range(8)]
         assert "PROVISIONAL" in nwbfile.notes
         assert len(nwbfile.processing) == 0
         expected_devices = [f"camera_{camera}" for camera in synthetic.SYNC_CAMERAS]
@@ -325,10 +326,9 @@ def test_manifest_structure_and_media(sync_output):
     with pynwb.NWBHDF5IO(sync_output, "r") as io:
         builder = io.read_builder()
         validator = hdmf.validate.ValidatorMap(io.manager.namespace_catalog.get_namespace("ndx-sound"))
-        for channel in range(8):
-            assert validator.validate(builder.groups["acquisition"].groups[f"channel_{channel:02d}"]) == []
+        assert validator.validate(builder.groups["acquisition"].groups["Multi-channel Acoustic Data"]) == []
     with h5py.File(sync_output, "r") as file:
-        assert file["acquisition/channel_00/data"].compression == "gzip"
+        assert file["acquisition/Multi-channel Acoustic Data/data"].compression == "gzip"
 
 
 @pytest.mark.ai_generated

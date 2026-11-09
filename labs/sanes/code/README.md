@@ -74,7 +74,7 @@ files and `temp/` are reported and excluded. The input data is never modified.
 
 | Source | Destination in the one session NWB, or external media |
 | --- | --- |
-| `channel_00_file_*.wav` through `channel_07_file_*.wav` | `acquisition/channel_00` through `acquisition/channel_07`, eight mono `AcousticWaveformSeries`, concatenated in manifest order |
+| `channel_00_file_*.wav` through `channel_07_file_*.wav` | Columns 0 to 7 of one `AcousticWaveformSeries` at `acquisition/Multi-channel Acoustic Data`, concatenated in manifest order |
 | `video_center_*.mp4` | `acquisition/video_center` referencing `sub-multi_ses-experiment109_recording-center_video.mp4` |
 | `video_gily_center_*.mp4` | `acquisition/video_gily_center` referencing `sub-multi_ses-experiment109_recording-gilycenter_video.mp4` |
 | `video_gily_nest_*.mp4` | `acquisition/video_gily_nest` referencing `sub-multi_ses-experiment109_recording-gilynest_video.mp4` |
@@ -97,7 +97,7 @@ files and `temp/` are reported and excluded. The input data is never modified.
         microphone_00 ... microphone_07      PROVISIONAL hardware
         camera_center ... camera_underground PROVISIONAL hardware, linked from each ImageSeries
     acquisition/
-      channel_00 ... channel_07              AcousticWaveformSeries, measured rate, start 0
+      Multi-channel Acoustic Data            AcousticWaveformSeries, (N, 8), measured rate, start 0
       video_center                           ImageSeries, standardized relative MP4 path
       video_gily_center
       video_gily_nest
@@ -112,9 +112,10 @@ files and `temp/` are reported and excluded. The input data is never modified.
   sub-multi_ses-experiment109_recording-underground_video.mp4
 ```
 
-The installed `ndx-sound` schema restricts each series to mono or stereo, so eight mono series replace the
-plan's one eight-column series (Q17 in `../OPEN_QUESTIONS.md`). Its fixed unit is `n.a.`. Descriptions
-explicitly preserve the meaning as uncalibrated digital samples. No pressure or voltage conversion is claimed.
+The eight microphones are the columns of one series, as in the other Sanes datasets. That needs `ndx-sound`
+0.3.0 or newer, since 0.2.3 allowed only one or two channels per series. Its fixed unit is `n.a.`. The
+description explicitly preserves the meaning as uncalibrated digital samples. No pressure or voltage
+conversion is claimed.
 NWB has no funding field, so the award U01DA063581 belongs in the `000629` dandiset metadata, not the NWB file.
 
 ### Timing
@@ -169,7 +170,7 @@ continuous-stream mapping and independent presentation-time checks.
 ### Validation and upload readiness
 
 The integration suite validates the multisubject root explicitly with
-`pynwb.validate(path=path, namespace="ndx-multisubjects")` and validates every mono waveform against the
+`pynwb.validate(path=path, namespace="ndx-multisubjects")` and validates the waveform series against the
 `ndx-sound` namespace through HDMF. It round-trips the actual subject table without per-animal links and
 checks that all external files exist and decoded video frames match the originals in order.
 

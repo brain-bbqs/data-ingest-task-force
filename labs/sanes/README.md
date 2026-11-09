@@ -49,7 +49,8 @@ labs/sanes/
     nwb_summary.py                      builds the summary, shared by the test and the generator
     generate_fixtures.py                regenerates example_raw/ and expected_output/
     test_converter.py, test_batch_convert.py
-  prompts/                              AI agent prompts given for this conversion
+  prompts/                              AI agent prompts given for this conversion, and the approved
+                                        BIG_ARENA_2024_12 conversion plan
   OPEN_QUESTIONS.md                     what the conversion still depends on
 ```
 
@@ -89,15 +90,15 @@ clock when a session has no audio. Pose `frame_idx` values are placed on the con
 
 ## BIG_ARENA_2024_12
 
-The requester approved the conversion plan in Request 4 of the [prompt record](prompts/big-arena-2024-12.md),
-which also holds the request and the metadata answers. The supplied display name was `Big_Arean_2024_12`.
-The existing machine key stays `sanes/big-arena-2024-12`. The plan's mapping and output outline now live in
-[the code README](code/README.md#manifest-backed-audiovideo). Its open items are in
-[`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md), including the changes since approval that await the requester (Q17).
+The requester approved the [conversion plan](prompts/big-arena-2024-12-plan.md) in Request 4 of the
+[prompt record](prompts/big-arena-2024-12.md), which also holds the request, the metadata answers, and the
+reviewer's decisions on the changes since approval. The supplied display name was `Big_Arean_2024_12`. The
+existing machine key stays `sanes/big-arena-2024-12`. The source mapping and output outline are also in
+[the code README](code/README.md#manifest-backed-audiovideo).
 
 One experiment produces one `NdxMultiSubjectsNWBFile` plus five externally referenced, concatenated MP4s.
-All eight microphones are preserved as separate mono `ndx-sound` series because the current extension
-schema permits only mono or stereo series. No per-animal NWBs, pose, or vocalizations are synthesized.
+The eight mono microphone WAVs are stacked as the columns of one `ndx-sound` series, as in the other Sanes
+datasets. No per-animal NWBs, pose, or vocalizations are synthesized.
 `sync.csv` supplies the timestamp intervals and media associations. `README.txt` is cross-checked and both
 texts are preserved inside the NWB.
 
@@ -169,7 +170,7 @@ file it finds. The converter writes the `Subject` into each track file when it c
 ## The environment
 
 The Python environment is declared in `envs/pyproject.toml`, unpinned apart from the bounds it explains
-(`pynwb>=4` for `EventsTable`, `ndx-sound>=0.2.3`, `zarr<3` for NeuroConv). `containers/sanes.Dockerfile`
+(`pynwb>=4` for `EventsTable`, `ndx-sound>=0.3.0` for multi-channel series, `zarr<3` for NeuroConv). `containers/sanes.Dockerfile`
 resolves it at build time and adds FFmpeg, whose `ffprobe` and `ffmpeg` the converter shells out to. The
 image digest is the reproducibility lock. The interpreter version (3.13) is pinned by the Dockerfile base
 image and the CI job. `envs/original/` holds the v1 notebook's conda exports as a record, not a build input.

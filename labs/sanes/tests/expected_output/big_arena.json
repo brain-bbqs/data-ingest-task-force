@@ -1,7 +1,5 @@
 {
-  "audio_neurodata_types": [
-    "AcousticWaveformSeries"
-  ],
+  "audio_neurodata_type": "AcousticWaveformSeries",
   "audio_rate": 1000.0,
   "audio_sha256": "9eee1b157835d658ed38c9ee0714830c0484fa58419aeaa53ba2a2b0842fb650",
   "audio_shape": [

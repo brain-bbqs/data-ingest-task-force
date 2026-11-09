@@ -6,25 +6,23 @@ what the file holds rather than the file itself.
 
 import hashlib
 
-import numpy
 import pynwb
 
 
 def summarize(path, /):
     with pynwb.NWBHDF5IO(path, "r") as io:
         nwbfile = io.read()
-        channels = sorted(name for name in nwbfile.acquisition if name.startswith("channel_"))
-        audio = [nwbfile.acquisition[name] for name in channels]
-        matrix = numpy.column_stack([series.data[:] for series in audio])
+        audio = nwbfile.acquisition["Multi-channel Acoustic Data"]
+        matrix = audio.data[:]
         cameras = sorted(name.removeprefix("video_") for name in nwbfile.acquisition if name.startswith("video_"))
         summary = {
             "identifier": nwbfile.identifier,
             "session_id": nwbfile.session_id,
             "session_start_time": nwbfile.session_start_time.isoformat(),
-            "audio_neurodata_types": sorted({series.neurodata_type for series in audio}),
+            "audio_neurodata_type": audio.neurodata_type,
             "audio_shape": list(matrix.shape),
             "audio_sha256": hashlib.sha256(matrix.tobytes()).hexdigest(),
-            "audio_rate": audio[0].rate,
+            "audio_rate": audio.rate,
             "segments": list(nwbfile.intervals["source_segments"]["segment_id"][:]),
             "subjects_table": nwbfile.subjects_table is not None,
             "videos": {},

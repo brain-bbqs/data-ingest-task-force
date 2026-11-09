@@ -942,21 +942,20 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
                 audio_data[cursor : cursor + layout["samples"], channel] = samples
             cursor += layout["samples"]
         audio_data.flush()
-        for channel in range(8):
-            nwbfile.add_acquisition(
-                ndx_sound.AcousticWaveformSeries(
-                    name=f"channel_{channel:02d}",
-                    data=neuroconv.tools.hdmf.SliceableDataChunkIterator(data=audio_data[:, channel], buffer_gb=0.01),
-                    rate=float(reference[0]),
-                    starting_time=0.0,
-                    unit="n.a.",
-                    description=(
-                        f"{cfg['audio']['description']}. Source microphone channel_{channel:02d}, device "
-                        f"microphone_{channel:02d}. Uncalibrated digital samples, with no pressure or voltage "
-                        "conversion applied."
-                    ),
-                )
+        nwbfile.add_acquisition(
+            ndx_sound.AcousticWaveformSeries(
+                name="Multi-channel Acoustic Data",
+                data=neuroconv.tools.hdmf.SliceableDataChunkIterator(data=audio_data, buffer_gb=0.01),
+                rate=float(reference[0]),
+                starting_time=0.0,
+                unit="n.a.",
+                description=(
+                    f"{cfg['audio']['description']}. Columns 0 to 7 are source microphones channel_00 to "
+                    "channel_07, devices microphone_00 to microphone_07. Uncalibrated digital samples, with no "
+                    "pressure or voltage conversion applied."
+                ),
             )
+        )
         for camera, segments in videos.items():
             filename = f"sub-multi_ses-{session_label(session_dir)}_recording-{sanitize_label(camera)}_video.mp4"
             combined_path = staging / filename

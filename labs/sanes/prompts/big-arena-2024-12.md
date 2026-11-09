@@ -78,14 +78,7 @@ Preparing intake and a reviewable NWB conversion plan for incoming dandiset `000
 
 The attachments describe source synchronization and are treated as evidence about the recordings. They do not authorize implementation or change the requested NWB target or review boundary.
 
-The plan was presented for review in this session and approved in Request 4 below. It is not kept as a separate file. Its mapping and expected output now live in `code/README.md`, and its open questions in `OPEN_QUESTIONS.md` (Q9 to Q17). Its text as first committed, which already carried one post-approval schema note, is in git history as `labs/sanes/CONVERSION_PLAN_BIG_ARENA_2024_12.md` at `07da7cc`. Later requester decisions should be appended here verbatim without replacing earlier Sanes prompt records.
-
-Fingerprints of the two attachments, for checking a later copy against the versions inspected:
-
-| Attachment | Bytes | SHA-256 |
-| --- | --- | --- |
-| `sync.csv` | 2201 | `e0260e5319e5c230382b45ad3f6f766d2f1cff6adcd2aa066a525def57b535ca` |
-| `README.txt` | 2107 | `c6d08c3cd72375659661ee248f9318d5dba63345544b88d1c95c36ff45089091` |
+See [the conversion plan](big-arena-2024-12-plan.md) for the completed intake, mappings, expected output, open questions, and the amendments made after approval. Plan approval is quoted in Request 4 below. Later requester decisions should be appended here verbatim without replacing earlier Sanes prompt records.
 
 ## Request 2 — Institution, provisional timezone, and missing animal metadata
 
@@ -110,8 +103,9 @@ were audited. The existing entry, session globs, environment, and shared image a
 CI now names the Sanes job accordingly. Synthetic media exercises the supplied hierarchy. No real lab
 media was inspected or uploaded.
 
-The installed `ndx-sound` schema accepts mono or stereo series, so eight mono series in the one NWB
-replace the plan's eight-column series. All microphone samples and source identities are preserved.
+This implementation first split the audio into eight mono series, on the belief that `ndx-sound`
+accepts only mono or stereo. That held for 0.2.3 only, and Request 7 restored the plan's single
+eight-column series. All microphone samples and source identities are preserved.
 The `ndx-multisubjects` schema permits roster rows without individual file links, verified by round-trip
 tests. An absent roster is explicitly reported and does not create placeholder subjects.
 
@@ -140,3 +134,19 @@ Earlier on the pull request, the requester had commented:
 
 The changes since approval that need the requester's confirmation are Q16 and Q17 in `OPEN_QUESTIONS.md`.
 BIG_ARENA_2025_03 now gets the same provisional timezone (Q9), and its layout is still uninspected (Q6).
+
+## Request 7 — Decide the open review questions
+
+From the reviewer (CodyCBakerPhD), answering Q16, the three parts of Q17, and the widened lab-intake rule. The first and last lines quote the agent's explanation.
+
+> "Keep stopping (current). Safest, and a person looks at every case."
+>
+> for Q17 (a), if each audio file is mono, then yeah stack as 8-col so we only have one array
+>
+> Q17 (b) yeah keep a note, it belongs on Dandiset metadata
+>
+> Q17 (c) keep it its useful
+>
+> "Now: a collection with a different layout can also join, if its output follows the same conventions and the converter gains a second reader for the new layout." yeah that sounds fine
+
+The audio is now one eight-column series with `ndx-sound>=0.3.0`. The plan is kept as `big-arena-2024-12-plan.md` beside this record, amended to match the implementation. Q16 and Q17 are resolved.
