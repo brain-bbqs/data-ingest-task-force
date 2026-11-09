@@ -4,14 +4,22 @@ Test functions take their arguments positionally by pytest's injection rules, so
 keyword-only and positional-only conventions do not apply to them.
 """
 
+import csv
+import datetime
+import hashlib
+import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 import h5py
+import hdmf.validate
 import numpy
 import pynwb
 import pytest
+import scipy.io.wavfile
+import yaml
 
 TESTS = Path(__file__).resolve().parent
 CODE = TESTS.parent / "code"
@@ -20,6 +28,7 @@ sys.path.insert(0, str(TESTS))
 
 import _sanes_to_nwb as converter  # noqa: E402
 import batch_convert  # noqa: E402
+import nwb_summary  # noqa: E402
 import synthetic  # noqa: E402
 
 
@@ -333,3 +342,425 @@ def test_sanitize_label(value, expected):
 def test_ffmpeg_on_path():
     actual = [shutil.which(tool) is not None for tool in ("ffmpeg", "ffprobe")]
     assert actual == [True, True]
+
+
+SYNC_SESSION = TESTS / "example_raw" / "big_arena" / "experiment_109"
+SYNC_CONFIG = CODE / "config_big_arena_2024_12.yaml"
+
+
+@pytest.fixture(scope="module")
+def sync_output(tmp_path_factory):
+    path = converter.build_nwb(
+        session_dir=SYNC_SESSION, output_dir=tmp_path_factory.mktemp("sync"), config_path=SYNC_CONFIG
+    )
+    return path
+
+
+@pytest.mark.ai_generated
+def test_manifest_golden_summary(sync_output):
+    expected = json.loads((TESTS / "expected_output" / "big_arena.json").read_text())
+    actual = nwb_summary.summarize(sync_output)
+    assert actual == expected
+
+
+@pytest.mark.ai_generated
+def test_manifest_structure_and_media(sync_output):
+    with pynwb.NWBHDF5IO(sync_output, "r") as io:
+        nwbfile = io.read()
+        assert [name for name in nwbfile.acquisition if not name.startswith("video_")] == [
+            "Multi-channel Acoustic Data"
+        ]
+        audio = nwbfile.acquisition["Multi-channel Acoustic Data"]
+        actual = (audio.neurodata_type, audio.unit, audio.starting_time, audio.rate, audio.data.shape)
+        assert actual == ("AcousticWaveformSeries", "n.a.", 0.0, synthetic.AUDIO_RATE, (6000, 8))
+        assert audio.data[1000, :].tolist() == [2000 + channel * 100 for channel in range(8)]
+        assert "PROVISIONAL" in nwbfile.notes
+        assert len(nwbfile.processing) == 0
+        expected_devices = [f"camera_{camera}" for camera in synthetic.SYNC_CAMERAS]
+        expected_devices += [f"microphone_{channel:02d}" for channel in range(8)]
+        assert sorted(nwbfile.devices) == sorted(expected_devices)
+        assert all("PROVISIONAL" in device.description for device in nwbfile.devices.values())
+        for camera, rate in zip(synthetic.SYNC_CAMERAS, synthetic.SYNC_RATES):
+            series = nwbfile.acquisition[f"video_{camera}"]
+            assert (series.starting_time, series.rate, series.timestamps) == (0.0, rate, None)
+            assert series.device.name == f"camera_{camera}"
+            assert series.description.endswith("No embedded audio.")
+            measured = converter._probe_sync_video(sync_output.parent / series.external_file[0])
+            assert measured["timestamps"].tolist() == pytest.approx(numpy.arange(6 * rate) / rate, abs=1e-6)
+    files = sorted(path.name for path in sync_output.parent.iterdir())
+    assert len(files) == 6
+    assert all(path.endswith((".nwb", ".mp4")) for path in files)
+    assert pynwb.validate(path=sync_output, namespace="ndx-multisubjects") == []
+    with pynwb.NWBHDF5IO(sync_output, "r") as io:
+        builder = io.read_builder()
+        validator = hdmf.validate.ValidatorMap(io.manager.namespace_catalog.get_namespace("ndx-sound"))
+        assert validator.validate(builder.groups["acquisition"].groups["Multi-channel Acoustic Data"]) == []
+    with h5py.File(sync_output, "r") as file:
+        assert file["acquisition/Multi-channel Acoustic Data/data"].compression == "gzip"
+
+
+@pytest.mark.ai_generated
+def test_manifest_segments_record_provenance(sync_output):
+    folder = SYNC_SESSION / converter.SYNC_FOLDER
+    with pynwb.NWBHDF5IO(sync_output, "r") as io:
+        nwbfile = io.read()
+        segments = nwbfile.intervals["source_segments"].to_dataframe()
+        assert segments["start_time"].tolist() == list(range(6))
+        assert segments["stop_time"].tolist() == list(range(1, 7))
+        assert segments["sample_start"].tolist() == list(range(0, 6000, 1000))
+        assert segments["sample_count"].tolist() == [1000] * 6
+        residuals = segments[["audio_start_residual", "audio_duration_residual"]].to_numpy().tolist()
+        assert residuals == [[0.0, 0.0]] * 6
+        audio_files = [list(files) for files in segments["audio_files"]]
+        assert audio_files == [
+            [f"channel_{channel:02d}_file_{index:03d}.wav" for channel in range(8)] for index in range(6)
+        ]
+        video_files = [list(files) for files in segments["video_files"]]
+        assert video_files == [
+            [f"video_{camera}_{index:03d}.mp4" for camera in synthetic.SYNC_CAMERAS] for index in range(6)
+        ]
+        for camera, rate in zip(synthetic.SYNC_CAMERAS, synthetic.SYNC_RATES):
+            columns = [f"{camera}_frames", f"{camera}_duration_residual", f"{camera}_first_pts"]
+            assert segments[columns].to_numpy().tolist() == [[rate, 0.0, 0.0]] * 6
+        assert nwbfile.scratch["source_sync_csv"].data == (folder / "sync.csv").read_text()
+        assert nwbfile.scratch["source_readme"].data == (folder / "README.txt").read_text()
+
+
+@pytest.fixture
+def synced_session(tmp_path):
+    incoming = tmp_path / "incoming"
+    shutil.copytree(SYNC_SESSION.parent, incoming)
+    return incoming / SYNC_SESSION.name
+
+
+def _write_config(*, directory, tolerance=0.0, roster=None):
+    cfg = converter.load_cfg(SYNC_CONFIG)
+    cfg["sync"]["tolerance"] = tolerance
+    if roster is not None:
+        cfg["session_subjects"] = {SYNC_SESSION.name: roster}
+    path = directory / "config.yaml"
+    path.write_text(yaml.safe_dump(cfg))
+    return path
+
+
+def _set_first_row(*, session, **fields):
+    path = session / converter.SYNC_FOLDER / "sync.csv"
+    with path.open(newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    rows[0].update(fields)
+    with path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["video", "audio", "timestamp"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _shorten_wav(*, session, scratch):
+    path = session / converter.SYNC_FOLDER / "channel_00_file_000.wav"
+    rate, data = scipy.io.wavfile.read(path)
+    scipy.io.wavfile.write(path, rate, data[:-1])
+
+
+def _edit_readme(*, session, scratch):
+    path = session / converter.SYNC_FOLDER / "README.txt"
+    path.write_text(path.read_text().replace("16:27:56", "16:27:55"))
+
+
+def _rewrite_video(*, session, camera, segment, frames=None, options=()):
+    path = session / converter.SYNC_FOLDER / f"video_{camera}_{segment:03d}.mp4"
+    synthetic.write_sync_video(path=path, camera=camera, segment=segment, frames=frames, options=options)
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("edit", "match"),
+    [
+        pytest.param(
+            lambda *, session, scratch: (session / converter.SYNC_FOLDER / "channel_00_file_000.wav").unlink(),
+            "Missing manifest media: .*channel_00_file_000.wav",
+            id="missing",
+        ),
+        pytest.param(
+            lambda *, session, scratch: _set_first_row(session=session, audio=repr(["channel_00_file_000"] * 8)),
+            "Invalid or duplicate sync.csv filename: channel_00_file_000",
+            id="duplicate",
+        ),
+        pytest.param(
+            lambda *, session, scratch: _set_first_row(
+                session=session,
+                audio=repr(["../channel_00_file_000"] + [f"channel_{channel:02d}_file_000" for channel in range(1, 8)]),
+            ),
+            r"Invalid or duplicate sync.csv filename: \.\./channel_00_file_000",
+            id="traversal",
+        ),
+        pytest.param(
+            lambda *, session, scratch: _set_first_row(session=session, audio="__import__('os').getcwd()"),
+            "Invalid sync.csv audio list",
+            id="malformed",
+        ),
+        pytest.param(
+            lambda *, session, scratch: _set_first_row(
+                session=session, timestamp=repr(["2024-12-10 16:27:54", "2024-12-10 16:27:55"])
+            ),
+            "sync.csv segments overlap or have a gap",
+            id="gap",
+        ),
+        pytest.param(_edit_readme, "README.txt synchronization descriptions disagree", id="readme"),
+        pytest.param(_shorten_wav, "Audio channels are not synchronized in segment 000", id="audio"),
+        pytest.param(
+            lambda *, session, scratch: _rewrite_video(session=session, camera="center", segment=0, frames=2),
+            "Timing conflict for center duration 000",
+            id="video",
+        ),
+        pytest.param(
+            lambda *, session, scratch: _rewrite_video(
+                session=session, camera="center", segment=1, options=("-s", "16x16")
+            ),
+            "Incompatible video encoding or stream layout across segments for center",
+            id="encoding",
+        ),
+        pytest.param(
+            lambda *, session, scratch: (session / "idx_000").mkdir(),
+            "Ambiguous session with both idx_\\* chunks",
+            id="ambiguous",
+        ),
+    ],
+)
+def test_manifest_rejects_invalid_sources(synced_session, tmp_path, edit, match):
+    edit(session=synced_session, scratch=tmp_path)
+    with pytest.raises(ValueError, match=match):
+        converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "output", config_path=SYNC_CONFIG)
+    assert list((tmp_path / "output").rglob("*.nwb")) == []
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("frames", "tolerance", "match"),
+    [
+        (5, 0.0, "Timing conflict for center duration 000"),
+        (3, 0.0, "Timing conflict for center duration 000"),
+        (5, 0.3, "center segment 000 has a frame at 1s, at or past the next segment's manifest start at 1s"),
+    ],
+)
+def test_segment_length_conflicts_stop_conversion(synced_session, tmp_path, frames, tolerance, match):
+    _rewrite_video(session=synced_session, camera="center", segment=0, frames=frames)
+    config_path = _write_config(directory=tmp_path, tolerance=tolerance)
+    with pytest.raises(ValueError, match=match):
+        converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+
+
+@pytest.mark.ai_generated
+def test_short_segment_within_tolerance_keeps_manifest_starts(synced_session, tmp_path):
+    _rewrite_video(session=synced_session, camera="center", segment=0, frames=3)
+    config_path = _write_config(directory=tmp_path, tolerance=0.3)
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        nwbfile = io.read()
+        series = nwbfile.acquisition["video_center"]
+        assert (series.rate, series.num_samples) == (None, 23)
+        assert series.timestamps[:5].tolist() == pytest.approx([0, 0.25, 0.5, 1, 1.25])
+        segments = nwbfile.intervals["source_segments"]
+        assert (segments["center_frames"][0], segments["center_duration_residual"][0]) == (3, pytest.approx(-0.25))
+        assert nwbfile.acquisition["video_gily_center"].rate == 5
+
+
+def _write_h264_with_audio(*, path):
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-t", "1.001", "-i", "testsrc=size=32x32:rate=30000/1001"]
+        + ["-f", "lavfi", "-t", "1.05", "-i", "sine=frequency=440:sample_rate=48000"]
+        + ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(path)],
+        check=True,
+    )
+
+
+@pytest.mark.ai_generated
+def test_ntsc_camera_with_longer_embedded_audio(synced_session, tmp_path):
+    folder = synced_session / converter.SYNC_FOLDER
+    for segment in range(6):
+        _write_h264_with_audio(path=folder / f"video_center_{segment:03d}.mp4")
+    config_path = _write_config(directory=tmp_path, tolerance=0.01)
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        nwbfile = io.read()
+        series = nwbfile.acquisition["video_center"]
+        assert (series.rate, series.num_samples) == (None, 180)
+        expected = (numpy.arange(6)[:, None] + numpy.arange(30)[None, :] * 1001 / 30000).ravel()
+        assert series.timestamps[:].tolist() == pytest.approx(expected.tolist(), abs=1e-5)
+        assert "Embedded audio (aac) is kept in the MP4" in series.description
+        residuals = nwbfile.intervals["source_segments"]["center_duration_residual"][:]
+        assert residuals.tolist() == pytest.approx([0.001] * 6, abs=1e-6)
+        combined = path.parent / series.external_file[0]
+    probe = converter._probe_sync_video(combined)
+    assert (len(probe["timestamps"]), probe["embedded_audio"]) == (180, ["audio (aac)"])
+
+
+@pytest.mark.ai_generated
+def test_timecode_tracks_are_dropped_and_reported(synced_session, tmp_path, capsys):
+    for segment in range(6):
+        _rewrite_video(session=synced_session, camera="center", segment=segment, options=("-timecode", "00:00:00:00"))
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=SYNC_CONFIG)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        series = io.read().acquisition["video_center"]
+        assert (series.rate, series.num_samples) == (4, 24)
+        assert series.description.endswith("No embedded audio. Dropped embedded data (tmcd).")
+    assert "video_center drops embedded data (tmcd)" in capsys.readouterr().out
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize("maps", [(), ("0:v", "0:a?")])
+def test_concatenation_ignores_timecode_tracks(tmp_path, maps):
+    paths = [tmp_path / f"video_center_{segment:03d}.mp4" for segment in range(2)]
+    for segment, path in enumerate(paths):
+        synthetic.write_sync_video(path=path, camera="center", segment=segment, options=("-timecode", "00:00:00:00"))
+    output = tmp_path / "combined.mp4"
+    converter._concatenate_videos(paths=paths, output_path=output, maps=maps)
+    actual = len(converter._probe_sync_video(output)["timestamps"])
+    assert actual == 8
+
+
+@pytest.mark.ai_generated
+def test_in_file_start_offset_is_recorded(synced_session, tmp_path):
+    source = synced_session / converter.SYNC_FOLDER / "video_center_002.mp4"
+    shifted = tmp_path / "shifted.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(source), "-c", "copy", "-output_ts_offset", "0.5"]
+        + [str(shifted)],
+        check=True,
+    )
+    shifted.replace(source)
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=SYNC_CONFIG)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        nwbfile = io.read()
+        assert nwbfile.intervals["source_segments"]["center_first_pts"][:].tolist() == [0, 0, 0.5, 0, 0, 0]
+        assert nwbfile.acquisition["video_center"].rate == 4
+
+
+@pytest.mark.ai_generated
+def test_symlinked_media_converts(synced_session, tmp_path):
+    link = synced_session / converter.SYNC_FOLDER / "channel_00_file_000.wav"
+    target = tmp_path / "annex" / link.name
+    target.parent.mkdir()
+    link.replace(target)
+    link.symlink_to(target)
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=SYNC_CONFIG)
+    assert path.is_file()
+
+
+ANIMAL = {"id": "animal-1", "species": "Meriones unguiculatus", "sex": "F"}
+# Dumped unquoted, so YAML reads it back as a datetime rather than a string.
+BIRTH = datetime.datetime(2024, 9, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))
+
+
+@pytest.mark.ai_generated
+def test_manifest_without_roster_invents_no_subjects(synced_session, tmp_path, capsys):
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=SYNC_CONFIG)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        assert io.read().subjects_table is None
+    assert "no animal metadata" in capsys.readouterr().out
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("animal", "expected"),
+    [
+        ({"age": "P90D"}, {"age": ["P90D"]}),
+        ({"age": "P10W/P12W"}, {"age": ["P10W/P12W"]}),
+        ({"date_of_birth": BIRTH}, {"date_of_birth": ["2024-09-01T00:00:00-04:00"]}),
+        (
+            {"age": "P100D", "date_of_birth": "2024-09-01T00:00:00-04:00"},
+            {"age": ["P100D"], "date_of_birth": ["2024-09-01T00:00:00-04:00"]},
+        ),
+    ],
+)
+def test_manifest_roster_is_independent_of_pose(synced_session, tmp_path, animal, expected):
+    config_path = _write_config(directory=tmp_path, roster=[{**ANIMAL, **animal}])
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        table = io.read().subjects_table.to_dataframe()
+        assert table["subject_id"].tolist() == ["animal1"]
+        assert table["subject_description"].tolist() == ["Original lab animal ID: animal-1"]
+        assert {column: table[column].tolist() for column in ("age", "date_of_birth") if column in table} == expected
+        assert "individual_subj_link" not in table
+    assert pynwb.validate(path=path, namespace="ndx-multisubjects") == []
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("roster", "match"),
+    [
+        ([{**ANIMAL, "age": "P90D"}, {**ANIMAL, "id": "animal1", "age": "P90D"}], "colliding animal ID: animal1"),
+        (
+            [{**ANIMAL, "age": "P90D"}, {**ANIMAL, "id": "animal-2", "date_of_birth": BIRTH}],
+            "age is given for some animals but not for animal-2",
+        ),
+        ([{**ANIMAL, "age": "90 days"}], "Invalid ISO 8601 age for animal-1"),
+        ([{**ANIMAL, "date_of_birth": datetime.date(2024, 9, 1)}], "needs a time with a UTC offset"),
+        ([{**ANIMAL, "date_of_birth": "2025-01-01T00:00:00-05:00"}], "after the session start"),
+        ([ANIMAL], "Every animal needs age or date_of_birth"),
+    ],
+)
+def test_manifest_roster_rejects_invalid_metadata(synced_session, tmp_path, roster, match):
+    config_path = _write_config(directory=tmp_path, roster=roster)
+    with pytest.raises(ValueError, match=match):
+        converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=config_path)
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("age", "expected"),
+    [
+        ("P90D", True),
+        ("P10W/P12W", True),
+        ("P90D/", True),
+        ("PT12H", True),
+        ("P1Y2M3DT4H5M6.5S", True),
+        ("90D", False),
+        ("P", False),
+        ("PT", False),
+        ("P/", False),
+        ("P10W/12W", False),
+        ("PROVISIONAL", False),
+    ],
+)
+def test_iso_age(age, expected):
+    actual = converter.ISO_AGE.fullmatch(age) is not None
+    assert actual == expected
+
+
+def _decoded_frames(path, /):
+    result = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout
+
+
+@pytest.mark.ai_generated
+def test_video_content_preserves_camera_and_segment_order(sync_output):
+    folder = SYNC_SESSION / converter.SYNC_FOLDER
+    camera_hashes = set()
+    for camera in synthetic.SYNC_CAMERAS:
+        original = b"".join(_decoded_frames(folder / f"video_{camera}_{index:03d}.mp4") for index in range(6))
+        output = (
+            sync_output.parent / f"sub-multi_ses-experiment109_recording-{converter.sanitize_label(camera)}_video.mp4"
+        )
+        assert _decoded_frames(output) == original
+        camera_hashes.add(hashlib.sha256(original).hexdigest())
+    assert len(camera_hashes) == 5
+
+
+@pytest.mark.ai_generated
+def test_irregular_video_uses_frame_timestamps(synced_session, tmp_path):
+    source = synced_session / converter.SYNC_FOLDER / "video_center_000.mp4"
+    filtered = tmp_path / "filtered.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", str(source), "-vf", "select=not(eq(n\\,2))", "-fps_mode", "vfr"]
+        + ["-c:v", "mpeg4", str(filtered)],
+        check=True,
+    )
+    filtered.replace(source)
+    path = converter.build_nwb(session_dir=synced_session, output_dir=tmp_path / "out", config_path=SYNC_CONFIG)
+    with pynwb.NWBHDF5IO(path, "r") as io:
+        series = io.read().acquisition["video_center"]
+        assert series.rate is None
+        assert series.timestamps[:5].tolist() == pytest.approx([0, 0.25, 0.75, 1, 1.25])

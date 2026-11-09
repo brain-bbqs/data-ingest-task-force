@@ -1,20 +1,26 @@
 # BIG_ARENA_2024_12 dataset (incoming 000601, standardized 000629).
 # Provisional metadata. Replace every PROVISIONAL value before final upload.
 # See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
+# Award U01DA063581. NWB has no funding field, so it belongs in the 000629 dandiset metadata.
 # No experiment_metadata file yet, so every experiment uses session.description.
 session:
   dataset: big-arena-2024-12  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
   lab: Sanes
   institution: New York University
   experimenter: PROVISIONAL
-  description: BIG_ARENA December 2024 multi-animal audio, video, tracking, and annotation recording  # PROVISIONAL
-  timezone: UTC  # PROVISIONAL: confirm recording computer timezone
+  description: BIG_ARENA December 2024 multi-animal audio and multicamera behavioral recording  # PROVISIONAL protocol
+  timezone: America/New_York  # PROVISIONAL: NYU/East Coast per requester, confirm recording computer timezone
   related_publications: []
 subject:
-  species: Meriones unguiculatus
+  species: Meriones unguiculatus  # PROVISIONAL: inferred from other Sanes datasets
   sex: U  # PROVISIONAL
   age: PROVISIONAL
 audio:
   description: Synchronized microphone recordings
 video:
   description: Behavioral video
+sync:
+  tolerance: 0.0  # Seconds. Require agreement within 1 microsecond numerical precision. Review measured conflicts.
+# No animal data is available yet. Add experiment_109: [{id, species, sex, age or date_of_birth}] when supplied.
+# An empty roster is explicitly reported and recorded as incomplete metadata, never replaced by invented animals.
+session_subjects: {}
