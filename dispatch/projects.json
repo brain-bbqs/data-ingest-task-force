@@ -73,7 +73,9 @@
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/sanes/code/config_ssa_gt.yaml"
+        "{repo_root}/labs/sanes/code/config_ssa_gt.yaml",
+        "--results",
+        "{results}"
       ]
     },
     {
@@ -92,7 +94,9 @@
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/sanes/code/config_big_arena_2024_12.yaml"
+        "{repo_root}/labs/sanes/code/config_big_arena_2024_12.yaml",
+        "--results",
+        "{results}"
       ]
     },
     {
@@ -111,7 +115,9 @@
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/sanes/code/config_big_arena_2025_03.yaml"
+        "{repo_root}/labs/sanes/code/config_big_arena_2025_03.yaml",
+        "--results",
+        "{results}"
       ]
     },
     {
@@ -130,7 +136,9 @@
         "--output",
         "{standardized_dir}",
         "--config",
-        "{repo_root}/labs/sanes/code/config.yaml"
+        "{repo_root}/labs/sanes/code/config.yaml",
+        "--results",
+        "{results}"
       ]
     },
     {

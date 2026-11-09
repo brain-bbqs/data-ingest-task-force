@@ -19,6 +19,11 @@ appends it when the converter changes.
 Sessions are converted one at a time, since each one stages its whole concatenated audio on disk next to
 the output. A failed session does not stop the batch, and the exit code reports whether any failed.
 
+An ``experiment_*`` folder with no supported layout is reported as pending, since its media may not be
+uploaded yet, and does not fail the batch. With ``--results`` the batch writes the sessions it left
+unconverted, as ``{"pending": {name: reason}, "failed": {name: reason}}`` keyed by folder name. Dispatch
+fills it through its ``{results}`` placeholder, then keeps and uploads what did convert.
+
 Example CLI usage (from the repository root)
 --------------------------------------------
 python3 labs/sanes/code/batch_convert.py \\
@@ -27,6 +32,7 @@ python3 labs/sanes/code/batch_convert.py \\
 """
 
 import argparse
+import json
 import sys
 import traceback
 from pathlib import Path
@@ -38,6 +44,13 @@ import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _sanes_to_nwb import SYNC_FOLDER, build_nwb, load_cfg, multisubject_path, session_label  # noqa: E402
+
+UNSUPPORTED_REASON = f"No idx_* chunks or {SYNC_FOLDER}/ folder yet"
+
+
+def _subdirectories(directory, /):
+    subdirectories = sorted(path for path in directory.iterdir() if path.is_dir())
+    return subdirectories
 
 
 def _holds_chunks(directory, /):
@@ -53,34 +66,52 @@ def discover_sessions(input_dir, /):
     ignored = []
     if not input_dir.is_dir():
         return sessions, ignored
-    for candidate in sorted(path for path in input_dir.iterdir() if path.is_dir()):
+    for candidate in _subdirectories(input_dir):
         if _holds_chunks(candidate):
             sessions.append(candidate)
             continue
-        nested = sorted(path for path in candidate.iterdir() if path.is_dir() and _holds_chunks(path))
-        if nested:
-            sessions.extend(nested)
-        else:
-            ignored.append(candidate)
+        nested = _subdirectories(candidate)
+        found = [path for path in nested if _holds_chunks(path)]
+        sessions.extend(found)
+        ignored.extend([path for path in nested if path not in found] if found else [candidate])
     return sessions, ignored
 
 
-def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False):
+def unsupported_experiments(ignored, /):
+    """The ``experiment_*`` folders among *ignored*, or directly inside one of them."""
+    experiments = []
+    for path in ignored:
+        if path.name.startswith("experiment_"):
+            experiments.append(path)
+        else:
+            experiments.extend(child for child in _subdirectories(path) if child.name.startswith("experiment_"))
+    return experiments
+
+
+def write_results(path, /, *, pending, failed):
+    results = {"pending": pending, "failed": failed}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n")
+
+
+def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=False, results_path=None):
     cfg = load_cfg(config_path)
     output_dir = standardized_dir / cfg.get("output_subdirectory", "")
     sessions, ignored = discover_sessions(incoming_dir)
-    unsupported = []
     for candidate in ignored:
         print(f"Ignoring (no supported recording layout): {candidate}", flush=True)
-        if candidate.name.startswith("experiment_") or any(candidate.glob("experiment_*")):
-            unsupported.append(candidate)
+    unconverted = {path.name: UNSUPPORTED_REASON for path in unsupported_experiments(ignored)}
+    for name in sorted(unconverted):
+        print(f"PENDING: {name}: {UNSUPPORTED_REASON}", flush=True)
     labels = [session_label(session) for session in sessions]
     if len(set(labels)) != len(labels):
         print("FAILED: session labels collide after sanitization", file=sys.stderr, flush=True)
         return 1
     if not sessions:
         print(f"No session folders found under {incoming_dir}")
-        return 1 if unsupported else 0
+        if results_path is not None:
+            write_results(results_path, pending=unconverted, failed={})
+        return 0
 
     skipped = 0
     pending = []
@@ -93,20 +124,22 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
         pending.append(session_dir)
 
     converted = 0
-    failed = []
+    failed = {}
     for session_dir in tqdm.tqdm(pending, desc="Converting sessions", unit="session"):
         try:
             output_path = build_nwb(session_dir=session_dir, output_dir=output_dir, config_path=config_path)
         except Exception as error:
             traceback.print_exception(error)
             print(f"FAILED: {session_dir}: {error}", file=sys.stderr, flush=True)
-            failed.append(session_dir)
+            failed[session_dir.name] = str(error)
             continue
         converted += 1
         tqdm.tqdm.write(f"Converted {session_dir} -> {output_path}")
 
     print(f"Converted {converted}, skipped {skipped}, failed {len(failed)} of {len(sessions)} session(s)", flush=True)
-    exit_code = 1 if failed or unsupported else 0
+    if results_path is not None:
+        write_results(results_path, pending=unconverted, failed=failed)
+    exit_code = 1 if failed else 0
     return exit_code
 
 
@@ -116,9 +149,14 @@ def main():
     parser.add_argument("--output", dest="output_dir", type=Path, required=True, help="Standardized dandiset folder")
     parser.add_argument("--config", type=Path, required=True, help="The dataset's config in labs/sanes/code/")
     parser.add_argument("--overwrite", action="store_true", help="Reconvert sessions whose output already exists")
+    parser.add_argument("--results", type=Path, default=None, help="Write the sessions left unconverted to this JSON")
     args = parser.parse_args()
     exit_code = convert_batch(
-        incoming_dir=args.input_dir, standardized_dir=args.output_dir, config_path=args.config, overwrite=args.overwrite
+        incoming_dir=args.input_dir,
+        standardized_dir=args.output_dir,
+        config_path=args.config,
+        overwrite=args.overwrite,
+        results_path=args.results,
     )
     return exit_code
 

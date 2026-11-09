@@ -116,6 +116,36 @@ def write_session(
 
 SYNC_CAMERAS = ("center", "gily_center", "gily_nest", "gily_underground", "underground")
 SYNC_RATES = (4, 5, 6, 8, 10)
+SYNC_COLORS = ("red", "green", "blue", "yellow", "magenta")
+
+
+def write_sync_video(*, path, camera, segment, frames=None, options=()):
+    """One camera segment, one second long unless *frames* says otherwise. *options* go just before the path."""
+    index = SYNC_CAMERAS.index(camera)
+    rate = SYNC_RATES[index]
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            f"color=c={SYNC_COLORS[index]}:size=32x32:rate={rate}",
+            "-frames:v",
+            str(rate if frames is None else frames),
+            "-vf",
+            f"drawbox=x={segment * 3}:y=0:w=3:h=3:color=white:t=fill",
+            "-c:v",
+            "mpeg4",
+            "-pix_fmt",
+            "yuv420p",
+            *options,
+            str(path),
+        ],
+        check=True,
+    )
 
 
 def write_sync_session(*, root, segments=6):
@@ -127,7 +157,6 @@ def write_sync_session(*, root, segments=6):
     (folder / "temp" / "excluded.txt").write_text("Synthetic temporary artifact. Not conversion input.\n")
     records = []
     descriptions = ["Synthetic fixture, not lab data. Six one-second segments.\n"]
-    colors = ("red", "green", "blue", "yellow", "magenta")
     for segment in range(segments):
         audio = []
         videos = []
@@ -136,31 +165,10 @@ def write_sync_session(*, root, segments=6):
             audio.append(name)
             samples = numpy.arange(1000, dtype=numpy.int16) + segment * 2000 + channel * 100
             scipy.io.wavfile.write(folder / f"{name}.wav", 1000, samples)
-        for camera, rate, color in zip(SYNC_CAMERAS, SYNC_RATES, colors):
+        for camera in SYNC_CAMERAS:
             name = f"video_{camera}_{segment:03d}"
             videos.append(name)
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-loglevel",
-                    "error",
-                    "-f",
-                    "lavfi",
-                    "-i",
-                    f"color=c={color}:size=32x32:rate={rate}",
-                    "-frames:v",
-                    str(rate),
-                    "-vf",
-                    f"drawbox=x={segment * 3}:y=0:w=3:h=3:color=white:t=fill",
-                    "-c:v",
-                    "mpeg4",
-                    "-pix_fmt",
-                    "yuv420p",
-                    str(folder / f"{name}.mp4"),
-                ],
-                check=True,
-            )
+            write_sync_video(path=folder / f"{name}.mp4", camera=camera, segment=segment)
         start = datetime.datetime(2024, 12, 10, 16, 27, 56) + datetime.timedelta(seconds=segment)
         timestamps = [(start + datetime.timedelta(seconds=offset)).isoformat(sep=" ") for offset in (0, 1)]
         records.append({"video": repr(videos), "audio": repr(audio), "timestamp": repr(timestamps)})

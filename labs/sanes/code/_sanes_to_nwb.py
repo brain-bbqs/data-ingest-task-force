@@ -45,6 +45,9 @@ import yaml
 REFERENCE_FRAME = "x and y in pixels from the top-left corner of the video frame"
 SYNC_FOLDER = "concatenated_data_cam_mic_sync"
 SYNC_CAMERAS = ("center", "gily_center", "gily_nest", "gily_underground", "underground")
+_ISO_DURATION = r"P(?=\d|T\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?"
+# An ISO 8601 duration, or an age range "lower/upper" or "lower/" as the NWB Subject age field allows.
+ISO_AGE = re.compile(rf"{_ISO_DURATION}(?:/(?:{_ISO_DURATION})?)?")
 
 
 def load_cfg(config_path, /):
@@ -125,14 +128,17 @@ def _all_or_none(*, items, kind, session_dir):
     return bool(present)
 
 
-def _concatenate_videos(*, paths, output_path):
+def _concatenate_videos(*, paths, output_path, maps=()):
+    """Without *maps*, FFmpeg keeps its default streams, which is what the idx datasets were converted with."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt") as listing:
         for path in paths:
             listing.write(f"file '{path.resolve()}'\n")
         listing.flush()
+        map_arguments = [argument for spec in maps for argument in ("-map", spec)]
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listing.name, "-c", "copy"]
-            + ["-map", "0", str(output_path)],
+            + map_arguments
+            + [str(output_path)],
             check=True,
         )
 
@@ -557,8 +563,8 @@ def _read_sync_manifest(*, folder, timezone):
                     seen.add(name)
                     segment_ids.add(match[2])
                     path = folder / (name + suffix)
-                    if not path.is_file() or path.resolve().parent != folder.resolve():
-                        raise ValueError(f"Missing or unsafe manifest media: {path}")
+                    if not path.is_file():
+                        raise ValueError(f"Missing manifest media: {path}")
                     destination[match[1]] = path
             if set(audio) != {f"{index:02d}" for index in range(8)} or set(videos) != set(SYNC_CAMERAS):
                 raise ValueError("Each sync.csv row needs eight microphones and five camera views")
@@ -597,7 +603,7 @@ def _read_sync_manifest(*, folder, timezone):
             local = row[key]
             aware = local.replace(tzinfo=zone)
             if aware.utcoffset() != local.replace(tzinfo=zone, fold=1).utcoffset():
-                raise ValueError("Ambiguous or nonexistent local time in sync.csv; confirm timestamp offsets")
+                raise ValueError("Ambiguous or nonexistent local time in sync.csv. Confirm the timestamp offsets.")
             row[key] = aware
     origin = rows[0]["start"].timestamp()
     for row in rows:
@@ -612,32 +618,69 @@ def _read_sync_manifest(*, folder, timezone):
     return rows
 
 
+def _describe_stream(stream, /):
+    codec = stream.get("codec_name") or stream.get("codec_tag_string") or "unknown codec"
+    description = f"{stream['codec_type']} ({codec})"
+    return description
+
+
 def _probe_sync_video(path, /):
+    """Frame presentation times, read from packets without decoding, plus the file's other streams.
+
+    ``timestamps`` start at zero. ``first_pts`` is where the first frame sits inside the file.
+    """
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_streams", "-show_frames", "-select_streams", "v:0", "-of", "json", str(path)],
+        ["ffprobe", "-v", "error", "-show_streams", "-show_entries", "packet=stream_index,pts_time,flags"]
+        + ["-of", "json", str(path)],
         capture_output=True,
         text=True,
         check=True,
     )
     info = json.loads(result.stdout)
-    if len(info.get("streams", [])) != 1 or not info.get("frames"):
+    streams = info.get("streams", [])
+    video_streams = [stream for stream in streams if stream["codec_type"] == "video"]
+    if len(video_streams) != 1:
+        raise ValueError(f"Expected exactly one video stream in {path}, found {len(video_streams)}")
+    stream = video_streams[0]
+    try:
+        timestamps = numpy.sort(
+            [
+                float(packet["pts_time"])
+                for packet in info.get("packets", [])
+                if packet["stream_index"] == stream["index"] and "D" not in packet.get("flags", "")
+            ]
+        )
+    except ValueError as error:
+        raise ValueError(f"Invalid frame presentation times in {path}") from error
+    if not len(timestamps):
         raise ValueError(f"No video frames in {path}")
-    stream = info["streams"][0]
-    timestamps = numpy.asarray([float(frame["best_effort_timestamp_time"]) for frame in info["frames"]])
     if not numpy.isfinite(timestamps).all() or numpy.any(numpy.diff(timestamps) <= 0):
         raise ValueError(f"Invalid frame presentation times in {path}")
-    timestamps -= timestamps[0]
-    duration = float(stream["duration"])
+    first_pts = float(timestamps[0])
+    timestamps -= first_pts
+    duration = float(stream.get("duration", "nan"))
     if not numpy.isfinite(duration) or duration <= timestamps[-1]:
         raise ValueError(f"Invalid video duration in {path}")
-    signature = tuple(
-        stream.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "time_base", "extradata_size")
-    )
     numerator, denominator = map(int, stream["r_frame_rate"].split("/"))
     rate = numerator / denominator if denominator else 0
     if rate <= 0:
         raise ValueError(f"Invalid video rate in {path}")
-    return {"path": path, "timestamps": timestamps, "duration": duration, "signature": signature, "rate": rate}
+    kept = [item for item in streams if item["codec_type"] in ("video", "audio")]
+    signature = (
+        tuple(stream.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "time_base", "extradata_size")),
+        tuple(_describe_stream(item) for item in kept),
+    )
+    probe = {
+        "path": path,
+        "timestamps": timestamps,
+        "first_pts": first_pts,
+        "duration": duration,
+        "signature": signature,
+        "rate": rate,
+        "embedded_audio": [_describe_stream(item) for item in streams if item["codec_type"] == "audio"],
+        "dropped": [_describe_stream(item) for item in streams if item["codec_type"] not in ("video", "audio")],
+    }
+    return probe
 
 
 def _check_sync_timing(*, actual, expected, tolerance, description):
@@ -647,11 +690,64 @@ def _check_sync_timing(*, actual, expected, tolerance, description):
     return residual
 
 
+def _camera_timeline(*, camera, rows, segments):
+    """Session times of every frame: the segment's manifest start plus the frame's offset from the segment's first."""
+    for row, following, segment in zip(rows, rows[1:], segments):
+        last = row["offset"] + segment["timestamps"][-1]
+        if last >= following["offset"]:
+            raise ValueError(
+                f"{camera} segment {row['segment']} has a frame at {last:g}s, at or past the next segment's manifest "
+                f"start at {following['offset']:g}s. Ask the requester whether to trim, shift, or keep these frames."
+            )
+    timestamps = numpy.concatenate([row["offset"] + segment["timestamps"] for row, segment in zip(rows, segments)])
+    return timestamps
+
+
+def _check_remux(*, camera, combined, segments):
+    """FFmpeg places each segment after the previous one's container duration, so check each segment on its own."""
+    counts = [len(segment["timestamps"]) for segment in segments]
+    if len(combined["timestamps"]) != sum(counts):
+        raise ValueError(f"Remux changed the frame count for {camera}")
+    bounds = numpy.cumsum([0, *counts])
+    for segment, start, stop in zip(segments, bounds[:-1], bounds[1:]):
+        remuxed = combined["timestamps"][start:stop] - combined["timestamps"][start]
+        if not numpy.allclose(remuxed, segment["timestamps"], atol=1e-5, rtol=0):
+            raise ValueError(f"Remux changed the frame presentation times of {segment['path'].name}")
+
+
+def _video_description(*, camera, segments, cfg):
+    embedded = segments[0]["embedded_audio"]
+    dropped = sorted({stream for segment in segments for stream in segment["dropped"]})
+    offset = max(segment["first_pts"] for segment in segments)
+    description = f"{cfg['video']['description']}. Source camera video_{camera}. Lossless remux of the source segments."
+    if embedded:
+        description += f" Embedded {', '.join(embedded)} is kept in the MP4 and not converted to NWB."
+        print(f"video_{camera} carries embedded {', '.join(embedded)}, kept in the MP4", flush=True)
+    else:
+        description += " No embedded audio."
+    if dropped:
+        description += f" Dropped embedded {', '.join(dropped)}."
+        print(f"video_{camera} drops embedded {', '.join(dropped)}", flush=True)
+    if offset > 0:
+        print(
+            f"video_{camera} segments start up to {offset:g}s into their files, recorded in source_segments", flush=True
+        )
+    return description
+
+
 def _sync_subjects(*, nwbfile, session_dir, cfg):
     roster = cfg.get("session_subjects", {}).get(session_dir.name, [])
     if not roster:
-        print(f"PROVISIONAL: no animal metadata for {session_dir.name}; no subjects invented", flush=True)
+        print(f"PROVISIONAL: no animal metadata for {session_dir.name}. No subjects invented.", flush=True)
         return
+    # Both columns are optional as a whole, so each is written only when every animal has a real value for it.
+    fields = [field for field in ("age", "date_of_birth") if any(animal.get(field) for animal in roster)]
+    for field in fields:
+        missing = [str(animal["id"]) for animal in roster if not animal.get(field)]
+        if missing:
+            raise ValueError(f"{field} is given for some animals but not for {', '.join(missing)}")
+    if not fields:
+        raise ValueError("Every animal needs age or date_of_birth")
     table = ndx_multisubjects.SubjectsTable(description="Animals present in this recording, supplied by the lab")
     identifiers = set()
     for animal in roster:
@@ -665,22 +761,18 @@ def _sync_subjects(*, nwbfile, session_dir, cfg):
         if not species or "PROVISIONAL" in species or sex not in {"M", "F", "O", "U"}:
             raise ValueError(f"Invalid species or sex for {original_id}")
         metadata = {}
-        if animal.get("age"):
-            if re.fullmatch(r"P(?=\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?", animal["age"]) is None:
-                raise ValueError(f"Invalid ISO 8601 age for {original_id}")
-            metadata["age"] = animal["age"]
-        elif animal.get("date_of_birth"):
-            birth = datetime.datetime.fromisoformat(animal["date_of_birth"])
-            if birth.tzinfo is None or birth > nwbfile.session_start_time:
-                raise ValueError(f"Invalid timezone or future date of birth for {original_id}")
+        if "age" in fields:
+            if ISO_AGE.fullmatch(str(animal["age"])) is None:
+                raise ValueError(f"Invalid ISO 8601 age for {original_id}: {animal['age']}")
+            metadata["age"] = str(animal["age"])
+        if "date_of_birth" in fields:
+            # YAML reads an unquoted timestamp as a datetime and a bare date as a date, so go through str().
+            birth = datetime.datetime.fromisoformat(str(animal["date_of_birth"]))
+            if birth.tzinfo is None:
+                raise ValueError(f"date_of_birth for {original_id} needs a time with a UTC offset")
+            if birth > nwbfile.session_start_time:
+                raise ValueError(f"date_of_birth for {original_id} is after the session start")
             metadata["date_of_birth"] = birth.isoformat()
-        else:
-            raise ValueError(f"Animal {original_id} needs age or date_of_birth")
-        # Both columns can coexist when the roster mixes age and birth-date metadata.
-        if any("age" in entry for entry in roster):
-            metadata.setdefault("age", "/")
-        if any("date_of_birth" in entry and not entry.get("age") for entry in roster):
-            metadata.setdefault("date_of_birth", "unknown")
         table.add_row(
             subject_id=subject_id,
             subject_description=f"Original lab animal ID: {original_id}",
@@ -739,6 +831,8 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
         )
         for camera in SYNC_CAMERAS:
             video = _probe_sync_video(row["videos"][camera])
+            if videos[camera] and video["signature"] != videos[camera][0]["signature"]:
+                raise ValueError(f"Incompatible video encoding or stream layout across segments for {camera}")
             video["residual"] = _check_sync_timing(
                 actual=video["duration"],
                 expected=row["duration"],
@@ -746,6 +840,7 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
                 description=f"{camera} duration {row['segment']}",
             )
             videos[camera].append(video)
+    timelines = {camera: _camera_timeline(camera=camera, rows=rows, segments=videos[camera]) for camera in SYNC_CAMERAS}
     output_path = multisubject_path(output_dir=output_dir, session_dir=session_dir)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     nwbfile = ndx_multisubjects.NdxMultiSubjectsNWBFile(
@@ -763,6 +858,21 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
         ),
     )
     _sync_subjects(nwbfile=nwbfile, session_dir=session_dir, cfg=cfg)
+    for channel in range(8):
+        nwbfile.create_device(
+            name=f"microphone_{channel:02d}",
+            description=(
+                f"Microphone recorded as channel_{channel:02d}. PROVISIONAL: model, placement, and calibration "
+                "not yet supplied by the lab."
+            ),
+        )
+    for camera in SYNC_CAMERAS:
+        nwbfile.create_device(
+            name=f"camera_{camera}",
+            description=(
+                f"Camera recorded as video_{camera}. PROVISIONAL: model and placement not yet supplied by the lab."
+            ),
+        )
     nwbfile.add_scratch(
         (folder / "sync.csv").read_text(),
         name="source_sync_csv",
@@ -797,11 +907,19 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
             name=f"{camera}_duration_residual",
             description=f"Measured {camera} duration minus manifest duration in seconds",
         )
+        intervals.add_column(
+            name=f"{camera}_first_pts",
+            description=(
+                f"Presentation time of the first {camera} frame inside its source file, in seconds. Frames are "
+                "placed from the manifest start, so this offset is recorded but not applied."
+            ),
+        )
     for index, (row, layout) in enumerate(zip(rows, layouts)):
         metadata = {}
         for camera in SYNC_CAMERAS:
             metadata[f"{camera}_frames"] = len(videos[camera][index]["timestamps"])
             metadata[f"{camera}_duration_residual"] = videos[camera][index]["residual"]
+            metadata[f"{camera}_first_pts"] = videos[camera][index]["first_pts"]
         intervals.add_interval(
             start_time=row["offset"],
             stop_time=row["offset"] + row["duration"],
@@ -833,25 +951,20 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
                     starting_time=0.0,
                     unit="n.a.",
                     description=(
-                        f"{cfg['audio']['description']}; source microphone channel_{channel:02d}; "
-                        "uncalibrated digital samples, no pressure or voltage conversion applied"
+                        f"{cfg['audio']['description']}. Source microphone channel_{channel:02d}, device "
+                        f"microphone_{channel:02d}. Uncalibrated digital samples, with no pressure or voltage "
+                        "conversion applied."
                     ),
                 )
             )
         for camera, segments in videos.items():
-            if any(segment["signature"] != segments[0]["signature"] for segment in segments):
-                raise ValueError(f"Incompatible video encoding across segments for {camera}")
             filename = f"sub-multi_ses-{session_label(session_dir)}_recording-{sanitize_label(camera)}_video.mp4"
             combined_path = staging / filename
-            _concatenate_videos(paths=[segment["path"] for segment in segments], output_path=combined_path)
-            combined = _probe_sync_video(combined_path)
-            timestamps = numpy.concatenate(
-                [segment["timestamps"] + row["offset"] for row, segment in zip(rows, segments)]
+            _concatenate_videos(
+                paths=[segment["path"] for segment in segments], output_path=combined_path, maps=("0:v", "0:a?")
             )
-            if len(combined["timestamps"]) != len(timestamps) or not numpy.allclose(
-                combined["timestamps"], timestamps, atol=1e-5, rtol=0
-            ):
-                raise ValueError(f"Remux changed frame count or presentation times for {camera}")
+            _check_remux(camera=camera, combined=_probe_sync_video(combined_path), segments=segments)
+            timestamps = timelines[camera]
             timing = {"timestamps": timestamps}
             rate = segments[0]["rate"]
             if numpy.allclose(timestamps, numpy.arange(len(timestamps)) / rate, atol=1e-5, rtol=0):
@@ -864,10 +977,8 @@ def _build_synced_nwb(*, session_dir, output_dir, cfg):
                     starting_frame=[0],
                     format="external",
                     num_samples=len(timestamps),
-                    description=(
-                        f"{cfg['video']['description']}; source camera video_{camera}; "
-                        "lossless remux; embedded streams preserved"
-                    ),
+                    description=_video_description(camera=camera, segments=segments, cfg=cfg),
+                    device=nwbfile.devices[f"camera_{camera}"],
                     **timing,
                 )
             )
