@@ -1,8 +1,7 @@
 """Convert one Sanes session into a multisubject NWB file plus one NWB file per tracked animal.
 
-Every Sanes dataset shares one source structure, a session folder of ``idx_*`` recording chunks that are
-continuous with each other. The datasets differ only in which data types the chunks hold, so a session is
-converted from whatever is present::
+Sanes recordings use either continuous ``idx_*`` chunks or a ``sync.csv`` manifest grouping simultaneous
+microphones and cameras in ``concatenated_data_cam_mic_sync/``. The chunk layout is::
 
     <session>/
       *log_*.txt          optional, its first "Started Experiment Now" entry is the session start
@@ -17,6 +16,7 @@ Audio and video must be present in every chunk or in none. Pose and annotations 
 chunk. See ``../README.md`` for the output layout and how each data type maps into it.
 """
 
+import ast
 import csv
 import datetime
 import json
@@ -24,11 +24,14 @@ import os
 import re
 import subprocess
 import tempfile
+import zoneinfo
+from pathlib import Path
 
 import natsort
 import ndx_multisubjects
 import ndx_pose
 import ndx_sound
+import neuroconv.tools.hdmf
 import neuroconv.tools.nwb_helpers
 import numpy
 import pynwb
@@ -40,6 +43,11 @@ import sleap_io
 import yaml
 
 REFERENCE_FRAME = "x and y in pixels from the top-left corner of the video frame"
+SYNC_FOLDER = "concatenated_data_cam_mic_sync"
+SYNC_CAMERAS = ("center", "gily_center", "gily_nest", "gily_underground", "underground")
+_ISO_DURATION = r"P(?=\d|T\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?"
+# An ISO 8601 duration, or an age range "lower/upper" or "lower/" as the NWB Subject age field allows.
+ISO_AGE = re.compile(rf"{_ISO_DURATION}(?:/(?:{_ISO_DURATION})?)?")
 
 
 def load_cfg(config_path, /):
@@ -120,13 +128,16 @@ def _all_or_none(*, items, kind, session_dir):
     return bool(present)
 
 
-def _concatenate_videos(*, paths, output_path):
+def _concatenate_videos(*, paths, output_path, maps=()):
+    """Without *maps*, FFmpeg keeps its default streams, which is what the idx datasets were converted with."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt") as listing:
         for path in paths:
             listing.write(f"file '{path.resolve()}'\n")
         listing.flush()
+        map_arguments = [argument for spec in maps for argument in ("-map", spec)]
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listing.name, "-c", "copy"]
+            + map_arguments
             + [str(output_path)],
             check=True,
         )
@@ -352,6 +363,11 @@ def _write_track_nwbs(*, track_rows, skeleton, output_dir, label, session_start,
 
 def build_nwb(*, session_dir, output_dir, config_path):
     cfg = load_cfg(config_path)
+    if (session_dir / SYNC_FOLDER).is_dir():
+        if discover_chunks(session_dir):
+            raise ValueError(f"Ambiguous session with both idx_* chunks and {SYNC_FOLDER}: {session_dir}")
+        output_path = _build_synced_nwb(session_dir=session_dir, output_dir=output_dir, cfg=cfg)
+        return output_path
     chunks = discover_chunks(session_dir)
     if not chunks:
         raise ValueError(f"No idx_* chunks found under {session_dir}")
@@ -506,4 +522,469 @@ def build_nwb(*, session_dir, output_dir, config_path):
     finally:
         del audio_data
         temporary_audio_path.unlink(missing_ok=True)
+    return output_path
+
+
+def _manifest_list(*, value, field):
+    try:
+        items = ast.literal_eval(value)
+    except (ValueError, SyntaxError, TypeError) as error:
+        raise ValueError(f"Invalid sync.csv {field} list") from error
+    if not isinstance(items, list) or not items or not all(isinstance(item, str) for item in items):
+        raise ValueError(f"sync.csv {field} must be a nonempty list of strings")
+    return items
+
+
+def _read_sync_manifest(*, folder, timezone):
+    rows = []
+    seen = set()
+    with (folder / "sync.csv").open(newline="") as stream:
+        reader = csv.DictReader(stream)
+        if reader.fieldnames != ["video", "audio", "timestamp"]:
+            raise ValueError("sync.csv must have video,audio,timestamp columns")
+        for record in reader:
+            values = {field: _manifest_list(value=record[field], field=field) for field in reader.fieldnames}
+            if len(values["timestamp"]) != 2:
+                raise ValueError("Each sync.csv timestamp must contain start and end")
+            start, stop = [datetime.datetime.fromisoformat(value) for value in values["timestamp"]]
+            if any(value.tzinfo is not None for value in (start, stop)):
+                raise ValueError("Expected local timestamps without offsets in sync.csv")
+            audio = {}
+            videos = {}
+            segment_ids = set()
+            for kind, pattern, destination, suffix in (
+                ("audio", r"channel_(0[0-7])_file_(\d{3})", audio, ".wav"),
+                ("video", r"video_(center|gily_center|gily_nest|gily_underground|underground)_(\d{3})", videos, ".mp4"),
+            ):
+                for name in values[kind]:
+                    match = re.fullmatch(pattern, name)
+                    if match is None or name in seen or match[1] in destination:
+                        raise ValueError(f"Invalid or duplicate sync.csv filename: {name}")
+                    seen.add(name)
+                    segment_ids.add(match[2])
+                    path = folder / (name + suffix)
+                    if not path.is_file():
+                        raise ValueError(f"Missing manifest media: {path}")
+                    destination[match[1]] = path
+            if set(audio) != {f"{index:02d}" for index in range(8)} or set(videos) != set(SYNC_CAMERAS):
+                raise ValueError("Each sync.csv row needs eight microphones and five camera views")
+            if len(segment_ids) != 1 or stop <= start:
+                raise ValueError("Inconsistent segment suffixes or invalid time interval in sync.csv")
+            rows.append({"start": start, "stop": stop, "segment": segment_ids.pop(), "audio": audio, "videos": videos})
+    if not rows:
+        raise ValueError("sync.csv contains no segments")
+    rows.sort(key=lambda row: row["start"])
+    for previous, current in zip(rows, rows[1:]):
+        if previous["stop"] != current["start"]:
+            raise ValueError("sync.csv segments overlap or have a gap")
+    readme = (folder / "README.txt").read_text()
+    descriptions = []
+    for line in readme.splitlines():
+        if not line.startswith("[video_"):
+            continue
+        groups = line.split(" - ")
+        if len(groups) != 3:
+            raise ValueError("Malformed synchronization description in README.txt")
+        videos, audio, timestamps = [group.strip("[]").split(", ") for group in groups]
+        descriptions.append((set(videos), set(audio), timestamps))
+    expected = [
+        (
+            {path.stem for path in row["videos"].values()},
+            {path.stem for path in row["audio"].values()},
+            [row[key].isoformat(sep=" ") for key in ("start", "stop")],
+        )
+        for row in rows
+    ]
+    if len(descriptions) != len(expected) or any(item not in descriptions for item in expected):
+        raise ValueError("README.txt synchronization descriptions disagree with sync.csv")
+    zone = zoneinfo.ZoneInfo(timezone)
+    for row in rows:
+        for key in ("start", "stop"):
+            local = row[key]
+            aware = local.replace(tzinfo=zone)
+            if aware.utcoffset() != local.replace(tzinfo=zone, fold=1).utcoffset():
+                raise ValueError("Ambiguous or nonexistent local time in sync.csv. Confirm the timestamp offsets.")
+            row[key] = aware
+    origin = rows[0]["start"].timestamp()
+    for row in rows:
+        row["offset"] = row["start"].timestamp() - origin
+        row["duration"] = row["stop"].timestamp() - row["start"].timestamp()
+        if row["duration"] <= 0:
+            raise ValueError("Non-positive elapsed segment duration")
+    included = {path.name for row in rows for kind in ("audio", "videos") for path in row[kind].values()}
+    for path in sorted(folder.iterdir()):
+        if path.name not in {"README.txt", "sync.csv"} and path.name not in included:
+            print(f"Out of scope: {path}", flush=True)
+    return rows
+
+
+def _describe_stream(stream, /):
+    codec = stream.get("codec_name") or stream.get("codec_tag_string") or "unknown codec"
+    description = f"{stream['codec_type']} ({codec})"
+    return description
+
+
+def _probe_sync_video(path, /):
+    """Frame presentation times, read from packets without decoding, plus the file's other streams.
+
+    ``timestamps`` start at zero. ``first_pts`` is where the first frame sits inside the file.
+    """
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_streams", "-show_entries", "packet=stream_index,pts_time,flags"]
+        + ["-of", "json", str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    info = json.loads(result.stdout)
+    streams = info.get("streams", [])
+    video_streams = [stream for stream in streams if stream["codec_type"] == "video"]
+    if len(video_streams) != 1:
+        raise ValueError(f"Expected exactly one video stream in {path}, found {len(video_streams)}")
+    stream = video_streams[0]
+    try:
+        timestamps = numpy.sort(
+            [
+                float(packet["pts_time"])
+                for packet in info.get("packets", [])
+                if packet["stream_index"] == stream["index"] and "D" not in packet.get("flags", "")
+            ]
+        )
+    except ValueError as error:
+        raise ValueError(f"Invalid frame presentation times in {path}") from error
+    if not len(timestamps):
+        raise ValueError(f"No video frames in {path}")
+    if not numpy.isfinite(timestamps).all() or numpy.any(numpy.diff(timestamps) <= 0):
+        raise ValueError(f"Invalid frame presentation times in {path}")
+    first_pts = float(timestamps[0])
+    timestamps -= first_pts
+    duration = float(stream.get("duration", "nan"))
+    if not numpy.isfinite(duration) or duration <= timestamps[-1]:
+        raise ValueError(f"Invalid video duration in {path}")
+    numerator, denominator = map(int, stream["r_frame_rate"].split("/"))
+    rate = numerator / denominator if denominator else 0
+    if rate <= 0:
+        raise ValueError(f"Invalid video rate in {path}")
+    kept = [item for item in streams if item["codec_type"] in ("video", "audio")]
+    signature = (
+        tuple(stream.get(key) for key in ("codec_name", "width", "height", "pix_fmt", "time_base", "extradata_size")),
+        tuple(_describe_stream(item) for item in kept),
+    )
+    probe = {
+        "path": path,
+        "timestamps": timestamps,
+        "first_pts": first_pts,
+        "duration": duration,
+        "signature": signature,
+        "rate": rate,
+        "embedded_audio": [_describe_stream(item) for item in streams if item["codec_type"] == "audio"],
+        "dropped": [_describe_stream(item) for item in streams if item["codec_type"] not in ("video", "audio")],
+    }
+    return probe
+
+
+def _check_sync_timing(*, actual, expected, tolerance, description):
+    residual = actual - expected
+    if not numpy.isfinite(residual) or abs(residual) > tolerance + 1e-6:
+        raise ValueError(f"Timing conflict for {description}: measured {actual:g}s, expected {expected:g}s")
+    return residual
+
+
+def _camera_timeline(*, camera, rows, segments):
+    """Session times of every frame: the segment's manifest start plus the frame's offset from the segment's first."""
+    for row, following, segment in zip(rows, rows[1:], segments):
+        last = row["offset"] + segment["timestamps"][-1]
+        if last >= following["offset"]:
+            raise ValueError(
+                f"{camera} segment {row['segment']} has a frame at {last:g}s, at or past the next segment's manifest "
+                f"start at {following['offset']:g}s. Ask the requester whether to trim, shift, or keep these frames."
+            )
+    timestamps = numpy.concatenate([row["offset"] + segment["timestamps"] for row, segment in zip(rows, segments)])
+    return timestamps
+
+
+def _check_remux(*, camera, combined, segments):
+    """FFmpeg places each segment after the previous one's container duration, so check each segment on its own."""
+    counts = [len(segment["timestamps"]) for segment in segments]
+    if len(combined["timestamps"]) != sum(counts):
+        raise ValueError(f"Remux changed the frame count for {camera}")
+    bounds = numpy.cumsum([0, *counts])
+    for segment, start, stop in zip(segments, bounds[:-1], bounds[1:]):
+        remuxed = combined["timestamps"][start:stop] - combined["timestamps"][start]
+        if not numpy.allclose(remuxed, segment["timestamps"], atol=1e-5, rtol=0):
+            raise ValueError(f"Remux changed the frame presentation times of {segment['path'].name}")
+
+
+def _video_description(*, camera, segments, cfg):
+    embedded = segments[0]["embedded_audio"]
+    dropped = sorted({stream for segment in segments for stream in segment["dropped"]})
+    offset = max(segment["first_pts"] for segment in segments)
+    description = f"{cfg['video']['description']}. Source camera video_{camera}. Lossless remux of the source segments."
+    if embedded:
+        description += f" Embedded {', '.join(embedded)} is kept in the MP4 and not converted to NWB."
+        print(f"video_{camera} carries embedded {', '.join(embedded)}, kept in the MP4", flush=True)
+    else:
+        description += " No embedded audio."
+    if dropped:
+        description += f" Dropped embedded {', '.join(dropped)}."
+        print(f"video_{camera} drops embedded {', '.join(dropped)}", flush=True)
+    if offset > 0:
+        print(
+            f"video_{camera} segments start up to {offset:g}s into their files, recorded in source_segments", flush=True
+        )
+    return description
+
+
+def _sync_subjects(*, nwbfile, session_dir, cfg):
+    roster = cfg.get("session_subjects", {}).get(session_dir.name, [])
+    if not roster:
+        print(f"PROVISIONAL: no animal metadata for {session_dir.name}. No subjects invented.", flush=True)
+        return
+    # Both columns are optional as a whole, so each is written only when every animal has a real value for it.
+    fields = [field for field in ("age", "date_of_birth") if any(animal.get(field) for animal in roster)]
+    for field in fields:
+        missing = [str(animal["id"]) for animal in roster if not animal.get(field)]
+        if missing:
+            raise ValueError(f"{field} is given for some animals but not for {', '.join(missing)}")
+    if not fields:
+        raise ValueError("Every animal needs age or date_of_birth")
+    table = ndx_multisubjects.SubjectsTable(description="Animals present in this recording, supplied by the lab")
+    identifiers = set()
+    for animal in roster:
+        original_id = str(animal["id"])
+        subject_id = sanitize_label(original_id)
+        if not subject_id or subject_id in identifiers:
+            raise ValueError(f"Empty or colliding animal ID: {original_id}")
+        identifiers.add(subject_id)
+        species = animal["species"]
+        sex = animal["sex"]
+        if not species or "PROVISIONAL" in species or sex not in {"M", "F", "O", "U"}:
+            raise ValueError(f"Invalid species or sex for {original_id}")
+        metadata = {}
+        if "age" in fields:
+            if ISO_AGE.fullmatch(str(animal["age"])) is None:
+                raise ValueError(f"Invalid ISO 8601 age for {original_id}: {animal['age']}")
+            metadata["age"] = str(animal["age"])
+        if "date_of_birth" in fields:
+            # YAML reads an unquoted timestamp as a datetime and a bare date as a date, so go through str().
+            birth = datetime.datetime.fromisoformat(str(animal["date_of_birth"]))
+            if birth.tzinfo is None:
+                raise ValueError(f"date_of_birth for {original_id} needs a time with a UTC offset")
+            if birth > nwbfile.session_start_time:
+                raise ValueError(f"date_of_birth for {original_id} is after the session start")
+            metadata["date_of_birth"] = birth.isoformat()
+        table.add_row(
+            subject_id=subject_id,
+            subject_description=f"Original lab animal ID: {original_id}",
+            species=species,
+            sex=sex,
+            **metadata,
+        )
+    nwbfile.subjects_table = table
+
+
+def _build_synced_nwb(*, session_dir, output_dir, cfg):
+    folder = session_dir / SYNC_FOLDER
+    rows = _read_sync_manifest(folder=folder, timezone=cfg["session"]["timezone"])
+    tolerance = float(cfg.get("sync", {}).get("tolerance", 0))
+    if not numpy.isfinite(tolerance) or tolerance < 0:
+        raise ValueError("sync.tolerance must be finite and nonnegative")
+    layouts = []
+    videos = {camera: [] for camera in SYNC_CAMERAS}
+    cursor = 0
+    reference = None
+    for row in rows:
+        paths = [row["audio"][f"{channel:02d}"] for channel in range(8)]
+        shapes = set()
+        for path in paths:
+            rate, data = scipy.io.wavfile.read(path, mmap=True)
+            if data.ndim != 1 or not len(data) or rate <= 0:
+                raise ValueError(f"Expected nonempty mono WAV: {path}")
+            shapes.add((len(data), rate, data.dtype))
+        if len(shapes) != 1:
+            raise ValueError(f"Audio channels are not synchronized in segment {row['segment']}")
+        samples, rate, dtype = shapes.pop()
+        if reference is None:
+            reference = (rate, dtype)
+        if reference != (rate, dtype):
+            raise ValueError("Audio sample rate or type changes between sync.csv segments")
+        row["audio_start_residual"] = _check_sync_timing(
+            actual=cursor / rate,
+            expected=row["offset"],
+            tolerance=tolerance,
+            description=f"audio start {row['segment']}",
+        )
+        row["audio_duration_residual"] = _check_sync_timing(
+            actual=samples / rate,
+            expected=row["duration"],
+            tolerance=tolerance,
+            description=f"audio duration {row['segment']}",
+        )
+        layouts.append({"paths": paths, "samples": samples})
+        row["sample_start"] = cursor
+        cursor += samples
+        _check_sync_timing(
+            actual=cursor / rate,
+            expected=row["offset"] + row["duration"],
+            tolerance=tolerance,
+            description=f"audio end {row['segment']}",
+        )
+        for camera in SYNC_CAMERAS:
+            video = _probe_sync_video(row["videos"][camera])
+            if videos[camera] and video["signature"] != videos[camera][0]["signature"]:
+                raise ValueError(f"Incompatible video encoding or stream layout across segments for {camera}")
+            video["residual"] = _check_sync_timing(
+                actual=video["duration"],
+                expected=row["duration"],
+                tolerance=tolerance,
+                description=f"{camera} duration {row['segment']}",
+            )
+            videos[camera].append(video)
+    timelines = {camera: _camera_timeline(camera=camera, rows=rows, segments=videos[camera]) for camera in SYNC_CAMERAS}
+    output_path = multisubject_path(output_dir=output_dir, session_dir=session_dir)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    nwbfile = ndx_multisubjects.NdxMultiSubjectsNWBFile(
+        session_description=cfg["session"]["description"],
+        identifier=f"sanes-{cfg['session']['dataset']}-{session_dir.name}",
+        session_id=session_label(session_dir),
+        session_start_time=rows[0]["start"],
+        lab=cfg["session"]["lab"],
+        institution=cfg["session"]["institution"],
+        experimenter=cfg["session"]["experimenter"],
+        related_publications=cfg["session"].get("related_publications", []),
+        notes=(
+            "PROVISIONAL metadata. Confirm recording timezone, animal roster, "
+            "acquisition hardware, and audio calibration before final upload."
+        ),
+    )
+    _sync_subjects(nwbfile=nwbfile, session_dir=session_dir, cfg=cfg)
+    for channel in range(8):
+        nwbfile.create_device(
+            name=f"microphone_{channel:02d}",
+            description=(
+                f"Microphone recorded as channel_{channel:02d}. PROVISIONAL: model, placement, and calibration "
+                "not yet supplied by the lab."
+            ),
+        )
+    for camera in SYNC_CAMERAS:
+        nwbfile.create_device(
+            name=f"camera_{camera}",
+            description=(
+                f"Camera recorded as video_{camera}. PROVISIONAL: model and placement not yet supplied by the lab."
+            ),
+        )
+    nwbfile.add_scratch(
+        (folder / "sync.csv").read_text(),
+        name="source_sync_csv",
+        description="Original source synchronization manifest",
+    )
+    nwbfile.add_scratch(
+        (folder / "README.txt").read_text(),
+        name="source_readme",
+        description="Original source synchronization documentation",
+    )
+    intervals = nwbfile.create_time_intervals(
+        name="source_segments",
+        description="Source segment associations, measured boundaries, and residuals against the manifest in seconds",
+    )
+    for name, description in (
+        ("segment_id", "Source segment suffix"),
+        ("sample_start", "First sample index in concatenated audio"),
+        ("sample_count", "Samples per microphone in this segment"),
+        ("audio_start_residual", "Measured audio start minus manifest start in seconds"),
+        ("audio_duration_residual", "Measured audio duration minus manifest duration in seconds"),
+    ):
+        intervals.add_column(name=name, description=description)
+    intervals.add_column(
+        name="audio_files", description="Original microphone filenames in numeric channel order", index=True
+    )
+    intervals.add_column(
+        name="video_files", description="Original video filenames in documented camera order", index=True
+    )
+    for camera in SYNC_CAMERAS:
+        intervals.add_column(name=f"{camera}_frames", description=f"Source frame count for {camera}")
+        intervals.add_column(
+            name=f"{camera}_duration_residual",
+            description=f"Measured {camera} duration minus manifest duration in seconds",
+        )
+        intervals.add_column(
+            name=f"{camera}_first_pts",
+            description=(
+                f"Presentation time of the first {camera} frame inside its source file, in seconds. Frames are "
+                "placed from the manifest start, so this offset is recorded but not applied."
+            ),
+        )
+    for index, (row, layout) in enumerate(zip(rows, layouts)):
+        metadata = {}
+        for camera in SYNC_CAMERAS:
+            metadata[f"{camera}_frames"] = len(videos[camera][index]["timestamps"])
+            metadata[f"{camera}_duration_residual"] = videos[camera][index]["residual"]
+            metadata[f"{camera}_first_pts"] = videos[camera][index]["first_pts"]
+        intervals.add_interval(
+            start_time=row["offset"],
+            stop_time=row["offset"] + row["duration"],
+            segment_id=row["segment"],
+            sample_start=row["sample_start"],
+            sample_count=layout["samples"],
+            audio_start_residual=row["audio_start_residual"],
+            audio_duration_residual=row["audio_duration_residual"],
+            audio_files=[path.name for path in layout["paths"]],
+            video_files=[row["videos"][camera].name for camera in SYNC_CAMERAS],
+            **metadata,
+        )
+    with tempfile.TemporaryDirectory(prefix=".sync-", dir=output_path.parent) as temporary:
+        staging = Path(temporary)
+        audio_data = numpy.memmap(staging / "audio.tmp", mode="w+", dtype=reference[1], shape=(cursor, 8))
+        cursor = 0
+        for layout in layouts:
+            for channel, path in enumerate(layout["paths"]):
+                _, samples = scipy.io.wavfile.read(path, mmap=True)
+                audio_data[cursor : cursor + layout["samples"], channel] = samples
+            cursor += layout["samples"]
+        audio_data.flush()
+        nwbfile.add_acquisition(
+            ndx_sound.AcousticWaveformSeries(
+                name="Multi-channel Acoustic Data",
+                data=neuroconv.tools.hdmf.SliceableDataChunkIterator(data=audio_data, buffer_gb=0.01),
+                rate=float(reference[0]),
+                starting_time=0.0,
+                unit="n.a.",
+                description=(
+                    f"{cfg['audio']['description']}. Columns 0 to 7 are source microphones channel_00 to "
+                    "channel_07, devices microphone_00 to microphone_07. Uncalibrated digital samples, with no "
+                    "pressure or voltage conversion applied."
+                ),
+            )
+        )
+        for camera, segments in videos.items():
+            filename = f"sub-multi_ses-{session_label(session_dir)}_recording-{sanitize_label(camera)}_video.mp4"
+            combined_path = staging / filename
+            _concatenate_videos(
+                paths=[segment["path"] for segment in segments], output_path=combined_path, maps=("0:v", "0:a?")
+            )
+            _check_remux(camera=camera, combined=_probe_sync_video(combined_path), segments=segments)
+            timestamps = timelines[camera]
+            timing = {"timestamps": timestamps}
+            rate = segments[0]["rate"]
+            if numpy.allclose(timestamps, numpy.arange(len(timestamps)) / rate, atol=1e-5, rtol=0):
+                timing = {"starting_time": 0.0, "rate": rate}
+            nwbfile.add_acquisition(
+                pynwb.image.ImageSeries(
+                    name=f"video_{camera}",
+                    unit="n/a",
+                    external_file=[filename],
+                    starting_frame=[0],
+                    format="external",
+                    num_samples=len(timestamps),
+                    description=_video_description(camera=camera, segments=segments, cfg=cfg),
+                    device=nwbfile.devices[f"camera_{camera}"],
+                    **timing,
+                )
+            )
+        staged_nwb = staging / output_path.name
+        _write_nwbfile(nwbfile=nwbfile, path=staged_nwb)
+        del audio_data
+        for video_path in staging.glob("*.mp4"):
+            video_path.replace(output_path.parent / video_path.name)
+        staged_nwb.replace(output_path)
     return output_path

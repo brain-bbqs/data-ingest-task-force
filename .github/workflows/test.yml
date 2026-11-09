@@ -75,7 +75,7 @@ jobs:
       - name: Run the smoke test
         run: python -m pytest labs/shepherd/tests/ -q
 
-  SanesSmoke:
+  SanesIntegration:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -92,7 +92,7 @@ jobs:
       - name: Install test environment
         run: pip install "./labs/sanes/envs[test]"
 
-      - name: Run the smoke test
+      - name: Run the integration suite
         run: python -m pytest labs/sanes/tests/ -q
 
   SuthanaInLabIntegration:

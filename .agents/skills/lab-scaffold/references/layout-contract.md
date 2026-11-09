@@ -94,7 +94,7 @@ Repo `AGENTS.md` applies: mark AI-authored tests with the `ai_generated` marker 
 
 ## `prompts/`
 
-Created by lab-intake. Keep `initial.md` current as the scaffold session proceeds, quoting each new request verbatim.
+Created by lab-intake. Keep `initial.md` current as the scaffold session proceeds, quoting each new request verbatim. The approved plan from lab-conversion-plan sits beside it, with any later amendments listed in it.
 
 ## `OPEN_QUESTIONS.md`
 
