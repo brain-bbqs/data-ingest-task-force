@@ -50,7 +50,7 @@ Show concretely what the conversion will produce. This draft later becomes the g
 
 If the intake already includes an expected-output example, reproduce it in the plan and reconcile the mapping against it. Any difference is a question for the requester, not something to paper over.
 
-When reusing an existing converter, check the planned data shapes and required fields against the installed extension schemas. Prior output and successful writes do not establish schema validity. Include extension-specific validation in the implementation checks and record any validator limitations separately from missing metadata (Sanes BIG_ARENA precedent: `ndx-sound` accepts only mono or stereo series, so a planned eight-column audio series became eight mono ones).
+When reusing an existing converter, check the planned data shapes and required fields against the installed extension schemas. Prior output and successful writes do not establish schema validity. Include extension-specific validation in the implementation checks and record any validator limitations separately from missing metadata. Check the schema of the version the environment actually resolves, since constraints change between releases (Sanes BIG_ARENA precedent: `ndx-sound` 0.2.3 allowed at most two channels per series and 0.3.0 any number, so the fix was a version bound, not a different audio layout).
 
 ## Step 4: Draft the metadata plan
 
@@ -69,4 +69,4 @@ For NWB targets this list is the skeleton of the lab's future `code/config.yaml`
 
 Assemble steps 1 through 4 into one plan and present it for review, open questions first and any standard or granularity recommendation clearly marked as the requester's to decide. Do not run lab-scaffold until the requester approves. Quote the approval and any corrections into `labs/<lab>/prompts/initial.md` as further `## Request N` sections, so the record explains why the lab looks the way it does.
 
-The plan itself is not committed as a file. Once approved, its mapping and outline become `code/README.md` and the golden test, and its open questions become `OPEN_QUESTIONS.md`. A change to the approved mapping found during implementation goes back to the requester, recorded as an open question until they confirm it.
+Commit the approved plan beside that record in `labs/<lab>/prompts/`, never at the lab root (Sanes precedent: `prompts/big-arena-2024-12-plan.md`). Its mapping and outline also become `code/README.md` and the golden test, and its open questions become `OPEN_QUESTIONS.md`. A change to the approved mapping found during implementation goes back to the requester as an open question. Once confirmed, it is listed in the plan as an amendment, with a pointer to the quoted confirmation.
