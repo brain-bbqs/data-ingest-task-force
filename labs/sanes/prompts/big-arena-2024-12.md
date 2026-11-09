@@ -78,7 +78,14 @@ Preparing intake and a reviewable NWB conversion plan for incoming dandiset `000
 
 The attachments describe source synchronization and are treated as evidence about the recordings. They do not authorize implementation or change the requested NWB target or review boundary.
 
-See [the review plan](../CONVERSION_PLAN_BIG_ARENA_2024_12.md) for the completed intake, mappings, expected output, open questions, and lessons. Plan approval is quoted in Request 4 below. Later requester decisions should be appended here verbatim without replacing earlier Sanes prompt records.
+The plan was presented for review in this session and approved in Request 4 below. It is not kept as a separate file. Its mapping and expected output now live in `code/README.md`, and its open questions in `OPEN_QUESTIONS.md` (Q9 to Q17). Its text as first committed, which already carried one post-approval schema note, is in git history as `labs/sanes/CONVERSION_PLAN_BIG_ARENA_2024_12.md` at `07da7cc`. Later requester decisions should be appended here verbatim without replacing earlier Sanes prompt records.
+
+Fingerprints of the two attachments, for checking a later copy against the versions inspected:
+
+| Attachment | Bytes | SHA-256 |
+| --- | --- | --- |
+| `sync.csv` | 2201 | `e0260e5319e5c230382b45ad3f6f766d2f1cff6adcd2aa066a525def57b535ca` |
+| `README.txt` | 2107 | `c6d08c3cd72375659661ee248f9318d5dba63345544b88d1c95c36ff45089091` |
 
 ## Request 2 — Institution, provisional timezone, and missing animal metadata
 
@@ -100,7 +107,7 @@ In response to the question about referencing five concatenated MP4s externally 
 
 The approved plan was implemented in the shared Sanes codebase, and all six registration touchpoints
 were audited. The existing entry, session globs, environment, and shared image are reused. Integration
-CI now names the Sanes job accordingly. Synthetic media exercises the supplied hierarchy; no real lab
+CI now names the Sanes job accordingly. Synthetic media exercises the supplied hierarchy. No real lab
 media was inspected or uploaded.
 
 The installed `ndx-sound` schema accepts mono or stereo series, so eight mono series in the one NWB
@@ -112,9 +119,24 @@ NWB Inspector and DANDI validation exposed multisubject-root support limitations
 `OPEN_QUESTIONS.md`. Explicit root and waveform schema validation is covered by the integration tests.
 Upload validation was not weakened. Planning and schema-check lessons were encoded in the repository
 skills. The required external `nwb-convert` skill was refreshed to
-`ea2405e39efbdf324a5fcd77aed05bb1787b260d`; its submodule pin change is deliberate and should be committed
+`ea2405e39efbdf324a5fcd77aed05bb1787b260d`. Its submodule pin change is deliberate and should be committed
 separately from the conversion when the work is committed.
 
 ## Request 5 — Commit on the Sanes arena branch
 
 > can you create the commit on the sanes-arena branch according to the instructions
+
+## Request 6 — Address the pull request review
+
+From the reviewer (CodyCBakerPhD), after the
+[review](https://github.com/brain-bbqs/data-ingest-task-force/pull/53#pullrequestreview-5762511679) of the
+pull request:
+
+> https://github.com/brain-bbqs/data-ingest-task-force/pull/53 do the things the review says
+
+Earlier on the pull request, the requester had commented:
+
+> yes that would be great if you can handle those details! I think this new PR should work for both the arena datasets (BIG_ARENA_2025_03 and BIG_ARENA_2024_12) - could you confirm?
+
+The changes since approval that need the requester's confirmation are Q16 and Q17 in `OPEN_QUESTIONS.md`.
+BIG_ARENA_2025_03 now gets the same provisional timezone (Q9), and its layout is still uninspected (Q6).
