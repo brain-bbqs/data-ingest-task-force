@@ -69,11 +69,19 @@ earlier, hand-made work at its root. The other datasets write directly at the da
 | `idx_*/*.slp` or `idx_*/*.tracks.csv`, split by track | one `sub-<id>/` file per track holding its `Subject` and an `ndx_pose.PoseEstimation` with every landmark and its confidence |
 | tracks, as subjects | multisubject `ndx_multisubjects.SubjectsTable`, one row per track, linked to its file by relative path |
 | `idx_*/*annotations.csv` | multisubject `processing/behavior/vocalizations` (`pynwb.event.EventsTable` with `duration`, `label`, `channel`) |
-| `*log_*.txt` beside the chunks | `session_start_time`, from the first `Started Experiment Now` entry |
+| `*log_*.txt` beside the chunks | `session_start_time` (see below), and every log entry as the multisubject `notes` |
 | `ssa_gt_experiment_metadata.yaml` (SSA GT only) | `session_description` for the experiment's range |
 
 Audio and video must be present in every chunk of a session or in none. Pose and annotations may be missing
-from any chunk. A session with neither audio nor video, pose without video, or no log and no configured
+from any chunk. Chunk frame rates may differ by up to 0.1%, since containers round the same camera rate
+differently (30 vs 1000000/33333).
+
+The session start is the log's `Started Experiment Now` entry. Without one, it is the first free-text start
+note (`exp start`, `started exp`, `Experiment Started`, and so on, but not `Restarted`). Without either, it is
+the timestamp in the log's file name, which is when the logging program opened. Most SSA GT logs hold only
+their header line, so they use the file name.
+
+A session with neither audio nor video, pose without video, or no log and no configured
 `session.start_time` fails with a clear error, and the batch moves on to the next session.
 
 Annotations are placed on the concatenated audio clock (cumulative chunk audio duration), or on the video
@@ -98,7 +106,7 @@ with the v2 scripts it:
 - writes pose with `ndx-pose` on the concatenated video clock instead of through `sleap_io`'s NWB writer,
   which stored frame indices as timestamps and restarted them in every chunk,
 - reads the frame rate from the video instead of assuming 30 fps,
-- reads the session start from the experiment log when there is one,
+- reads the session start from the experiment log when there is one, and keeps the log's notes,
 - stores vocalizations as an `EventsTable` instead of `TimeIntervals`, as the SSA GT requester asked,
 - stages audio in a disk-backed array instead of concatenating it in memory,
 - writes the DANDI `sub-<id>/sub-<id>_ses-<session>` layout, and gives every file a session-unique identifier.

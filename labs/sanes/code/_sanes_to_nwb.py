@@ -5,7 +5,7 @@ continuous with each other. The datasets differ only in which data types the chu
 converted from whatever is present::
 
     <session>/
-      *log_*.txt          optional, its first "Started Experiment Now" entry is the session start
+      *log_*.txt          optional experiment log, gives the session start and the NWB notes
       idx_<N>/
         *.wav             one file per microphone channel ("multichannel" files are skipped)
         *.mp4             the behavioral video
@@ -20,6 +20,7 @@ chunk. See ``../README.md`` for the output layout and how each data type maps in
 import csv
 import datetime
 import json
+import math
 import os
 import re
 import subprocess
@@ -40,6 +41,14 @@ import sleap_io
 import yaml
 
 REFERENCE_FRAME = "x and y in pixels from the top-left corner of the video frame"
+LOG_TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
+LOG_ENTRY = re.compile(r"(?P<time>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})>(?P<text>.*)")
+LOG_HEADER = re.compile(r"Time>Log for experiment number", re.IGNORECASE)
+LOG_NAME_TIME = re.compile(r"log_(?P<time>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.txt$")
+EXACT_START = re.compile(r"Started Experiment Now\b")
+# Free-text start notes such as "exp start", "started exp" or "Experiment Started", but not "Restarted exp".
+INFORMAL_START = re.compile(r"(start(ed)?\b|exp(eriment)?\s+start(ed)?\b)", re.IGNORECASE)
+VIDEO_RATE_TOLERANCE = 1e-3
 
 
 def load_cfg(config_path, /):
@@ -132,22 +141,69 @@ def _concatenate_videos(*, paths, output_path):
         )
 
 
-def _session_start(*, session_dir, cfg):
+def _parse_log_time(text, /):
+    start = datetime.datetime.strptime(text, LOG_TIME_FORMAT).replace(tzinfo=datetime.timezone.utc)
+    return start
+
+
+def _experiment_log(session_dir, /):
+    """The session's experiment log as its path and its ``(time, text)`` entries, or ``(None, [])``.
+
+    Lines without a timestamp keep a ``None`` time. The ``Time>Log for experiment number N`` header is dropped.
+    """
     logs = sorted(session_dir.glob("*log_*.txt"))
     if len(logs) > 1:
         raise ValueError(f"Expected at most one experiment log in {session_dir}, found {logs}")
-    if logs:
-        for line in logs[0].read_text().splitlines():
-            match = re.match(r"(?P<timestamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})>Started Experiment Now", line)
-            if match:
-                start = datetime.datetime.strptime(match["timestamp"], "%Y-%m-%d_%H-%M-%S")
-                return start.replace(tzinfo=datetime.timezone.utc)
-        raise ValueError(f"No 'Started Experiment Now' entry found in {logs[0]}")
+    if not logs:
+        return None, []
+    entries = []
+    for line in logs[0].read_text().splitlines():
+        line = line.strip()
+        if not line or LOG_HEADER.match(line):
+            continue
+        match = LOG_ENTRY.match(line)
+        if match:
+            entries.append((_parse_log_time(match["time"]), match["text"].strip()))
+        else:
+            entries.append((None, line))
+    return logs[0], entries
+
+
+def _session_start(*, session_dir, cfg):
+    """Start at the logged ``Started Experiment Now``, else the first informal start note
+    (``exp start``, ``started exp``, ...), else the timestamp in the log's file name."""
+    log, entries = _experiment_log(session_dir)
+    if log is not None:
+        timed = [(time, text) for time, text in entries if time is not None]
+        for pattern in (EXACT_START, INFORMAL_START):
+            for time, text in timed:
+                if pattern.match(text):
+                    return time
+        match = LOG_NAME_TIME.search(log.name)
+        if match:
+            start = _parse_log_time(match["time"])
+            return start
+        raise ValueError(f"No start entry and no timestamp in the file name of {log}")
     configured = cfg["session"].get("start_time")
     if configured is None:
         raise ValueError(f"{session_dir} has no experiment log and the config sets no session.start_time")
     start = datetime.datetime.fromisoformat(str(configured))
     return start
+
+
+def _session_notes(session_dir, /):
+    _, entries = _experiment_log(session_dir)
+    lines = [text if time is None else f"{time:%Y-%m-%d %H:%M:%S} {text}" for time, text in entries]
+    notes = "\n".join(lines) or None
+    return notes
+
+
+def _check_video_rates(*, videos, session_dir):
+    """Chunk containers round the same camera rate differently (30 vs 1000000/33333), so close rates match."""
+    first = videos[0]["rate"]
+    if any(not math.isclose(video["rate"], first, rel_tol=VIDEO_RATE_TOLERANCE) for video in videos):
+        rates = sorted({round(video["rate"], 4) for video in videos})
+        raise ValueError(f"Video frame rate changes between chunks of {session_dir}: {rates}")
 
 
 def _experiment_metadata(*, session_dir, config_path, cfg):
@@ -376,13 +432,14 @@ def build_nwb(*, session_dir, output_dir, config_path):
             raise ValueError(
                 f"Audio channel count, sampling rate, or sample type changes between chunks of {session_dir}"
             )
-    if has_video and any(video["rate"] != videos[0]["rate"] for video in videos):
-        raise ValueError(f"Video frame rate changes between chunks of {session_dir}")
+    if has_video:
+        _check_video_rates(videos=videos, session_dir=session_dir)
 
     nwbfile = ndx_multisubjects.NdxMultiSubjectsNWBFile(
         session_description=experiment_metadata.get("description", cfg["session"]["description"]),
         identifier=f"sanes-{cfg['session']['dataset']}-{session_dir.name}",
         session_start_time=session_start,
+        notes=_session_notes(session_dir),
         experimenter=cfg["session"]["experimenter"],
         institution=cfg["session"]["institution"],
         lab=cfg["session"]["lab"],

@@ -254,6 +254,74 @@ def test_experiment_description_per_dataset(config_name, expected):
     assert actual == expected
 
 
+def _write_log(*, tmp_path, text):
+    session = tmp_path / "experiment_444"
+    session.mkdir()
+    (session / "experiment_444_log_2025-12-22_14-05-00.txt").write_text(text, newline="")
+    return session
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Time>Log for experiment number 444\r\n", "2025-12-22T14:05:00+00:00"),
+        (
+            "Time>Log for experiment number 444\r\n2025-12-22_14-06-00>exp start\r\n"
+            "2025-12-22_14-07-00>Started Experiment Now\r\n",
+            "2025-12-22T14:07:00+00:00",
+        ),
+        ("2025-12-22_14-06-00>lights off\r\n2025-12-22_14-08-00>exp start\r\n", "2025-12-22T14:08:00+00:00"),
+        ("2025-12-22_14-06-00>Experiment Started\r\n", "2025-12-22T14:06:00+00:00"),
+        ("2025-12-22_14-06-00>started 118 first\r\n", "2025-12-22T14:06:00+00:00"),
+        ("2025-12-22_14-06-00>Restarted exp - turned off lights\r\n", "2025-12-22T14:05:00+00:00"),
+    ],
+)
+def test_session_start_from_log(tmp_path, text, expected):
+    session = _write_log(tmp_path=tmp_path, text=text)
+    actual = converter._session_start(session_dir=session, cfg={"session": {}}).isoformat()
+    assert actual == expected
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Time>Log for experiment number 444\r\n", None),
+        (
+            "Time>Log for experiment number 388\r\n2025-11-18_13-26-25>exp start\r\nno timestamp here\r\n"
+            "2025-11-18_13-30-08>lights off\r\n",
+            "2025-11-18 13:26:25 exp start\nno timestamp here\n2025-11-18 13:30:08 lights off",
+        ),
+    ],
+)
+def test_session_notes(tmp_path, text, expected):
+    session = _write_log(tmp_path=tmp_path, text=text)
+    actual = converter._session_notes(session)
+    assert actual == expected
+
+
+@pytest.mark.ai_generated
+def test_log_notes_in_multisubject_file(tracks_output):
+    with pynwb.NWBHDF5IO(tracks_output / "sub-multi" / "sub-multi_ses-experiment280_behavior.nwb", "r") as io:
+        actual = io.read().notes
+    assert actual == "2025-08-12 11:01:05 Initializing\n2025-08-12 11:01:09 Started Experiment Now"
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("rates", "raises"),
+    [([1000000 / 33333, 30.0, 1000000 / 33333], False), ([30.0, 25.0], True)],
+)
+def test_video_rate_check(rates, raises):
+    videos = [{"rate": rate} for rate in rates]
+    if raises:
+        with pytest.raises(ValueError, match="Video frame rate changes"):
+            converter._check_video_rates(videos=videos, session_dir=Path("experiment_280"))
+    else:
+        converter._check_video_rates(videos=videos, session_dir=Path("experiment_280"))
+
+
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(("value", "expected"), [("experiment_280", "experiment280"), ("track 1", "track1"), ("", "")])
 def test_sanitize_label(value, expected):
