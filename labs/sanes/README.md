@@ -42,8 +42,15 @@ labs/sanes/
   containers/sanes.Dockerfile           the runtime image
   envs/pyproject.toml                   loose environment declaration
   envs/original/                        v1 conda environment exports, verbatim provenance
-  tests/                                synthesized sessions and the test suite
-  prompts/                              AI agent prompts given for this conversion
+  tests/
+    synthetic.py                        writes idx-based sessions at test time, and the manifest fixture
+    example_raw/big_arena/              committed synthetic manifest session (not lab data)
+    expected_output/big_arena.json      golden summary of that session's NWB file
+    nwb_summary.py                      builds the summary, shared by the test and the generator
+    generate_fixtures.py                regenerates example_raw/ and expected_output/
+    test_converter.py, test_batch_convert.py
+  prompts/                              AI agent prompts given for this conversion, and the approved
+                                        BIG_ARENA_2024_12 conversion plan
   OPEN_QUESTIONS.md                     what the conversion still depends on
 ```
 
@@ -83,22 +90,28 @@ clock when a session has no audio. Pose `frame_idx` values are placed on the con
 
 ## BIG_ARENA_2024_12
 
-The requester approved the [conversion plan](CONVERSION_PLAN_BIG_ARENA_2024_12.md). The supplied display name
-was `Big_Arean_2024_12`; the existing machine key stays `sanes/big-arena-2024-12`. See the
-[prompt record](prompts/big-arena-2024-12.md) for the request, metadata answers, and approval.
+The requester approved the [conversion plan](prompts/big-arena-2024-12-plan.md) in Request 4 of the
+[prompt record](prompts/big-arena-2024-12.md), which also holds the request, the metadata answers, and the
+reviewer's decisions on the changes since approval. The supplied display name was `Big_Arean_2024_12`. The
+existing machine key stays `sanes/big-arena-2024-12`. The source mapping and output outline are also in
+[the code README](code/README.md#manifest-backed-audiovideo).
 
 One experiment produces one `NdxMultiSubjectsNWBFile` plus five externally referenced, concatenated MP4s.
-All eight microphones are preserved as separate mono `ndx-sound` series because the current extension
-schema permits only mono or stereo series. No per-animal NWBs, pose, or vocalizations are synthesized.
+The eight mono microphone WAVs are stacked as the columns of one `ndx-sound` series, as in the other Sanes
+datasets. No per-animal NWBs, pose, or vocalizations are synthesized.
 `sync.csv` supplies the timestamp intervals and media associations. `README.txt` is cross-checked and both
-texts are preserved inside the NWB. The source mapping and full output outline are in
-[the code README](code/README.md#manifest-backed-audiovideo).
+texts are preserved inside the NWB.
 
 `America/New_York` is a provisional timezone based on the requester's NYU/East Coast answer. Animal data is
 not yet available. The converter reports an absent roster and omits the subjects table rather than
 inventing animals. Add actual animals under `session_subjects.<experiment_name>` in the dataset config
 when supplied. A real roster produces `SubjectsTable` rows without per-animal file links, verified by
-round-trip tests. Final upload remains blocked by missing metadata and multisubject validation support.
+round-trip tests.
+
+The NWB file is blocked from upload by missing metadata and the lack of multisubject validation support.
+Under dispatch's default `upload_validation: require`, the five MP4s would still publish without it, and
+dispatch would then fail this project on every run until the NWB validates. Keep the entry off the runner
+until then.
 
 ```bash
 python3 labs/sanes/code/batch_convert.py \
@@ -107,11 +120,9 @@ python3 labs/sanes/code/batch_convert.py \
   --config labs/sanes/code/config_big_arena_2024_12.yaml
 ```
 
-Tests include a committed synthetic six-segment, eight-microphone, five-camera session and its golden
-semantic summary. Each segment is one second, with distinctive channel samples and camera/segment images.
-These fixtures are generated examples, not lab recordings. Run `python3 -m pytest labs/sanes/tests -q` in
-the environment installed with `pip install './labs/sanes/envs[test]'`. Regenerate with
-`python3 -m labs.sanes.tests.generate_fixtures`. Real WAV and MP4 assets have not been inspected or converted.
+BIG_ARENA_2025_03 (`000602`) has not been inspected (Q6). The requester expects it to share this layout,
+so its config carries the same provisional timezone. Real WAV and MP4 assets of either dataset have not
+been inspected or converted.
 
 ## Provenance
 
@@ -159,7 +170,7 @@ file it finds. The converter writes the `Subject` into each track file when it c
 ## The environment
 
 The Python environment is declared in `envs/pyproject.toml`, unpinned apart from the bounds it explains
-(`pynwb>=4` for `EventsTable`, `ndx-sound>=0.2.3`, `zarr<3` for NeuroConv). `containers/sanes.Dockerfile`
+(`pynwb>=4` for `EventsTable`, `ndx-sound>=0.3.0` for multi-channel series, `zarr<3` for NeuroConv). `containers/sanes.Dockerfile`
 resolves it at build time and adds FFmpeg, whose `ffprobe` and `ffmpeg` the converter shells out to. The
 image digest is the reproducibility lock. The interpreter version (3.13) is pinned by the Dockerfile base
 image and the CI job. `envs/original/` holds the v1 notebook's conda exports as a record, not a build input.
@@ -198,14 +209,24 @@ python3 labs/sanes/code/batch_convert.py \
 
 ## Tests
 
-`tests/synthetic.py` writes sessions in the source layout the lab described, with any mix of data types:
-two chunks of per-channel WAVs, tiny MP4s, pose as `.slp` or `.tracks.csv`, annotations, and an optional log.
-They are generated at test time, not lab data. `test_converter.py` converts an SSA GT-style and an R34-style
-session end to end and checks the files read back with PyNWB, plus an audio-only session and every
-unconvertible mix. `test_batch_convert.py` covers discovery, skip and overwrite, and failure handling with the
-converter stubbed. FFmpeg must be on `PATH`.
+`tests/synthetic.py` writes idx-based sessions in the source layout the lab described, with any mix of data
+types: two chunks of per-channel WAVs, tiny MP4s, pose as `.slp` or `.tracks.csv`, annotations, and an
+optional log. Those are generated at test time. The manifest session under `tests/example_raw/big_arena/` is
+committed instead: six one-second segments, eight microphones with distinctive samples, and five cameras
+with distinct colors and segment marks. Both are synthetic, not lab recordings.
+
+`test_converter.py` converts an SSA GT-style and an R34-style session end to end and checks the files read
+back with PyNWB, plus an audio-only session and every unconvertible mix. For the manifest session it checks
+the golden summary in `tests/expected_output/big_arena.json`, then pins timing, provenance, devices, and
+validation explicitly, since the summary is only a snapshot of the converter's own output. It also covers
+every rejected source, segment lengths against `sync.tolerance`, 29.97 fps cameras with embedded audio,
+timecode tracks, in-file start offsets, symlinked media, and the roster rules. `test_batch_convert.py` covers
+discovery, skip and overwrite, pending and failed results, and failure handling with the converter stubbed.
+FFmpeg with `libx264` and `aac` must be on `PATH`.
 
 ```bash
 pip install "./labs/sanes/envs[test]"
 python -m pytest labs/sanes/tests/ -q
 ```
+
+Regenerate the manifest fixture and its summary with `python3 -m labs.sanes.tests.generate_fixtures`.

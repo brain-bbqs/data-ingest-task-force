@@ -50,7 +50,7 @@ Show concretely what the conversion will produce. This draft later becomes the g
 
 If the intake already includes an expected-output example, reproduce it in the plan and reconcile the mapping against it. Any difference is a question for the requester, not something to paper over.
 
-When reusing an existing converter, check the planned data shapes and required fields against the installed extension schemas. Prior output and successful writes do not establish schema validity. Include extension-specific validation in the implementation checks and record any validator limitations separately from missing metadata.
+When reusing an existing converter, check the planned data shapes and required fields against the installed extension schemas. Prior output and successful writes do not establish schema validity. Include extension-specific validation in the implementation checks and record any validator limitations separately from missing metadata. Check the schema of the version the environment actually resolves, since constraints change between releases (Sanes BIG_ARENA precedent: `ndx-sound` 0.2.3 allowed at most two channels per series and 0.3.0 any number, so the fix was a version bound, not a different audio layout).
 
 ## Step 4: Draft the metadata plan
 
@@ -61,10 +61,12 @@ List which metadata lands where, and what is still `PROVISIONAL`:
 - Papers from the intake, as `related_publications` DOI links (NWB) or dataset-level references (BIDS).
 - Device, electrode group, and channel-map details for data with neural channels.
 
-For multi-subject recordings, state where the animal roster comes from independently of pose or tracking files. Audio/video without tracks still needs subject identities and metadata. If the plan omits per-animal NWBs, check whether the chosen extension supports roster rows without per-animal file links, and carry any unverified schema constraint explicitly into implementation checks.
+For multi-subject recordings, state where the animal roster comes from independently of pose or tracking files. Audio and video without tracks still need subject identities and metadata. Check that the chosen multi-subject representation can hold the planned roster as is, and carry any unverified schema constraint explicitly into implementation checks (Sanes BIG_ARENA precedent: its plan omits per-animal NWBs, and `ndx-multisubjects` makes the per-animal file link optional).
 
 For NWB targets this list is the skeleton of the lab's future `code/config.yaml`. `labs/inman/code/config.yaml` is the house pattern, including its `PROVISIONAL` markers and its header pointing at the NWB GUIDE.
 
 ## Step 5: Get sign-off
 
 Assemble steps 1 through 4 into one plan and present it for review, open questions first and any standard or granularity recommendation clearly marked as the requester's to decide. Do not run lab-scaffold until the requester approves. Quote the approval and any corrections into `labs/<lab>/prompts/initial.md` as further `## Request N` sections, so the record explains why the lab looks the way it does.
+
+Commit the approved plan beside that record in `labs/<lab>/prompts/`, never at the lab root (Sanes precedent: `prompts/big-arena-2024-12-plan.md`). Its mapping and outline also become `code/README.md` and the golden test, and its open questions become `OPEN_QUESTIONS.md`. A change to the approved mapping found during implementation goes back to the requester as an open question. Once confirmed, it is listed in the plan as an amendment, with a pointer to the quoted confirmation.

@@ -6,6 +6,7 @@ Test functions take their arguments positionally by pytest's injection rules, so
 keyword-only and positional-only conventions do not apply to them.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -25,10 +26,11 @@ def _make_session(path, /):
     return path
 
 
+@pytest.mark.parametrize("layout", ["idx_0", "concatenated_data_cam_mic_sync"])
 @pytest.mark.parametrize("nesting", ["", "ssa_gt_data"])
-def test_discover_sessions_at_either_depth(tmp_path, nesting):
+def test_discover_sessions_at_either_depth(tmp_path, nesting, layout):
     for name in ("experiment_281", "experiment_280"):
-        _make_session(tmp_path / nesting / name)
+        (tmp_path / nesting / name / layout).mkdir(parents=True)
     (tmp_path / "notes").mkdir()
     sessions, ignored = batch_convert.discover_sessions(tmp_path)
     actual = ([path.name for path in sessions], [path.name for path in ignored])
@@ -80,12 +82,17 @@ def test_failed_session_does_not_stop_the_batch(tmp_path, recorded_calls):
     for name in ("experiment_bad", "experiment_good"):
         _make_session(tmp_path / "in" / name)
     actual = batch_convert.convert_batch(
-        incoming_dir=tmp_path / "in", standardized_dir=tmp_path / "out", config_path=CODE / "config_ssa_gt.yaml"
+        incoming_dir=tmp_path / "in",
+        standardized_dir=tmp_path / "out",
+        config_path=CODE / "config_ssa_gt.yaml",
+        results_path=tmp_path / "results.json",
     )
     assert (actual, [name for name, _ in recorded_calls]) == (1, ["experiment_bad", "experiment_good"])
+    results = json.loads((tmp_path / "results.json").read_text())
+    assert results == {"failed": {"experiment_bad": "unreadable"}, "pending": {}}
 
 
-@pytest.mark.parametrize("flag", ["--input", "--output", "--config", "--overwrite"])
+@pytest.mark.parametrize("flag", ["--input", "--output", "--config", "--overwrite", "--results"])
 def test_cli_help(flag):
     completed = subprocess.run(
         [sys.executable, str(CODE / "batch_convert.py"), "--help"], capture_output=True, text=True, check=True
@@ -93,21 +100,49 @@ def test_cli_help(flag):
     assert flag in completed.stdout
 
 
-@pytest.mark.parametrize("nesting", ["", "collection"])
-def test_discovers_manifest_sessions(tmp_path, nesting):
-    session = tmp_path / nesting / "experiment_109"
-    (session / "concatenated_data_cam_mic_sync").mkdir(parents=True)
-    sessions, ignored = batch_convert.discover_sessions(tmp_path)
-    assert sessions == [session]
-    assert ignored == []
+def _log_only(path, /):
+    path.mkdir(parents=True)
+    (path / "experiment_281_log_2025-08-12_11-01-09.txt").write_text("")
 
 
-def test_unsupported_experiment_is_a_failure(tmp_path):
-    (tmp_path / "experiment_109" / "unknown_layout").mkdir(parents=True)
+def _notes_file(path, /):
+    path.parent.mkdir(parents=True)
+    path.write_text("")
+
+
+@pytest.mark.parametrize(
+    ("relative", "make", "expected"),
+    [
+        ("experiment_281", _log_only, {"experiment_281": batch_convert.UNSUPPORTED_REASON}),
+        ("collection/experiment_281", _log_only, {"experiment_281": batch_convert.UNSUPPORTED_REASON}),
+        ("notes/experiment_280_comments.txt", _notes_file, {}),
+    ],
+)
+def test_unsupported_experiments_are_pending(tmp_path, recorded_calls, relative, make, expected):
+    _make_session(tmp_path / "in" / "experiment_280")
+    make(tmp_path / "in" / relative)
     actual = batch_convert.convert_batch(
-        incoming_dir=tmp_path, standardized_dir=tmp_path / "out", config_path=CODE / "config_big_arena_2024_12.yaml"
+        incoming_dir=tmp_path / "in",
+        standardized_dir=tmp_path / "out",
+        config_path=CODE / "config_big_arena_2024_12.yaml",
+        results_path=tmp_path / "results.json",
     )
-    assert actual == 1
+    assert (actual, [name for name, _ in recorded_calls]) == (0, ["experiment_280"])
+    results = json.loads((tmp_path / "results.json").read_text())
+    assert results == {"failed": {}, "pending": expected}
+
+
+def test_only_unsupported_experiments_still_pass(tmp_path, recorded_calls):
+    _log_only(tmp_path / "in" / "experiment_281")
+    actual = batch_convert.convert_batch(
+        incoming_dir=tmp_path / "in",
+        standardized_dir=tmp_path / "out",
+        config_path=CODE / "config_big_arena_2024_12.yaml",
+        results_path=tmp_path / "results.json",
+    )
+    assert (actual, recorded_calls) == (0, [])
+    results = json.loads((tmp_path / "results.json").read_text())
+    assert results == {"failed": {}, "pending": {"experiment_281": batch_convert.UNSUPPORTED_REASON}}
 
 
 def test_colliding_session_labels_are_rejected(tmp_path, recorded_calls):

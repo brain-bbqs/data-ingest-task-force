@@ -5,7 +5,7 @@ The shared Sanes converter. See `../README.md` for the datasets it serves, the o
 ## Files
 
 - `_sanes_to_nwb.py` converts one session with `build_nwb`. It holds all logic that determines output content, so it is every Sanes dispatch entry's `script_path`.
-- `batch_convert.py` is what dispatch runs. It finds session folders (folders holding `idx_*` chunks or `concatenated_data_cam_mic_sync/`) directly under `--input` or one folder below it, skips sessions whose multisubject file exists unless `--overwrite` is given, converts the rest one at a time, and reports failures without stopping.
+- `batch_convert.py` is what dispatch runs. It finds session folders (folders holding `idx_*` chunks or `concatenated_data_cam_mic_sync/`) directly under `--input` or one folder below it, skips sessions whose multisubject file exists unless `--overwrite` is given, converts the rest one at a time, and reports failures without stopping. An `experiment_*` folder with neither layout is reported as pending, not failed. With `--results` it writes the sessions it left unconverted to the JSON file dispatch reads through its `{results}` placeholder.
 - `config.yaml`, `config_ssa_gt.yaml`, `config_big_arena_2024_12.yaml`, and `config_big_arena_2025_03.yaml` configure one dataset each.
 - `ssa_gt_experiment_metadata.yaml` holds per-experiment SSA GT metadata transcribed from the lab's `metadata_SSA_GT`.
 - The v2 lab scripts, `config_multisubject.yaml`, and `pynaViz_ex.py` are verbatim provenance and are not run.
@@ -18,9 +18,12 @@ The shared Sanes converter. See `../README.md` for the datasets it serves, the o
 | `experiment_metadata` | Optional per-experiment metadata file next to the config. Its range matching an experiment's number supplies `session_description`. |
 | `session.dataset` | Prefix of every NWB identifier, so session names stay unique across datasets. |
 | `session.start_time` | Fallback for idx-based sessions without an experiment log. Manifest sessions use the first CSV timestamp. |
+| `session.timezone` | Timezone of the naive `sync.csv` timestamps. Only manifest sessions read it. |
 | `session.*` | `lab`, `institution`, `experimenter`, and the default `description`. |
 | `subject` | Defaults for every tracked animal: `species`, `sex`, `age`. |
 | `subjects` | Optional per-track overrides by sorted track order. `id` names the `sub-<id>` folder, which is otherwise the two-digit track position. |
+| `session_subjects` | Manifest sessions only. The animal roster per experiment folder name (see below). |
+| `sync.tolerance` | Manifest sessions only. Allowed difference in seconds between measured media and the manifest. Defaults to 0. |
 | `audio.description`, `video.description` | Descriptions of the audio series and the combined video. |
 
 ## Where each decision lives
@@ -29,6 +32,8 @@ The shared Sanes converter. See `../README.md` for the datasets it serves, the o
 - Reading pose: `_read_slp` and `_read_tracks_csv` both return rows of `{track, frame_idx, points}`, so both formats share one writer, `_pose_estimation`.
 - Session start: `_session_start` for idx-based sessions, `_read_sync_manifest` for manifest sessions.
 - Subject ids and file names: `_subject`, `session_label`, `multisubject_path`, `_write_track_nwbs`.
+- Manifest video timing: `_probe_sync_video`, `_camera_timeline`, `_check_remux`.
+- Manifest roster: `_sync_subjects`.
 - Compression: `_write_nwbfile`.
 
 ## Run it by hand
@@ -60,15 +65,16 @@ sourcedata/raw/experiment_109/concatenated_data_cam_mic_sync/
   temp/                                      excluded and reported
 ```
 
-`_read_sync_manifest` safely parses the CSV list literals, validates membership, duplicate filenames,
-local time intervals, and paths, sorts chronologically, and cross-checks README associations. Missing
-listed files, conflicting layouts, and unsupported `experiment_*` folders fail visibly. Session labels
-come from `session_label`; batch conversion rejects collisions before writing. Other unlisted files and
-`temp/` are reported and excluded. The input data is never modified.
+`_read_sync_manifest` safely parses the CSV list literals, validates membership, duplicate filenames and
+local time intervals, sorts chronologically, and cross-checks README associations. Filenames must match
+the expected channel and camera patterns, so a listed path cannot leave the folder. Symlinked media, as in a
+DataLad or git-annex checkout, is fine. Missing listed files and conflicting layouts fail visibly. Session
+labels come from `session_label`, and batch conversion rejects collisions before writing. Other unlisted
+files and `temp/` are reported and excluded. The input data is never modified.
 
 | Source | Destination in the one session NWB, or external media |
 | --- | --- |
-| `channel_00_file_*.wav` through `channel_07_file_*.wav` | `acquisition/channel_00` through `acquisition/channel_07`, eight mono `AcousticWaveformSeries`, concatenated in manifest order |
+| `channel_00_file_*.wav` through `channel_07_file_*.wav` | Columns 0 to 7 of one `AcousticWaveformSeries` at `acquisition/Multi-channel Acoustic Data`, concatenated in manifest order |
 | `video_center_*.mp4` | `acquisition/video_center` referencing `sub-multi_ses-experiment109_recording-center_video.mp4` |
 | `video_gily_center_*.mp4` | `acquisition/video_gily_center` referencing `sub-multi_ses-experiment109_recording-gilycenter_video.mp4` |
 | `video_gily_nest_*.mp4` | `acquisition/video_gily_nest` referencing `sub-multi_ses-experiment109_recording-gilynest_video.mp4` |
@@ -85,15 +91,19 @@ come from `session_label`; batch conversion rejects collisions before writing. O
     session_id: experiment109
     session_start_time: 2024-12-10T16:27:56-05:00 (PROVISIONAL timezone)
     notes: PROVISIONAL metadata, confirmation needed before final upload
-    general/SubjectsTable                    actual roster only, if supplied
+    general/
+      SubjectsTable                          actual roster only, if supplied
+      devices/
+        microphone_00 ... microphone_07      PROVISIONAL hardware
+        camera_center ... camera_underground PROVISIONAL hardware, linked from each ImageSeries
     acquisition/
-      channel_00 ... channel_07               AcousticWaveformSeries, measured rate, start 0
+      Multi-channel Acoustic Data            AcousticWaveformSeries, (N, 8), measured rate, start 0
       video_center                           ImageSeries, standardized relative MP4 path
       video_gily_center
       video_gily_nest
       video_gily_underground
       video_underground
-    intervals/source_segments                manifest times, filenames, samples, frames, residuals
+    intervals/source_segments                manifest times, filenames, samples, frames, offsets, residuals
     scratch/source_sync_csv, source_readme
   sub-multi_ses-experiment109_recording-center_video.mp4
   sub-multi_ses-experiment109_recording-gilycenter_video.mp4
@@ -102,40 +112,65 @@ come from `session_label`; batch conversion rejects collisions before writing. O
   sub-multi_ses-experiment109_recording-underground_video.mp4
 ```
 
-The current `ndx-sound` schema restricts each series to mono or stereo, so eight mono series replace the
-original plan's eight-column series. Its fixed unit is `n.a.`. Descriptions explicitly preserve the
-meaning as uncalibrated digital samples. No pressure or voltage conversion is claimed.
+The eight microphones are the columns of one series, as in the other Sanes datasets. That needs `ndx-sound`
+0.3.0 or newer, since 0.2.3 allowed only one or two channels per series. Its fixed unit is `n.a.`. The
+description explicitly preserves the meaning as uncalibrated digital samples. No pressure or voltage
+conversion is claimed.
+NWB has no funding field, so the award U01DA063581 belongs in the `000629` dandiset metadata, not the NWB file.
 
-Audio headers must agree across microphones and segments. Audio is staged in a disk-backed matrix and
-written through bounded chunk iterators. FFprobe measures every video's presentation timestamps and
-stream properties. FFmpeg remuxes one camera at a time with all embedded streams preserved. Every output
-is checked for unchanged video frame count and presentation times. Constant-rate views use their measured
-rate; irregular views use explicit session-relative timestamps. Rates can differ between cameras.
+### Timing
 
-`sync.tolerance` is an explicit nonnegative tolerance in seconds for measured media duration and audio
-boundaries versus the manifest. The default is zero, allowing only one microsecond for numerical
-precision. The whole-second source metadata does not establish subsecond synchronization. A real-data
-conflict requires review before changing the tolerance. No samples or frames are silently padded,
-trimmed, resampled, or stretched. Presentation times must survive remuxing within FFprobe's precision.
-All files are staged together beside the output and the NWB is published last after successful writing.
-Sessions run serially to limit disk and memory use.
+Audio headers must agree across microphones and segments. Audio is concatenated sample by sample, staged
+in a disk-backed matrix, and written through bounded chunk iterators. It starts at 0 with the measured rate,
+and each segment's start and duration are checked against the manifest.
 
-`session.timezone` is `America/New_York`, marked `PROVISIONAL`. `session_subjects` maps experiment folder
-names to animal dictionaries. Each needs `id`, `species`, `sex` (`M`, `F`, `O`, `U`), and `age` such as
-`P90D` or a timezone-aware ISO `date_of_birth`. `_sync_subjects` sanitizes IDs with the shared
-`sanitize_label`, preserves the original ID in its description, and rejects collisions. The extension's
-per-animal NWB link column is optional. With no roster the converter prints a provisional-metadata
-message and leaves `SubjectsTable` absent. It never derives subjects from microphones or cameras.
+FFprobe reads every video's packet presentation times and stream layout without decoding. All segments of
+one camera must share codec, dimensions, pixel format, time base, and video and audio streams, which is
+checked before any audio is staged. Each frame is placed at its segment's manifest start plus its offset
+from the segment's first frame. A segment's in-file start offset is therefore not applied, but it is recorded
+as `<camera>_first_pts` in `source_segments`. Constant-rate views get `starting_time` 0 and their measured
+rate. Any other view, a 29.97 fps camera against whole-second segments for example, gets explicit
+timestamps. Rates can differ between cameras.
+
+A segment whose last frame lands at or past the next segment's manifest start stops conversion. Whether
+to trim, shift, or keep such frames is the requester's decision (Q16).
+
+FFmpeg remuxes one camera at a time, keeping its video and any embedded audio. Embedded audio is reported
+and named in the `ImageSeries` description, but not converted to NWB. Data streams such as timecode tracks
+cannot be concatenated, so they are dropped and reported. The concat demuxer places each segment after the
+previous segment's container duration, so a camera whose embedded audio outlasts its video gets small gaps
+in the MP4's own clock. The NWB timestamps are unaffected. The remux is checked per segment for unchanged
+frame count and in-segment presentation times.
+
+`sync.tolerance` is the allowed difference in seconds between measured media durations or audio
+boundaries and the manifest. The default is zero, allowing only one microsecond for numerical precision.
+The whole-second source metadata does not establish subsecond synchronization. A real-data conflict
+requires review before changing the tolerance. No samples or frames are silently padded, trimmed,
+resampled, or stretched. All files are staged together beside the output and the NWB is published last
+after successful writing. Sessions run serially to limit disk and memory use.
+
+### Roster
+
+`session.timezone` is `America/New_York` in both BIG_ARENA configs, marked `PROVISIONAL`. `session_subjects`
+maps experiment folder names to lists of animals. Each animal needs `id`, `species`, `sex` (`M`, `F`, `O`,
+`U`), and an ISO 8601 `age` such as `P90D`, a range such as `P10W/P12W` or `P90D/`, or a `date_of_birth`
+with a UTC offset. `age` and `date_of_birth` are columns of the whole table, so a field given for some
+animals must be given for all of them. YAML dates may be quoted or not.
+
+`_sync_subjects` sanitizes IDs with the shared `sanitize_label`, preserves the original ID in its
+description, and rejects collisions. The extension's per-animal NWB link column is optional. With no
+roster the converter prints a provisional-metadata message and leaves `SubjectsTable` absent. It never
+derives subjects from microphones or cameras.
 
 The existing NeuroConv `AudioInterface` writes file-based series, and `ExternalVideoInterface` references
 video segments without remuxing or validating this cross-camera manifest. This reader keeps the shared
-PyNWB writer and NeuroConv compression/chunk iterator helpers to implement the approved continuous-stream
-mapping and independent presentation-time checks.
+PyNWB writer and NeuroConv compression and chunk iterator helpers to implement the approved
+continuous-stream mapping and independent presentation-time checks.
 
 ### Validation and upload readiness
 
 The integration suite validates the multisubject root explicitly with
-`pynwb.validate(path=path, namespace="ndx-multisubjects")` and validates every mono waveform against the
+`pynwb.validate(path=path, namespace="ndx-multisubjects")` and validates the waveform series against the
 `ndx-sound` namespace through HDMF. It round-trips the actual subject table without per-animal links and
 checks that all external files exist and decoded video frames match the originals in order.
 
@@ -144,8 +179,9 @@ also tries independent cached extension namespaces against the multisubject root
 `NdxMultiSubjectsNWBFile not found in namespace ndx-pose`. This is distinct from a missing animal roster.
 NWB Inspector's external-video check also assumes an ancestor literally called `NWBFile` and raises on
 this extension root, although the paths resolve and video content is verified by the integration tests.
-DANDI reports the existing `check_subject_exists` constraint too. The standalone synthetic output is
-not a Dandiset and therefore also reports `DANDI.NO_DANDISET_FOUND`; no dataset metadata was fabricated.
+DANDI also reports `check_subject_exists`. It stays CRITICAL even with a full roster, because the
+multisubject root has no `general/subject`. The standalone synthetic output is not a Dandiset and
+therefore also reports `DANDI.NO_DANDISET_FOUND`. No dataset metadata was fabricated.
 
 These commands were run on synthetic output. They are diagnostic and currently report the extension
 limitations above, so they are not presented as passing validation:
@@ -156,6 +192,8 @@ nwbinspector /path/to/synthetic-output --skip-validate
 dandi validate /path/to/synthetic-output
 ```
 
-The dataset remains unsuitable for final upload until actual animal/session metadata, timezone,
-real-media timing checks, and extension-validator support are resolved. See
-[the open questions](../OPEN_QUESTIONS.md). Upload validation retains the existing default policy.
+The NWB file is blocked from upload by missing metadata and the lack of multisubject validation support.
+Under the default `upload_validation: require`, DANDI gates each file on its own, so the five MP4s would
+still publish without the NWB that references them. Dispatch would then retry the upload and fail this
+project on every run until the NWB validates. Keep the BIG_ARENA entries off the runner until then. See
+[the open questions](../OPEN_QUESTIONS.md).

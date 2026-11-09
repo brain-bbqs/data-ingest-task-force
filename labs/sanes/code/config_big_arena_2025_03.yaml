@@ -8,7 +8,7 @@ session:
   institution: New York University
   experimenter: PROVISIONAL
   description: BIG_ARENA March 2025 multi-animal audio, video, tracking, and annotation recording  # PROVISIONAL
-  timezone: UTC  # PROVISIONAL: confirm recording computer timezone
+  timezone: America/New_York  # PROVISIONAL: assumed to match BIG_ARENA_2024_12, confirm recording computer timezone
   related_publications: []
 subject:
   species: Meriones unguiculatus
@@ -18,3 +18,7 @@ audio:
   description: Synchronized microphone recordings
 video:
   description: Behavioral video
+sync:
+  tolerance: 0.0  # Seconds. Require agreement within 1 microsecond numerical precision. Review measured conflicts.
+# Add each experiment's animals as experiment_<N>: [{id, species, sex, age or date_of_birth}] when supplied.
+session_subjects: {}

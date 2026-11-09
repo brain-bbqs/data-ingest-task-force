@@ -1,6 +1,7 @@
 # BIG_ARENA_2024_12 dataset (incoming 000601, standardized 000629).
 # Provisional metadata. Replace every PROVISIONAL value before final upload.
 # See https://nwb-guide.readthedocs.io/en/stable/ for NWB metadata guidance.
+# Award U01DA063581. NWB has no funding field, so it belongs in the 000629 dandiset metadata.
 # No experiment_metadata file yet, so every experiment uses session.description.
 session:
   dataset: big-arena-2024-12  # Prefixes NWB identifiers so experiment numbers stay unique across datasets
