@@ -23,7 +23,7 @@ Every lab directory preserves the prompts that drove its conversion under `labs/
 
 A lab expected to contribute more than one distinct data collection nests one directory per project, so the path becomes `labs/<lab>/<project>/prompts/` (see `labs/suthana/in-lab/`). If the description hints at sibling collections, ask before choosing the flat layout. Renaming later means churn across the dispatch registry and CI.
 
-A new collection with the same source structure as one the lab already converts is a new dataset, not a new project, even when its sessions hold a different mix of data types. Record it as a dataset of the existing codebase: the converter is extended to convert whatever each session holds, and the dataset gets its own config and dispatch entry. Do not scaffold a sibling directory with a copy of the converter (Sanes precedent: R34, SSA GT, and BIG_ARENA share `labs/sanes/`).
+A new collection with the same source structure as one the lab already converts is a new dataset, not a new project, even when its sessions hold a different mix of data types. Record it as a dataset of the existing codebase: the converter is extended to convert whatever each session holds, and the dataset gets its own config and dispatch entry. Do not scaffold a sibling directory with a copy of the converter (Sanes precedent: R34 and SSA GT share `labs/sanes/`). A collection with a different source layout can also join the existing codebase as a dataset, when its output follows the same conventions and the converter gains a reader for the new layout beside the old one (Sanes precedent: BIG_ARENA_2024_12's `sync.csv` manifest layout has no `idx_*` chunks).
 
 ## Step 2: Extract the facts
 
@@ -33,6 +33,7 @@ Rules while filling it in:
 
 - Do not guess. A field the description does not answer stays open.
 - Say which sources were actually read. The archive API is often unreachable from the agent's sandbox, so the pasted tree may be the only view of the data. Never describe the dandiset as inspected when it was not.
+- For an existing lab or registered dataset, compare the supplied tree and synchronization metadata against actual reader and session-discovery assumptions. Shared modality names or an existing dispatch entry do not prove support for the source layout. Record mismatches for the plan before changing code.
 - Sanity-check file sizes against durations, rates and channel counts before trusting a file's role. A `.rec` far too small for its channel count at its sampling rate is how the Zhang intake found that the upload held only the sync stream, not the ephys.
 - A value needed to keep work moving but not confirmed by the lab gets the house marker `PROVISIONAL`, with a note of what would confirm it. The marker must survive into whatever file the value lands in later, so nobody mistakes a placeholder for real metadata. `labs/inman/code/config.yaml` shows the pattern.
 - Record who authored any prior conversion code, what form it is in (scripts, or a notebook), and whether it should be ported verbatim as provenance or improved on the way in. Original authors are credited in the lab README (see `labs/shepherd/README.md`), and the port mode changes how lab-scaffold treats the files.

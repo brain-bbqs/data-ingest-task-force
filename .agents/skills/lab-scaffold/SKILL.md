@@ -17,7 +17,7 @@ Do not start without a signed-off plan from lab-conversion-plan. The plan suppli
 | `containers/<name>.Dockerfile` | The pinned, reproducible runtime (environment only) | `labs/inman/containers/` |
 | `envs/pyproject.toml` | Loose, unpinned environment declaration with a `[test]` extra | `labs/inman/envs/` |
 | `tests/` | One golden-file integration test plus committed fixtures | `labs/kemere/tests/` |
-| `prompts/` | Verbatim AI-agent prompts, started by lab-intake | `labs/kemere/prompts/` |
+| `prompts/` | Verbatim AI-agent prompts, started by lab-intake, and the approved conversion plan | `labs/kemere/prompts/` |
 | `OPEN_QUESTIONS.md` | Every question the plan left open, with status, what it blocks, and where its placeholder lives | `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md` |
 | `README.md` | The lab's own README | `labs/kemere/README.md`, `labs/shepherd/README.md` |
 

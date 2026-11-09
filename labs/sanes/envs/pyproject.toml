@@ -26,8 +26,9 @@ dependencies = [
   # pynwb.event.EventsTable, which stores the vocalization events, first shipped in pynwb 4.0.
   "pynwb>=4",
   "ndx-multisubjects",
-  # ndx-sound 0.2.2 failed to load its namespace under current HDMF ("Cannot extend float64 to float").
-  "ndx-sound>=0.2.3",
+  # ndx-sound 0.2.2 failed to load its namespace under current HDMF ("Cannot extend float64 to float"), and
+  # 0.2.3 still allowed only one or two channels per AcousticWaveformSeries. 0.3.0 takes any channel count.
+  "ndx-sound>=0.3.0",
   "ndx-pose",
   # Only reads .slp files. Pose is written with ndx-pose directly.
   "sleap-io",
