@@ -7,6 +7,7 @@ microphones and cameras in ``concatenated_data_cam_mic_sync/``. The chunk layout
       *log_*.txt          optional experiment log, gives the session start and the NWB notes
       idx_<N>/
         *.wav             one file per microphone channel ("multichannel" files are skipped)
+        headmic_<id>_*.wav  one head-mounted microphone per animal, each its own audio series
         *.mp4             the behavioral video
         *.slp             pose as SLEAP labels, or
         *.tracks.csv      pose as a SLEAP CSV export
@@ -52,6 +53,7 @@ EXACT_START = re.compile(r"Started Experiment Now\b")
 # Free-text start notes such as "exp start", "started exp" or "Experiment Started", but not "Restarted exp".
 INFORMAL_START = re.compile(r"(start(ed)?\b|exp(eriment)?\s+start(ed)?\b)", re.IGNORECASE)
 VIDEO_RATE_TOLERANCE = 1e-3
+HEAD_MIC = re.compile(r"headmic_(?P<animal>[^_]+)_")
 SYNC_FOLDER = "concatenated_data_cam_mic_sync"
 SYNC_CAMERAS = ("center", "gily_center", "gily_nest", "gily_underground", "underground")
 _ISO_DURATION = r"P(?=\d|T\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?"
@@ -88,27 +90,46 @@ def discover_chunks(session_dir, /):
     return chunks
 
 
+def _audio_group(path, /):
+    """The head mic's animal id for ``headmic_<id>_*.wav``, else ``None`` for the room microphones."""
+    match = HEAD_MIC.match(path.name)
+    group = match["animal"] if match else None
+    return group
+
+
 def _chunk_audio(chunk, /):
+    """Each audio group of the chunk (room microphones, then each head mic) mapped to its layout.
+
+    A group's files must share one sample type. Groups may differ in sample type (head mics are recorded as
+    64-bit float) but must share the sample count and rate, since they record the same span.
+    """
     paths = natsort.natsorted(
         (path for path in chunk.glob("*.wav") if "multichannel" not in path.name), key=lambda p: p.name
     )
     if not paths:
         return None
-    shapes = set()
-    rates = set()
-    dtypes = set()
+    grouped = {}
     for path in paths:
-        rate, data = scipy.io.wavfile.read(path, mmap=True)
-        shapes.add(data.shape)
-        rates.add(rate)
-        dtypes.add(data.dtype)
-    if len(shapes) != 1 or len(rates) != 1 or len(dtypes) != 1:
+        grouped.setdefault(_audio_group(path), []).append(path)
+    layouts = {}
+    for group in sorted(grouped, key=lambda group: (group is not None, natsort.natsort_key(group or ""))):
+        shapes = set()
+        rates = set()
+        dtypes = set()
+        for path in grouped[group]:
+            rate, data = scipy.io.wavfile.read(path, mmap=True)
+            shapes.add(data.shape)
+            rates.add(rate)
+            dtypes.add(data.dtype)
+        if len(shapes) != 1 or len(rates) != 1 or len(dtypes) != 1:
+            raise ValueError(f"Audio channels are not synchronized in {chunk}")
+        (shape,) = shapes
+        if len(shape) != 1:
+            raise ValueError(f"Expected single-channel WAV files in {chunk}, found shape {shape}")
+        layouts[group] = {"paths": grouped[group], "samples": shape[0], "rate": rates.pop(), "dtype": dtypes.pop()}
+    if len({(layout["samples"], layout["rate"]) for layout in layouts.values()}) != 1:
         raise ValueError(f"Audio channels are not synchronized in {chunk}")
-    (shape,) = shapes
-    if len(shape) != 1:
-        raise ValueError(f"Expected single-channel WAV files in {chunk}, found shape {shape}")
-    layout = {"paths": paths, "samples": shape[0], "rate": rates.pop(), "dtype": dtypes.pop()}
-    return layout
+    return layouts
 
 
 def _chunk_video(chunk, /):
@@ -440,10 +461,13 @@ def build_nwb(*, session_dir, output_dir, config_path):
         raise ValueError(f"No audio or video found in {session_dir}")
     if has_audio:
         first = audio_layouts[0]
+        if any(list(layouts) != list(first) for layouts in audio_layouts):
+            raise ValueError(f"Head-mounted microphones change between chunks of {session_dir}")
         if any(
-            (len(layout["paths"]), layout["rate"], layout["dtype"])
-            != (len(first["paths"]), first["rate"], first["dtype"])
-            for layout in audio_layouts
+            (len(layouts[group]["paths"]), layouts[group]["rate"], layouts[group]["dtype"])
+            != (len(first[group]["paths"]), first[group]["rate"], first[group]["dtype"])
+            for layouts in audio_layouts
+            for group in first
         ):
             raise ValueError(
                 f"Audio channel count, sampling rate, or sample type changes between chunks of {session_dir}"
@@ -461,15 +485,18 @@ def build_nwb(*, session_dir, output_dir, config_path):
         lab=cfg["session"]["lab"],
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_audio_path = output_path.with_suffix(".audio.tmp")
-    audio_data = None
+    temporary_audio_paths = {}
+    audio_data = {}
     if has_audio:
-        audio_data = numpy.memmap(
-            temporary_audio_path,
-            dtype=audio_layouts[0]["dtype"],
-            mode="w+",
-            shape=(sum(layout["samples"] for layout in audio_layouts), len(audio_layouts[0]["paths"])),
-        )
+        total_samples = sum(next(iter(layouts.values()))["samples"] for layouts in audio_layouts)
+        for group, layout in audio_layouts[0].items():
+            temporary_audio_paths[group] = output_path.with_suffix(f".audio-{group or 'room'}.tmp")
+            audio_data[group] = numpy.memmap(
+                temporary_audio_paths[group],
+                dtype=layout["dtype"],
+                mode="w+",
+                shape=(total_samples, len(layout["paths"])),
+            )
     try:
         annotation_rows = []
         skipped_annotations = 0
@@ -477,11 +504,12 @@ def build_nwb(*, session_dir, output_dir, config_path):
         skeleton = None
         audio_cursor = 0
         frame_cursor = 0
-        for chunk, audio_layout, video in zip(chunks, audio_layouts, videos):
+        for chunk, chunk_layouts, video in zip(chunks, audio_layouts, videos):
             if has_audio:
-                for channel_index, path in enumerate(audio_layout["paths"]):
-                    _, data = scipy.io.wavfile.read(path, mmap=True)
-                    audio_data[audio_cursor : audio_cursor + audio_layout["samples"], channel_index] = data
+                for group, audio_layout in chunk_layouts.items():
+                    for channel_index, path in enumerate(audio_layout["paths"]):
+                        _, data = scipy.io.wavfile.read(path, mmap=True)
+                        audio_data[group][audio_cursor : audio_cursor + audio_layout["samples"], channel_index] = data
                 chunk_offset = audio_cursor / audio_layout["rate"]
                 audio_cursor += audio_layout["samples"]
             else:
@@ -506,14 +534,18 @@ def build_nwb(*, session_dir, output_dir, config_path):
             if has_video:
                 frame_cursor += video["frames"]
 
-        if has_audio:
-            audio_data.flush()
+        for group, data in audio_data.items():
+            data.flush()
             nwbfile.add_acquisition(
                 ndx_sound.AcousticWaveformSeries(
-                    name="Multi-channel Acoustic Data",
-                    data=audio_data,
-                    rate=float(audio_layouts[0]["rate"]),
-                    description=cfg["audio"]["description"],
+                    name="Multi-channel Acoustic Data" if group is None else f"Head-mounted Microphone {group}",
+                    data=data,
+                    rate=float(audio_layouts[0][group]["rate"]),
+                    description=(
+                        cfg["audio"]["description"]
+                        if group is None
+                        else f"Head-mounted microphone on animal {group}, on the same clock as the room microphones"
+                    ),
                 )
             )
 
@@ -577,8 +609,9 @@ def build_nwb(*, session_dir, output_dir, config_path):
 
         _write_nwbfile(nwbfile=nwbfile, path=output_path)
     finally:
-        del audio_data
-        temporary_audio_path.unlink(missing_ok=True)
+        audio_data.clear()
+        for path in temporary_audio_paths.values():
+            path.unlink(missing_ok=True)
     return output_path
 
 

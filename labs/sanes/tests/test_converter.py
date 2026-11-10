@@ -217,6 +217,34 @@ def test_audio_only_session(tmp_path):
         assert len(nwbfile.processing) == 0
 
 
+@pytest.mark.ai_generated
+def test_head_mics_get_their_own_series(tmp_path):
+    output = _convert(
+        root=tmp_path,
+        config_name="config_ssa_gt.yaml",
+        name="experiment_384",
+        pose=None,
+        video=False,
+        annotations=False,
+        head_mics=("118", "35"),
+    )
+    with pynwb.NWBHDF5IO(output / "sub-multi" / "sub-multi_ses-experiment384_behavior.nwb", "r") as io:
+        acquisition = io.read().acquisition
+        actual = {
+            name: (series.data.shape, series.data.dtype.name, series.data[synthetic.CHUNK_SAMPLES[0], 0])
+            for name, series in acquisition.items()
+        }
+        description = acquisition["Head-mounted Microphone 35"].description
+    total = sum(synthetic.CHUNK_SAMPLES)
+    expected = {
+        "Multi-channel Acoustic Data": ((total, synthetic.CHANNELS), "float32", pytest.approx(1.0)),
+        "Head-mounted Microphone 35": ((total, 1), "float64", pytest.approx(1.035)),
+        "Head-mounted Microphone 118": ((total, 1), "float64", pytest.approx(1.118)),
+    }
+    assert actual == expected
+    assert description.startswith("Head-mounted microphone on animal 35")
+
+
 def _drop_from_second_chunk(*, session, pattern):
     for path in (session / "idx_001").glob(pattern):
         path.unlink()

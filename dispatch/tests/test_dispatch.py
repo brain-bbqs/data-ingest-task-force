@@ -308,8 +308,52 @@ def test_dandi_upload_names_validation_only_when_it_departs_from_the_default(
     project = make_project(upload_validation=upload_validation)
     dispatch.dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
 
-    _, (upload_cmd, _) = step_calls(calls)
+    upload_cmd, _ = step_calls(calls)[-1]
     assert upload_cmd[-len(expected_tail) :] == expected_tail
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    ("upload_validation", "expected_steps"),
+    [("require", ["download", "upload"]), ("ignore", ["download", "validate", "upload"])],
+)
+def test_validation_is_recorded_only_when_it_does_not_gate_the_upload(
+    tmp_path, monkeypatch, tracking, upload_validation, expected_steps
+):
+    standardized_dir = tmp_path / "standardized" / "000002"
+    standardized_dir.mkdir(parents=True)
+
+    calls = record_calls(monkeypatch)
+
+    project = make_project(upload_validation=upload_validation)
+    dispatch.dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    actual_steps = [next(token for token in cmd if token in expected_steps) for cmd, _ in step_calls(calls)]
+    assert actual_steps == expected_steps
+    record_steps = sorted(path.name.rsplit("-", 1)[1] for path in (tracking.root / "records" / "test-lab").iterdir())
+    assert record_steps == sorted(step for step in expected_steps if step != "download")
+
+
+@pytest.mark.ai_generated
+def test_validation_problems_warn_and_the_upload_still_runs(tmp_path, monkeypatch, tracking, capsys):
+    standardized_dir = tmp_path / "standardized" / "000002"
+    standardized_dir.mkdir(parents=True)
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:2] == ["datalad", "containers-run"] and "validate" in cmd:
+            raise dispatch.subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+
+    project = make_project(upload_validation="ignore")
+    dispatch.dandi_upload(project, standardized_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    assert calls[-1][-8:] == ["dandi", "upload", "-i", "ember-dandi", "--existing", "refresh", "--validation", "ignore"]
+    assert any(cmd[:2] == ["datalad", "save"] and "(failed)" in " ".join(cmd) for cmd in calls)
+    actual = capsys.readouterr().out
+    assert actual.startswith("::warning title=test-lab::validation found problems")
 
 
 @pytest.mark.parametrize("key_set", [True, False])

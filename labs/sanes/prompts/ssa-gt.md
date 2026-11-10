@@ -183,3 +183,13 @@ Asked whether the existing R34 dataset (000522 to 000523) should move to the sha
 Every SSA GT session failed because its log has no `Started Experiment Now` entry. Most logs hold only a header line, and a few note the start in free text. R34 `experiment_135` and SSA GT `experiment_280` failed because chunk containers round the same 30 fps rate differently.
 
 > use noted start when present, else filename; yes copy notes
+
+## Request 22 — Head-mounted microphones and unvalidated uploads
+
+> latest run failed
+
+31 SSA GT sessions failed because their head-mounted microphone WAVs are 64-bit float while the room microphones are 32-bit, which the converter read as unsynchronized channels. The 33 converted sessions failed DANDI upload validation (a placeholder subject age, and multisubject files DANDI cannot validate yet).
+
+> yeah if they are different subject-associated mics then different series
+
+> oh yeah for validation its fine to just skip but if you could upload the record of it under the logs that would be great
