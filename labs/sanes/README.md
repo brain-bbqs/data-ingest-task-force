@@ -72,6 +72,7 @@ earlier, hand-made work at its root. The other datasets write directly at the da
 | Source | Output |
 |---|---|
 | `idx_*/*.wav`, one per channel, concatenated across chunks | multisubject `acquisition/Multi-channel Acoustic Data` (`ndx_sound.AcousticWaveformSeries`) |
+| `idx_*/headmic_<animal>_*.wav`, concatenated across chunks | multisubject `acquisition/Head-mounted Microphone <animal>`, one `AcousticWaveformSeries` per head mic, kept apart from the room microphones since they are subject-associated and recorded as 64-bit float |
 | `idx_*/*.mp4`, concatenated with FFmpeg | `sub-multi_ses-<session>_video.mp4`, an external `ImageSeries` in the multisubject file and in each track file |
 | `idx_*/*.slp` or `idx_*/*.tracks.csv`, split by track | one `sub-<id>/` file per track holding its `Subject` and an `ndx_pose.PoseEstimation` with every landmark and its confidence |
 | tracks, as subjects | multisubject `ndx_multisubjects.SubjectsTable`, one row per track, linked to its file by relative path |

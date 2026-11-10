@@ -73,7 +73,7 @@ from commands import run
 from registry import DEFAULT_UPLOAD_VALIDATION, Project, load_registry
 from sessions import SessionSpec, discover_sessions, load_session_specs
 from state import IngestState, hash_file, manifest_filename
-from tracking import TrackingDataset, TrackingError
+from tracking import TrackedImage, TrackingDataset, TrackingError
 
 log = logging.getLogger("dispatch")
 
@@ -160,6 +160,37 @@ def dandi_download(
     run(cmd, env=env, dry_run=dry_run)
 
 
+def record_validation(
+    project: Project, *, tracking: TrackingDataset, image: TrackedImage, env: dict[str, str], dry_run: bool
+) -> None:
+    """Keep the full ``dandi validate`` report beside an upload that validation does not gate.
+
+    ``dandi upload`` names only which files failed and writes the reasons to a log inside the container, so
+    without this record nothing kept says why. Problems are a warning: the project chose to upload anyway.
+    """
+    record_dir = tracking.new_record_dir(project_key=project.key, step="validate")
+    try:
+        tracking.record(
+            cmd=["dandi", "validate", "."],
+            container=image.name,
+            record_dir=record_dir,
+            context={
+                "project": project.key,
+                "step": "validate",
+                "standardized_dandiset_id": project.standardized_dandiset_id,
+                "image": image.url,
+            },
+            message=f"[{project.key}] Validate {project.standardized_dandiset_id}",
+            env=env,
+            dry_run=dry_run,
+        )
+    except subprocess.CalledProcessError:
+        relative = record_dir.relative_to(tracking.root)
+        summary = f"validation found problems, uploading anyway (upload_validation={project.upload_validation})"
+        log.warning("[%s] %s. Report: %s", project.key, summary, relative)
+        print(f"::warning title={project.key}::{summary}. Report: {relative}/stdout", flush=True)
+
+
 def dandi_upload(
     project: Project, standardized_dir: Path, *, tracking: TrackingDataset, dandi_image: str, dry_run: bool
 ) -> None:
@@ -197,6 +228,8 @@ def dandi_upload(
         forward_env=forward_env,
         literal_env=DANDI_CACHE_ENV,
     )
+    if project.upload_validation != DEFAULT_UPLOAD_VALIDATION:
+        record_validation(project, tracking=tracking, image=image, env=upload_env, dry_run=dry_run)
     tracking.record(
         cmd=cmd,
         container=image.name,
