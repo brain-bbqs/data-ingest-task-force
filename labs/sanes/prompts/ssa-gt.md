@@ -193,3 +193,9 @@ Every SSA GT session failed because its log has no `Started Experiment Now` entr
 > yeah if they are different subject-associated mics then different series
 
 > oh yeah for validation its fine to just skip but if you could upload the record of it under the logs that would be great
+
+## Request 23 — Head mics that change width, and placeholder ages
+
+> another failure
+
+The 31 head-mic sessions still failed: their head mics are 32-bit float until the last chunk, which is 64-bit. Each head-mic series is now stored at its widest precision. The 60 per-animal files failed upload metadata extraction on the `PROVISIONAL` age, which `--validation ignore` does not bypass. A non-ISO 8601 age is now left out.
