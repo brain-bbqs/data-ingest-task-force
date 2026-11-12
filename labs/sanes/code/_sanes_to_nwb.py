@@ -335,6 +335,9 @@ def _subject(*, cfg, track_index):
     if track_index < len(overrides):
         subject.update(overrides[track_index])
     subject["id"] = sanitize_label(str(subject.get("id", f"{track_index:02d}")))
+    # A placeholder age (PROVISIONAL) is left out: DANDI cannot extract metadata from a non-ISO 8601 age.
+    if subject.get("age") is not None and ISO_AGE.fullmatch(str(subject["age"])) is None:
+        del subject["age"]
     return subject
 
 
@@ -417,7 +420,7 @@ def _write_track_nwbs(*, track_rows, skeleton, output_dir, label, session_start,
                 description=subject.get("description", f"Animal tracked as '{track}' in this session."),
                 species=subject["species"],
                 sex=subject["sex"],
-                age=subject["age"],
+                age=subject.get("age"),
             ),
         )
         video_series = _combined_video_series(
@@ -464,14 +467,19 @@ def build_nwb(*, session_dir, output_dir, config_path):
         if any(list(layouts) != list(first) for layouts in audio_layouts):
             raise ValueError(f"Head-mounted microphones change between chunks of {session_dir}")
         if any(
-            (len(layouts[group]["paths"]), layouts[group]["rate"], layouts[group]["dtype"])
-            != (len(first[group]["paths"]), first[group]["rate"], first[group]["dtype"])
+            (len(layouts[group]["paths"]), layouts[group]["rate"], layouts[group]["dtype"].kind)
+            != (len(first[group]["paths"]), first[group]["rate"], first[group]["dtype"].kind)
             for layouts in audio_layouts
             for group in first
         ):
             raise ValueError(
                 f"Audio channel count, sampling rate, or sample type changes between chunks of {session_dir}"
             )
+        # SSA GT head mics switch from 32- to 64-bit float partway through a session, so each series is
+        # stored at its widest precision.
+        group_dtypes = {
+            group: numpy.result_type(*(layouts[group]["dtype"] for layouts in audio_layouts)) for group in first
+        }
     if has_video:
         _check_video_rates(videos=videos, session_dir=session_dir)
 
@@ -493,7 +501,7 @@ def build_nwb(*, session_dir, output_dir, config_path):
             temporary_audio_paths[group] = output_path.with_suffix(f".audio-{group or 'room'}.tmp")
             audio_data[group] = numpy.memmap(
                 temporary_audio_paths[group],
-                dtype=layout["dtype"],
+                dtype=group_dtypes[group],
                 mode="w+",
                 shape=(total_samples, len(layout["paths"])),
             )
@@ -578,12 +586,13 @@ def build_nwb(*, session_dir, output_dir, config_path):
         if track_nwbs:
             subjects_table = ndx_multisubjects.SubjectsTable(description="Animals tracked in this session")
             for subject, track_path in track_nwbs:
+                age = {"age": subject["age"]} if "age" in subject else {}
                 subjects_table.add_row(
                     species=subject["species"],
                     subject_id=subject["id"],
                     sex=subject["sex"],
-                    age=subject["age"],
                     individual_subj_link=os.path.relpath(track_path, output_path.parent),
+                    **age,
                 )
             nwbfile.subjects_table = subjects_table
 

@@ -87,7 +87,8 @@ def write_session(
     head_mics=(),
 ):
     """Write one session. *pose* is "tracks", "slp", or None. *head_mics* names animals whose head-mounted
-    microphone is written as 64-bit float beside the 32-bit room microphones, as SSA GT records them."""
+    microphone is written beside the 32-bit room microphones, switching to 64-bit float in the last chunk, as
+    SSA GT records them."""
     session = root / name
     session.mkdir(parents=True)
     if log:
@@ -101,8 +102,10 @@ def write_session(
             for channel in range(CHANNELS):
                 data = numpy.full(samples, fill_value=index + channel / 10, dtype=numpy.float32)
                 scipy.io.wavfile.write(chunk / f"channel_{channel:02d}_file_{index:03d}.wav", AUDIO_RATE, data)
+            # Head mics are 32-bit float until the last chunk, which is 64-bit, as in SSA GT.
+            head_dtype = numpy.float64 if index == len(CHUNK_SAMPLES) - 1 else numpy.float32
             for animal in head_mics:
-                data = numpy.full(samples, fill_value=index + int(animal) / 1000, dtype=numpy.float64)
+                data = numpy.full(samples, fill_value=index + int(animal) / 1000, dtype=head_dtype)
                 scipy.io.wavfile.write(chunk / f"headmic_{animal}_file_{index:03d}.wav", AUDIO_RATE, data)
         video_path = chunk / f"video_gily_center_{index:03d}.mp4"
         if video:
