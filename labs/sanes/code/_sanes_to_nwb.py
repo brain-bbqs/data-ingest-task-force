@@ -61,6 +61,10 @@ _ISO_DURATION = r"P(?=\d|T\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=\d)(?:\d
 ISO_AGE = re.compile(rf"{_ISO_DURATION}(?:/(?:{_ISO_DURATION})?)?")
 
 
+class SourceDataError(ValueError):
+    """The lab's source files are incomplete or inconsistent, so the session waits on the lab rather than on code."""
+
+
 def load_cfg(config_path, /):
     cfg = yaml.safe_load(config_path.read_text())
     return cfg
@@ -640,14 +644,14 @@ def _read_sync_manifest(*, folder, timezone):
     with (folder / "sync.csv").open(newline="") as stream:
         reader = csv.DictReader(stream)
         if reader.fieldnames != ["video", "audio", "timestamp"]:
-            raise ValueError("sync.csv must have video,audio,timestamp columns")
+            raise SourceDataError("sync.csv must have video,audio,timestamp columns")
         for record in reader:
             values = {field: _manifest_list(value=record[field], field=field) for field in reader.fieldnames}
             if len(values["timestamp"]) != 2:
-                raise ValueError("Each sync.csv timestamp must contain start and end")
+                raise SourceDataError("Each sync.csv timestamp must contain start and end")
             start, stop = [datetime.datetime.fromisoformat(value) for value in values["timestamp"]]
             if any(value.tzinfo is not None for value in (start, stop)):
-                raise ValueError("Expected local timestamps without offsets in sync.csv")
+                raise SourceDataError("Expected local timestamps without offsets in sync.csv")
             audio = {}
             videos = {}
             segment_ids = set()
@@ -658,24 +662,24 @@ def _read_sync_manifest(*, folder, timezone):
                 for name in values[kind]:
                     match = re.fullmatch(pattern, name)
                     if match is None or name in seen or match[1] in destination:
-                        raise ValueError(f"Invalid or duplicate sync.csv filename: {name}")
+                        raise SourceDataError(f"Invalid or duplicate sync.csv filename: {name}")
                     seen.add(name)
                     segment_ids.add(match[2])
                     path = folder / (name + suffix)
                     if not path.is_file():
-                        raise ValueError(f"Missing manifest media: {path}")
+                        raise SourceDataError(f"Missing manifest media: {path}")
                     destination[match[1]] = path
             if set(audio) != {f"{index:02d}" for index in range(8)} or set(videos) != set(SYNC_CAMERAS):
-                raise ValueError("Each sync.csv row needs eight microphones and five camera views")
+                raise SourceDataError("Each sync.csv row needs eight microphones and five camera views")
             if len(segment_ids) != 1 or stop <= start:
-                raise ValueError("Inconsistent segment suffixes or invalid time interval in sync.csv")
+                raise SourceDataError("Inconsistent segment suffixes or invalid time interval in sync.csv")
             rows.append({"start": start, "stop": stop, "segment": segment_ids.pop(), "audio": audio, "videos": videos})
     if not rows:
-        raise ValueError("sync.csv contains no segments")
+        raise SourceDataError("sync.csv contains no segments")
     rows.sort(key=lambda row: row["start"])
     for previous, current in zip(rows, rows[1:]):
         if previous["stop"] != current["start"]:
-            raise ValueError("sync.csv segments overlap or have a gap")
+            raise SourceDataError("sync.csv segments overlap or have a gap")
     readme = (folder / "README.txt").read_text()
     descriptions = []
     for line in readme.splitlines():
@@ -683,7 +687,7 @@ def _read_sync_manifest(*, folder, timezone):
             continue
         groups = line.split(" - ")
         if len(groups) != 3:
-            raise ValueError("Malformed synchronization description in README.txt")
+            raise SourceDataError("Malformed synchronization description in README.txt")
         videos, audio, timestamps = [group.strip("[]").split(", ") for group in groups]
         descriptions.append((set(videos), set(audio), timestamps))
     expected = [
@@ -695,21 +699,21 @@ def _read_sync_manifest(*, folder, timezone):
         for row in rows
     ]
     if len(descriptions) != len(expected) or any(item not in descriptions for item in expected):
-        raise ValueError("README.txt synchronization descriptions disagree with sync.csv")
+        raise SourceDataError("README.txt synchronization descriptions disagree with sync.csv")
     zone = zoneinfo.ZoneInfo(timezone)
     for row in rows:
         for key in ("start", "stop"):
             local = row[key]
             aware = local.replace(tzinfo=zone)
             if aware.utcoffset() != local.replace(tzinfo=zone, fold=1).utcoffset():
-                raise ValueError("Ambiguous or nonexistent local time in sync.csv. Confirm the timestamp offsets.")
+                raise SourceDataError("Ambiguous or nonexistent local time in sync.csv. Confirm the timestamp offsets.")
             row[key] = aware
     origin = rows[0]["start"].timestamp()
     for row in rows:
         row["offset"] = row["start"].timestamp() - origin
         row["duration"] = row["stop"].timestamp() - row["start"].timestamp()
         if row["duration"] <= 0:
-            raise ValueError("Non-positive elapsed segment duration")
+            raise SourceDataError("Non-positive elapsed segment duration")
     included = {path.name for row in rows for kind in ("audio", "videos") for path in row[kind].values()}
     for path in sorted(folder.iterdir()):
         if path.name not in {"README.txt", "sync.csv"} and path.name not in included:
@@ -785,7 +789,7 @@ def _probe_sync_video(path, /):
 def _check_sync_timing(*, actual, expected, tolerance, description):
     residual = actual - expected
     if not numpy.isfinite(residual) or abs(residual) > tolerance + 1e-6:
-        raise ValueError(f"Timing conflict for {description}: measured {actual:g}s, expected {expected:g}s")
+        raise SourceDataError(f"Timing conflict for {description}: measured {actual:g}s, expected {expected:g}s")
     return residual
 
 

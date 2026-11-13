@@ -15,8 +15,10 @@ import pytest
 
 CODE = Path(__file__).resolve().parents[1] / "code"
 sys.path.insert(0, str(CODE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import batch_convert  # noqa: E402
+import synthetic  # noqa: E402
 
 pytestmark = pytest.mark.ai_generated
 
@@ -153,3 +155,19 @@ def test_colliding_session_labels_are_rejected(tmp_path, recorded_calls):
     )
     assert actual == 1
     assert recorded_calls == []
+
+
+@pytest.mark.ai_generated
+def test_source_data_problems_are_pending_not_failed(tmp_path):
+    session = synthetic.write_sync_session(root=tmp_path / "in", segments=2)
+    missing = session / "concatenated_data_cam_mic_sync" / "video_underground_001.mp4"
+    missing.unlink()
+    actual = batch_convert.convert_batch(
+        incoming_dir=tmp_path / "in",
+        standardized_dir=tmp_path / "out",
+        config_path=CODE / "config_big_arena_2024_12.yaml",
+        results_path=tmp_path / "results.json",
+    )
+    assert actual == 0
+    results = json.loads((tmp_path / "results.json").read_text())
+    assert results == {"failed": {}, "pending": {"experiment_109": f"Missing manifest media: {missing}"}}

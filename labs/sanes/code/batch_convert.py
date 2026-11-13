@@ -20,7 +20,9 @@ Sessions are converted one at a time, since each one stages its whole concatenat
 the output. A failed session does not stop the batch, and the exit code reports whether any failed.
 
 An ``experiment_*`` folder with no supported layout is reported as pending, since its media may not be
-uploaded yet, and does not fail the batch. With ``--results`` the batch writes the sessions it left
+uploaded yet, and does not fail the batch. So is a session whose ``sync.csv`` disagrees with its files (a
+listed file missing, a malformed name, media timing outside ``sync.tolerance``), which waits on the lab to fix
+the source data. With ``--results`` the batch writes the sessions it left
 unconverted, as ``{"pending": {name: reason}, "failed": {name: reason}}`` keyed by folder name. Dispatch
 fills it through its ``{results}`` placeholder, then keeps and uploads what did convert.
 
@@ -43,7 +45,14 @@ import tqdm
 # that directory on sys.path and import the sibling by name.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _sanes_to_nwb import SYNC_FOLDER, build_nwb, load_cfg, multisubject_path, session_label  # noqa: E402
+from _sanes_to_nwb import (  # noqa: E402
+    SYNC_FOLDER,
+    SourceDataError,
+    build_nwb,
+    load_cfg,
+    multisubject_path,
+    session_label,
+)
 
 UNSUPPORTED_REASON = f"No idx_* chunks or {SYNC_FOLDER}/ folder yet"
 
@@ -128,6 +137,10 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
     for session_dir in tqdm.tqdm(pending, desc="Converting sessions", unit="session"):
         try:
             output_path = build_nwb(session_dir=session_dir, output_dir=output_dir, config_path=config_path)
+        except SourceDataError as error:
+            print(f"PENDING: {session_dir.name}: {error}", flush=True)
+            unconverted[session_dir.name] = str(error)
+            continue
         except Exception as error:
             traceback.print_exception(error)
             print(f"FAILED: {session_dir}: {error}", file=sys.stderr, flush=True)
