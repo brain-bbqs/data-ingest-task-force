@@ -150,3 +150,11 @@ From the reviewer (CodyCBakerPhD), answering Q16, the three parts of Q17, and th
 > "Now: a collection with a different layout can also join, if its output follows the same conventions and the converter gains a second reader for the new layout." yeah that sounds fine
 
 The audio is now one eight-column series with `ndx-sound>=0.3.0`. The plan is kept as `big-arena-2024-12-plan.md` beside this record, amended to match the implementation. Q16 and Q17 are resolved.
+
+## Request 8 — Skip BIG_ARENA sessions whose source data disagrees with sync.csv
+
+Every BIG_ARENA session failed the 2026-11-11 scheduled ingest: files listed in `sync.csv` were missing, a name read `channel_0_0`, or audio timing fell outside `sync.tolerance`. Asked whether to report those as pending or take BIG_ARENA off the nightly run:
+
+> hmmm I see well skip those for now and raise an issue about them
+
+Recorded in https://github.com/brain-bbqs/data-ingest-task-force/issues/60.
