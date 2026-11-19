@@ -38,7 +38,10 @@
       "exclude": []
     },
     "zhang/ferret-hyperscanning": {
-      "include": ["sourcedata/raw/Ferret_Hyperscanning/*/*/*.rec"],
+      "include": [
+        "sourcedata/raw/Ferret_Hyperscanning/*/*/*.rec",
+        "sourcedata/raw/Ferret_Hyperscanning/*/*/[Ss]ess*/*.rec"
+      ],
       "exclude": []
     }
   }

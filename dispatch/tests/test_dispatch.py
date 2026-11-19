@@ -1,4 +1,5 @@
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -237,6 +238,8 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch, tracking):
         str(incoming_root),
         "-e",
         "refresh",
+        "--sync",
+        "do",
         "dandi://ember-dandi/000001",
     ]
     env = kwargs["env"]
@@ -244,6 +247,41 @@ def test_dandi_download_runs_in_container(tmp_path, monkeypatch, tracking):
     assert env["APPTAINERENV_EMBER_DANDI_API_KEY"] == "secret-value"
     assert env["APPTAINERENV_DANDI_CACHE"] == "ignore"  # sidesteps a joblib/fscacher digest-cache race
     assert incoming_root.is_dir()  # created ahead of the bind
+
+
+def test_dandi_download_logs_deleted_files_and_removes_emptied_folders(tmp_path, monkeypatch, tracking, caplog):
+    incoming_dir = tmp_path / "incoming" / "000001"
+    stale = incoming_dir / "raw" / "ses-old" / "inner" / "data.bin"
+    kept = incoming_dir / "raw" / "ses-1" / "data.bin"
+    hidden = incoming_dir / ".cache" / "empty"
+    for path in (stale, kept):
+        path.parent.mkdir(parents=True)
+        path.write_text("x")
+    hidden.mkdir(parents=True)
+    # What `dandi download --sync do` does to an asset gone from the archive.
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, **kwargs: stale.unlink())
+
+    project = make_project()
+    with caplog.at_level(logging.INFO, logger="dispatch"):
+        dispatch.dandi_download(project, incoming_dir, tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=False)
+
+    assert not (incoming_dir / "raw" / "ses-old").exists()
+    assert kept.is_file()
+    assert hidden.is_dir()
+    assert "deleted raw/ses-old/inner/data.bin" in caplog.text
+    assert "deleted 1 file(s) and 2 emptied folder(s)" in caplog.text
+
+
+def test_dandi_download_dry_run_deletes_nothing(tmp_path, monkeypatch, tracking):
+    empty = tmp_path / "incoming" / "000001" / "raw" / "ses-old"
+    empty.mkdir(parents=True)
+    calls = record_calls(monkeypatch)
+
+    project = make_project()
+    dispatch.dandi_download(project, empty.parents[1], tracking=tracking, dandi_image=DANDI_IMAGE, dry_run=True)
+
+    assert calls == []
+    assert empty.is_dir()
 
 
 def test_dandi_upload_runs_in_container_and_is_recorded(tmp_path, monkeypatch, tracking):

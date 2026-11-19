@@ -4,6 +4,7 @@
 Discovers every recording directory under an incoming dandiset::
 
     <input>/sourcedata/raw/Ferret_Hyperscanning/<pair>/<MM.DD.YYYY>/<rec>.rec/
+    <input>/sourcedata/raw/Ferret_Hyperscanning/<pair>/<MM.DD.YYYY>/Session_<N>/<rec>.rec/
 
 and runs ``_zhang_ferret_hyperscanning_to_nwb.convert_session`` on each,
 writing two NWB files per recording (one per animal) plus the session's
@@ -57,16 +58,18 @@ import tqdm
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _zhang_ferret_hyperscanning_to_nwb import (  # noqa: E402
+    SESSION_DIRNAME_PATTERN,
+    VIDEOS_DIRNAME,
     MissingInputError,
     convert_session,
     load_cfg,
     load_session_log_for,
     output_paths,
     parse_rec_identity,
+    recording_corrections,
 )
 
 RAW_SUBTREE = Path("sourcedata") / "raw" / "Ferret_Hyperscanning"
-SESSION_GLOB = "*/*/*.rec"
 DEFAULT_JOBS = 2
 
 
@@ -74,24 +77,31 @@ def discover_recordings(incoming_dir, /):
     """Every ``.rec`` directory under the raw subtree of *incoming_dir*, plus the entries it ignored.
 
     Returns ``(recordings, ignored)``. A recording is a directory whose name
-    ends in ``.rec`` two levels below the pair directories. ``ignored`` lists
-    the other entries found alongside them (anything but the recording
-    directories and the ``Videos/`` directory), so stray uploads are
-    reported rather than silently skipped.
+    ends in ``.rec`` in a date directory, or in a ``Session_<N>/`` directory
+    inside one on a day with two recordings. ``ignored`` lists the other
+    entries found alongside them (anything but the recording directories,
+    the session directories and ``Videos/``), so stray uploads are reported
+    rather than silently skipped.
     """
     raw_root = Path(incoming_dir) / RAW_SUBTREE
-    recordings = sorted(path for path in raw_root.glob(SESSION_GLOB) if path.is_dir())
+    recordings = []
     ignored = []
     for date_dir in sorted(path for path in raw_root.glob("*/*") if path.is_dir()):
-        for entry in sorted(date_dir.iterdir()):
-            if entry in recordings or entry.name == "Videos":
-                continue
-            ignored.append(entry)
+        session_dirs = [
+            path for path in sorted(date_dir.iterdir()) if path.is_dir() and SESSION_DIRNAME_PATTERN.match(path.name)
+        ]
+        for container in [date_dir, *session_dirs]:
+            for entry in sorted(container.iterdir()):
+                if entry.is_dir() and entry.suffix == ".rec":
+                    recordings.append(entry)
+                elif entry.name != VIDEOS_DIRNAME and entry not in session_dirs:
+                    ignored.append(entry)
+    recordings.sort()
     return recordings, ignored
 
 
-def is_converted(*, rec_dir, standardized_dir):
-    identity = parse_rec_identity(rec_dir)
+def is_converted(*, rec_dir, standardized_dir, corrections):
+    identity = parse_rec_identity(rec_dir, corrections=corrections)
     paths = output_paths(output_dir=standardized_dir, identity=identity)
     converted = all(path.is_file() for path in paths.values())
     return converted
@@ -139,11 +149,12 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
         print(f"No .rec recordings found under {incoming_dir / RAW_SUBTREE}")
         return 0
 
+    corrections = recording_corrections(load_cfg(config_path))
     skipped = 0
     pending = []
     for rec_dir in recordings:
         try:
-            converted = is_converted(rec_dir=rec_dir, standardized_dir=standardized_dir)
+            converted = is_converted(rec_dir=rec_dir, standardized_dir=standardized_dir, corrections=corrections)
         except ValueError as error:
             print(f"Ignoring unrecognized recording: {error}", flush=True)
             skipped += 1

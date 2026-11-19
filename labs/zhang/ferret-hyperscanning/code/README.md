@@ -40,7 +40,37 @@ before writing, which is what DANDI resolves after upload.
       Videos/
         cam<NN>-<MMDDYYYYHHMMSS>-0000.avi        behavior video, one per camera
         cam<NN>-cal-<MMDDYYYYHHMMSS>-0000.avi    ChArUco calibration video, one per camera
+      Session_1/                  only on a day with two recordings of the pair
+        <stem>.rec/               laid out as above
+        Videos/                   that recording's own videos
+      Session_2/
 ```
+
+The lab's spelling varies in places, and these variants are read as the
+standard names:
+
+| Variant | Example |
+| --- | --- |
+| A session token between the headstages and the date | `0235HS3_0237HS4_Session1_20260308_142653`, also `sess1` and `Sess1` |
+| `Merge` glued to the date | `0235HS5_0236HS8_Merge20260423_142917` |
+| No underscore before `merged` | `…_0237HS4merged.rec` |
+| `Calibration` for `cal` in a video name | `Cam14-Calibration-04012026121856-0000.avi` |
+| `Session1/` for `Session_1/` | `0235-0236/03.18.2026/Session1/` |
+| Merged files loose in the `.rec` folder, outside the animals' folders | `0235HS3_0237HS4_20260330_150816.rec/…_0235HS3_merged.rec` |
+
+A recording whose names contradict its own files is read through its entry
+under `corrections` in `config.yaml`. An entry can replace the recording
+name that the animals, headstages and session are read from, or point at an
+animal's merged file. Its `reason` lands in the NWB `notes`. Each entry was
+checked against the merged files' headers, which carry the recording's start
+time and the serial of the headstage that recorded them. A corrected file is
+used only while it exists, so a rename on EMBER takes over once the lab
+fixes the name. Dispatch hashes `config.yaml`, so adding an entry
+reconverts every recording on the next run.
+
+A recording that fits none of this is reported in the run log and left
+unconverted. The lab issue lists the cases:
+https://github.com/brain-bbqs/data-ingest-task-force/issues/62.
 
 ## Mapping
 
@@ -54,6 +84,7 @@ before writing, which is what DANDI resolves after upload.
 | `Videos/cam<NN>-<ts>-0000.avi` | `acquisition/BehaviorVideoCam<NN>` via NeuroConv's `ExternalVideoInterface` (external `ImageSeries`, rate and frame count from the file header, `starting_time` 0.0 PROVISIONAL), file placed as `sub-<host>/sub-<host>_ses-<label>_cam<NN>_video.avi` |
 | `Videos/cam<NN>-cal-<ts>-0000.avi` | `acquisition/CalibrationVideoCam<NN>` (same shape), file placed as `..._cam<NN>_calibration.avi` |
 | `session_log.csv` row (pair and date, nearest start time) | Belly-up flag selects the channel map; usable-data text and notes land in `notes` |
+| `config.yaml` `corrections` | The animals, headstages and merged files of each recording it lists. Its reason is appended to `notes` |
 | `config.yaml` | Everything else: lab, institution, subjects, devices, regions, channel maps, video rate |
 | Anything else in a session | Reported and left alone |
 
@@ -99,10 +130,13 @@ filesystem with the incoming tree, copied otherwise.
 Each lives in one function of `_zhang_ferret_hyperscanning_to_nwb.py`:
 
 - **Session label** (`derive_session_label`): the basename's date and time
-  joined as `20260401T130419`.
+  joined as `20260401T130419`. A session token or `Merge` prefix in the
+  basename does not change it, since the time already tells same-day
+  recordings apart.
 - **Subject labels** (`derive_subject_labels`): the two four-digit ids from
   `<A>HS<n>_<B>HS<m>`, in basename order, checked against the pair
-  directory by `parse_rec_identity`.
+  directory by `parse_rec_identity`. A correction's `name` stands in for
+  the basename.
 - **Channel split** (`headstage_channel_ids`): the first headstage in the
   basename takes hardware channels 0 to 31, the second 32 to 63.
   PROVISIONAL until a real file's `SpikeConfiguration` confirms it.

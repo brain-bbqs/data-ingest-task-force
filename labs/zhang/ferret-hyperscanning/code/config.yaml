@@ -91,3 +91,40 @@ session_log:
   # 24-hour local wall clock; rows whose sheet cell had no AM/PM were read as
   # afternoon when the hour was below 8.
   path: session_log.csv
+
+corrections:
+  # Recordings whose uploaded names contradict their own files, keyed by the recording name as
+  # uploaded (https://github.com/brain-bbqs/data-ingest-task-force/issues/62). Each was checked
+  # against the merged files' headers, which carry the recording's start time and the serial of
+  # the headstage that recorded them (03103 00106 is HS3, 00105 HS4, 00127 HS5, 00130 HS6).
+  # "name" replaces the name the animals, headstages and session are read from. "merged" gives an
+  # animal's merged file, relative to the recording directory and keyed by <animal>HS<headstage>.
+  # It is used only while that file exists, so a rename on the lab's side takes over.
+  0235HS3_0237HS4_20260325_124806:
+    merged:
+      0235HS3: 0235HS3/0235HS3_0237HS4_20260325_124806_0236HS3_merged.rec
+    reason: >-
+      The merged file in 0235HS3/ is named for 0236. It carries HS3's serial, and 0236 was not
+      recorded that day.
+  0235HS6_0237HS6_20260425_132118:
+    name: 0235HS5_0237HS6_20260425_132118
+    reason: >-
+      The recording name puts both animals on HS6. The 0235HS5/ folder, both merged file names and
+      0235's serial say 0235 wore HS5.
+  0236HS5_0237HS6_20260408_155939:
+    merged:
+      0237HS6: 0237HS8/0236HS5_0237HS6_20260408_155939_0237HS6_merged.rec
+    reason: >-
+      0237's merged file sits in a folder named 0237HS8. Its own name and its serial say HS6.
+  02355HS6_0236HS5_20260408_134217:
+    name: 0235HS6_0236HS5_20260408_134217
+    reason: >-
+      The recording name has an extra 5 in 0235. The pair folder, the 0235HS6/ folder and its merged
+      file name say 0235, and its serial matches HS6.
+  0236HS3_0237HS4_Session1_20260308_130347:
+    merged:
+      0236HS3: 0236HS3/0236HS3_0237HS4_Session1_20260308_130347_HS30236_merged.rec
+      0237HS4: 0237HS4/0236HS3_0237HS4_Session1_20260308_130347_merged.rec
+    reason: >-
+      The merged files are named HS30236 and with no headstage at all. Each sits in its animal's
+      folder and carries that headstage's serial.
