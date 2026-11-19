@@ -40,7 +40,26 @@ before writing, which is what DANDI resolves after upload.
       Videos/
         cam<NN>-<MMDDYYYYHHMMSS>-0000.avi        behavior video, one per camera
         cam<NN>-cal-<MMDDYYYYHHMMSS>-0000.avi    ChArUco calibration video, one per camera
+      Session_1/                  only on a day with two recordings of the pair
+        <stem>.rec/               laid out as above
+        Videos/                   that recording's own videos
+      Session_2/
 ```
+
+The lab's spelling varies in places, and these variants are read as the
+standard names:
+
+| Variant | Example |
+| --- | --- |
+| A session token between the headstages and the date | `0235HS3_0237HS4_Session1_20260308_142653`, also `sess1` and `Sess1` |
+| `Merge` glued to the date | `0235HS5_0236HS8_Merge20260423_142917` |
+| No underscore before `merged` | `…_0237HS4merged.rec` |
+| `Calibration` for `cal` in a video name | `Cam14-Calibration-04012026121856-0000.avi` |
+| `Session1/` for `Session_1/` | `0235-0236/03.18.2026/Session1/` |
+
+A recording whose name or merged files fit none of these is reported in the
+run log and left unconverted. The lab issue lists the remaining cases:
+https://github.com/brain-bbqs/data-ingest-task-force/issues/62.
 
 ## Mapping
 
@@ -99,7 +118,9 @@ filesystem with the incoming tree, copied otherwise.
 Each lives in one function of `_zhang_ferret_hyperscanning_to_nwb.py`:
 
 - **Session label** (`derive_session_label`): the basename's date and time
-  joined as `20260401T130419`.
+  joined as `20260401T130419`. A session token or `Merge` prefix in the
+  basename does not change it, since the time already tells same-day
+  recordings apart.
 - **Subject labels** (`derive_subject_labels`): the two four-digit ids from
   `<A>HS<n>_<B>HS<m>`, in basename order, checked against the pair
   directory by `parse_rec_identity`.

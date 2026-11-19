@@ -16,6 +16,13 @@ directory::
         cam<NN>-<MMDDYYYYHHMMSS>-0000.avi
         cam<NN>-cal-<MMDDYYYYHHMMSS>-0000.avi
 
+A day with two recordings of one pair holds each, with its own ``Videos/``,
+in a ``Session_1/`` or ``Session1/`` subfolder of the date folder. The lab's
+spelling varies in places, and these variants are accepted: a session token
+in the stem (``_Session1_``, ``_sess1_``, ``_Sess1_``), ``Merge`` glued to
+the date (``_Merge20260423_``), ``merged.rec`` without its underscore
+(``…_0237HS4merged.rec``), and ``Calibration`` for ``cal`` in a video name.
+
 The recording becomes two NWB files, one per animal, in the DANDI layout, with the shared videos placed next to the
 lower-numbered animal's file and referenced from both::
 
@@ -64,12 +71,15 @@ from neuroconv.tools.nwb_helpers import configure_and_write_nwbfile
 
 REC_NAME_PATTERN = re.compile(
     r"^(?P<subject_a>\d{4})HS(?P<headstage_a>\d+)_(?P<subject_b>\d{4})HS(?P<headstage_b>\d+)"
-    r"_(?P<date>\d{8})_(?P<time>\d{6})$"
+    r"(?:_(?P<session_token>[Ss]ess(?:ion)?_?\d+))?"
+    r"_(?:Merge)?(?P<date>\d{8})_(?P<time>\d{6})$"
 )
 PAIR_DIRNAME_PATTERN = re.compile(r"^\d{4}-\d{4}$")
+SESSION_DIRNAME_PATTERN = re.compile(r"^[Ss]ess(?:ion)?_?\d+$")
 VIDEO_NAME_PATTERN = re.compile(
-    r"^cam(?P<camera>\d+)(?P<calibration>-cal)?-(?P<stamp>\d{14})-\d{4}\.avi$", re.IGNORECASE
+    r"^cam(?P<camera>\d+)(?P<calibration>-cal(?:ibration)?)?-(?P<stamp>\d{14})-\d{4}\.avi$", re.IGNORECASE
 )
+MERGED_SUFFIXES = ("_merged.rec", "merged.rec")
 VIDEO_STAMP_FORMAT = "%m%d%Y%H%M%S"
 VIDEOS_DIRNAME = "Videos"
 VIDEO_KINDS = ("video", "calibration")
@@ -125,9 +135,15 @@ def resolve_rec_file(rec, /):
 
 
 def merged_rec_path(*, identity, headstage):
-    """The Trodes file holding *headstage*'s ephys, merged from its datalogger."""
+    """The Trodes file holding *headstage*'s ephys, merged from its datalogger.
+
+    The expected spelling is returned when no spelling exists, so a missing file is reported by its expected name.
+    """
     tag = f"{headstage.subject}HS{headstage.headstage}"
-    path = identity.rec_path.parent / tag / f"{identity.rec_path.stem}_{tag}_merged.rec"
+    candidates = [
+        identity.rec_path.parent / tag / f"{identity.rec_path.stem}_{tag}{suffix}" for suffix in MERGED_SUFFIXES
+    ]
+    path = next((candidate for candidate in candidates if candidate.is_file()), candidates[0])
     return path
 
 
@@ -158,7 +174,9 @@ def parse_rec_identity(rec, /):
     if match is None:
         raise ValueError(f"not a recognized recording name: {rec_path.name!r}")
     headstages = derive_subject_labels(rec_path.stem)
-    pair_dirname = rec_path.parent.parent.parent.name
+    container = rec_path.parent.parent
+    date_dir = container.parent if SESSION_DIRNAME_PATTERN.match(container.name) else container
+    pair_dirname = date_dir.parent.name
     expected_pair = "-".join(headstage.subject for headstage in headstages)
     if PAIR_DIRNAME_PATTERN.match(pair_dirname) and pair_dirname != expected_pair:
         raise ValueError(f"recording {rec_path.name} names pair {expected_pair} but sits under {pair_dirname}/")

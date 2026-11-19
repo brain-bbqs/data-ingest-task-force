@@ -20,7 +20,6 @@ with a pointer to the change.
 | [Q10](#q10-electrodes) | Electrode type, geometry, coordinates, filtering, references | Deferred | Electrode table detail |
 | [Q11](#q11-accelerometer) | Accelerometer units and real sample rate | Deferred | Accelerometer stream |
 | [Q12](#q12-session-log-as-an-input) | Session log as a committed CSV, and its parsing rules | Implemented as proposed, unconfirmed | Channel map selection, notes |
-| [Q13](#q13-two-recordings-on-one-date) | Layout of days with two recordings of one pair | Implemented as proposed, unverified | Video matching |
 | [Q14](#q14-sessions-to-exclude) | Should sessions without usable data be excluded? | Deferred, all converted | Which sessions publish |
 | [Q15](#q15-calibration-videos) | Calibration videos in the NWB or as plain assets? | Implemented as proposed, unconfirmed | Calibration video placement |
 | [Q16](#q16-investigate-video-transcoding) | Investigate video transcoding | Deferred to a follow-up | Video size and format |
@@ -128,16 +127,6 @@ notes.
   hour below 8 were read as afternoon.
 - **Ask the lab:** confirm both parsing rules.
 
-### Q13. Two recordings on one date
-
-Twelve date-pair combinations have two session-log rows.
-
-- **Current handling:** each `.rec` is matched to the videos whose filename
-  timestamp is nearest (`match_videos`), and to the session-log row whose
-  start time is nearest (`find_session_row`).
-- **Needs:** a real example of such a day, to confirm that both recordings
-  share one `Videos/` directory.
-
 ### Q15. Calibration videos
 
 - **Current handling:** the calibration videos are in the NWB as
@@ -153,3 +142,4 @@ Twelve date-pair combinations have two session-log rows.
 | Q2 | Flat or nested lab layout | Nested, `labs/zhang/ferret-hyperscanning/` | Request 2 in `prompts/initial.md` |
 | Q3 | Data standard | NWB, one file per subject per session, DANDI layout | Request 2 |
 | Q4 | Video handling | Keep the AVIs unchanged as external files, transcode later | Request 2 |
+| Q13 | Layout of days with two recordings of one pair | Each recording sits with its own `Videos/` in a `Session_1/`, `Session_2/` (or `Session1/`, `Session2/`) folder of the date folder, 22 recordings over 11 days. `batch_convert.discover_recordings` reads them | Request 13 |

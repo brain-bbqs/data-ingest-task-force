@@ -44,6 +44,10 @@ def make_rec_dir(root, /, *, pair="0236-0237", date_dirname="04.01.2026", stem=R
     [
         (REC_STEM, "20260401T130419"),
         ("0235HS1_0236HS2_20260306_154100", "20260306T154100"),
+        ("0235HS3_0237HS4_Session1_20260308_142653", "20260308T142653"),
+        ("0235HS3_0237HS4_sess1_20260318_111532", "20260318T111532"),
+        ("0235HS4_0236HS3_Sess1_20260318_102354", "20260318T102354"),
+        ("0235HS5_0236HS8_Merge20260423_142917", "20260423T142917"),
     ],
 )
 def test_derive_session_label(stem, expected):
@@ -55,7 +59,16 @@ def test_derive_subject_labels_keeps_basename_order():
     assert [(h.subject, h.headstage, h.position) for h in headstages] == [("0236", "3", 0), ("0237", "4", 1)]
 
 
-@pytest.mark.parametrize("stem", ["notes", "0236_0237_20260401", "0236HS3-0237HS4_20260401_130419"])
+@pytest.mark.parametrize(
+    "stem",
+    [
+        "notes",
+        "0236_0237_20260401",
+        "0236HS3-0237HS4_20260401_130419",
+        "0236HS3_0237HS4_RecordingTest1_20260223_155333",
+        "02355HS6_0236HS5_20260408_134217",
+    ],
+)
 def test_unrecognized_names_are_errors(stem):
     with pytest.raises(ValueError):
         core.derive_session_label(stem)
@@ -70,10 +83,15 @@ def test_parse_rec_identity(tmp_path):
     assert identity.name_start == datetime.datetime(2026, 4, 1, 13, 4, 19)
 
 
-def test_parse_rec_identity_rejects_pair_mismatch(tmp_path):
-    rec_dir = make_rec_dir(tmp_path, pair="0235-0237")
-    with pytest.raises(ValueError, match="sits under"):
-        core.parse_rec_identity(rec_dir)
+@pytest.mark.parametrize("pair", ["0236-0237", "0235-0237"])
+@pytest.mark.parametrize("date_dirname", ["04.01.2026", "04.01.2026/Session_1"])
+def test_parse_rec_identity_checks_pair_through_session_folders(tmp_path, pair, date_dirname):
+    rec_dir = make_rec_dir(tmp_path, pair=pair, date_dirname=date_dirname)
+    if pair == "0236-0237":
+        assert core.parse_rec_identity(rec_dir).pair == pair
+    else:
+        with pytest.raises(ValueError, match="sits under"):
+            core.parse_rec_identity(rec_dir)
 
 
 def test_output_paths_follow_dandi_layout(tmp_path):
@@ -87,21 +105,25 @@ def test_output_paths_follow_dandi_layout(tmp_path):
     assert destination == tmp_path / "out" / "sub-0236" / "sub-0236_ses-20260401T130419_cam14_video.avi"
 
 
-def test_match_videos_picks_nearest_stamp_per_camera(tmp_path):
-    rec_dir = make_rec_dir(tmp_path)
+@pytest.mark.parametrize(
+    "calibration", ["cam14-cal-04012026121856-0000.avi", "Cam14-Calibration-04012026121856-0000.avi"]
+)
+@pytest.mark.parametrize("date_dirname", ["04.01.2026", "04.01.2026/Session_2"])
+def test_match_videos_picks_nearest_stamp_per_camera(tmp_path, calibration, date_dirname):
+    rec_dir = make_rec_dir(tmp_path, date_dirname=date_dirname)
     videos = rec_dir.parent / "Videos"
     videos.mkdir()
     for name in [
         "cam14-04012026122439-0000.avi",
         "cam14-04012026162439-0000.avi",
-        "cam14-cal-04012026121856-0000.avi",
+        calibration,
         "cam46-04012026122433-0000.avi",
         "README.txt",
     ]:
         (videos / name).write_bytes(b"")
     matched, unmatched = core.match_videos(rec_dir)
     assert matched[14]["video"].name == "cam14-04012026122439-0000.avi"
-    assert matched[14]["calibration"].name == "cam14-cal-04012026121856-0000.avi"
+    assert matched[14]["calibration"].name == calibration
     assert matched[46] == {"video": videos / "cam46-04012026122433-0000.avi"}
     assert [path.name for path in unmatched] == ["README.txt"]
 
@@ -168,6 +190,16 @@ def test_merged_rec_path(tmp_path):
     ]
 
 
+def test_merged_rec_path_accepts_a_missing_underscore(tmp_path):
+    rec_dir = make_rec_dir(tmp_path)
+    identity = core.parse_rec_identity(rec_dir)
+    written = rec_dir / "0237HS4" / f"{REC_STEM}_0237HS4merged.rec"
+    written.parent.mkdir()
+    written.write_bytes(b"")
+    paths = [core.merged_rec_path(identity=identity, headstage=headstage) for headstage in identity.headstages]
+    assert paths == [rec_dir / "0236HS3" / f"{REC_STEM}_0236HS3_merged.rec", written]
+
+
 def test_convert_session_fails_before_placing_videos_without_merged_ephys(tmp_path, monkeypatch):
     rec_dir = make_rec_dir(tmp_path)
     placed = []
@@ -187,6 +219,16 @@ def test_discover_recordings_reports_strays(tmp_path):
     recordings, ignored = batch_convert.discover_recordings(tmp_path)
     assert recordings == [second, first]
     assert [path.name for path in ignored] == ["notes.txt", "scratch"]
+
+
+def test_discover_recordings_reads_session_folders(tmp_path):
+    first = make_rec_dir(tmp_path, date_dirname="04.23.2026/Session_1", stem="0236HS7_0237HS8_20260423_103710")
+    second = make_rec_dir(tmp_path, date_dirname="04.23.2026/Session2", stem="0236HS6_0237HS7_sess2_20260423_153827")
+    (first.parent / "Videos").mkdir()
+    (second.parent / "notes.txt").write_text("stray\n")
+    recordings, ignored = batch_convert.discover_recordings(tmp_path)
+    assert recordings == [second, first]
+    assert ignored == [second.parent / "notes.txt"]
 
 
 def test_empty_incoming_exits_zero(tmp_path, capsys):
