@@ -66,6 +66,7 @@ from _zhang_ferret_hyperscanning_to_nwb import (  # noqa: E402
     load_session_log_for,
     output_paths,
     parse_rec_identity,
+    recording_corrections,
 )
 
 RAW_SUBTREE = Path("sourcedata") / "raw" / "Ferret_Hyperscanning"
@@ -99,8 +100,8 @@ def discover_recordings(incoming_dir, /):
     return recordings, ignored
 
 
-def is_converted(*, rec_dir, standardized_dir):
-    identity = parse_rec_identity(rec_dir)
+def is_converted(*, rec_dir, standardized_dir, corrections):
+    identity = parse_rec_identity(rec_dir, corrections=corrections)
     paths = output_paths(output_dir=standardized_dir, identity=identity)
     converted = all(path.is_file() for path in paths.values())
     return converted
@@ -148,11 +149,12 @@ def convert_batch(*, incoming_dir, standardized_dir, config_path, overwrite=Fals
         print(f"No .rec recordings found under {incoming_dir / RAW_SUBTREE}")
         return 0
 
+    corrections = recording_corrections(load_cfg(config_path))
     skipped = 0
     pending = []
     for rec_dir in recordings:
         try:
-            converted = is_converted(rec_dir=rec_dir, standardized_dir=standardized_dir)
+            converted = is_converted(rec_dir=rec_dir, standardized_dir=standardized_dir, corrections=corrections)
         except ValueError as error:
             print(f"Ignoring unrecognized recording: {error}", flush=True)
             skipped += 1

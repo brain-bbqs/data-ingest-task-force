@@ -2,7 +2,8 @@
 """Cron entrypoint that drives one pass of the ingest pipeline for every
 registered project (see projects.json):
 
-  1. ``dandi download`` the incoming dandiset into ``<incoming-root>/<id>``.
+  1. ``dandi download`` the incoming dandiset into ``<incoming-root>/<id>``,
+     deleting local files the archive no longer has (``--sync do``).
   2. Diff its sessions (dispatch/sessions.json's spec for the project)
      against the project's manifest to find sessions that haven't been
      converted yet with the current script.
@@ -143,9 +144,41 @@ def git_head(repo_root: Path, /) -> str | None:
 DANDI_CACHE_ENV = {"DANDI_CACHE": "ignore"}
 
 
+def local_files(root: Path, /) -> set[Path]:
+    """Every file under *root* outside hidden directories, which is what ``dandi download --sync`` can delete."""
+    files = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if not name.startswith(".")]
+        files.update(Path(dirpath) / name for name in filenames if not name.startswith("."))
+    return files
+
+
+def remove_empty_dirs(root: Path, /) -> list[Path]:
+    """Remove the directories under *root* that hold nothing, deepest first, and return them.
+
+    ``dandi download --sync`` deletes the files of assets gone from the archive but leaves their
+    directories, and an empty one can still match a project's session globs.
+    """
+    walked = []
+    for dirpath, dirnames, _ in os.walk(root):
+        dirnames[:] = [name for name in dirnames if not name.startswith(".")]
+        walked.append(Path(dirpath))
+    removed = []
+    for path in reversed(walked):
+        if path != root and not any(path.iterdir()):
+            path.rmdir()
+            removed.append(path)
+    return removed
+
+
 def dandi_download(
     project: Project, incoming_dir: Path, *, tracking: TrackingDataset, dandi_image: str, dry_run: bool
 ) -> None:
+    """Refresh the local copy of the incoming dandiset, deleting what the archive no longer has.
+
+    Otherwise a file the lab deleted or renamed on the archive would linger here, still looking
+    like a session to convert or wait on. Each deleted file is logged.
+    """
     url = f"dandi://{DANDI_INSTANCE}/{project.incoming_dandiset_id}"
     if not dry_run:
         incoming_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -156,8 +189,17 @@ def dandi_download(
         literal_env=DANDI_CACHE_ENV,
     )
     cmd = ["apptainer", "exec", "--cleanenv", str(image.path)]
-    cmd += ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", url]
+    cmd += ["dandi", "download", "-o", str(incoming_dir.parent), "-e", "refresh", "--sync", "do", url]
+    before = set() if dry_run else local_files(incoming_dir)
     run(cmd, env=env, dry_run=dry_run)
+    if dry_run:
+        return
+    deleted = sorted(before - local_files(incoming_dir))
+    for path in deleted:
+        log.info("[%s] deleted %s, which the archive no longer has", project.key, path.relative_to(incoming_dir))
+    emptied = remove_empty_dirs(incoming_dir)
+    if deleted or emptied:
+        log.info("[%s] deleted %d file(s) and %d emptied folder(s)", project.key, len(deleted), len(emptied))
 
 
 def record_validation(

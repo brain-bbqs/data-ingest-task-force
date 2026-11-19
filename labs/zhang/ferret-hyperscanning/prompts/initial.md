@@ -550,3 +550,14 @@ Opened https://github.com/brain-bbqs/data-ingest-task-force/issues/62, listing t
 > ok adapt to the missing underscore for the .rec; explain the animal 0236 and 0235 and other naming mismatch to me in more detail
 
 The converter now reads `CamNN-Calibration-` videos, session tokens (`Session1`, `sess1`, `Sess1`) and a `Merge` prefix in recording names, merged files without the underscore before `merged`, and the `Session_1/` subfolders that hold a day's two recordings, which answers Q13. A test recording (`RecordingTest1`) and a five-digit animal id (`02355`) stay unrecognized, and the animal and headstage mismatches stay pending until the lab confirms them.
+
+## Request 14 — Correct the mislabeled recordings
+
+> yeah do all three
+
+The three were the follow-ups offered after the mismatches were explained.
+1. Post the renames and questions for the lab on the issue.
+2. Correct the mislabeled recordings in the converter.
+3. Delete local copies of files removed from EMBER.
+
+`config.yaml` now has a `corrections` section for five recordings, each checked against the headstage serials in its merged files' headers. They are 03.25 (a merged file named for 0236), 04.25 (both animals on HS6), 04.08 15:59 (an HS8 folder), `02355` and 03.08 13:03 (two malformed merged names). Merged files loose in the recording folder, as on 03.30, are found too. On the current archive 107 of 111 recordings now convert. The other four are the three recordings with no merged files and `RecordingTest1`. Dispatch's session pattern now also covers the `Session_<N>/` folders, whose 22 recordings it had not been discovering.

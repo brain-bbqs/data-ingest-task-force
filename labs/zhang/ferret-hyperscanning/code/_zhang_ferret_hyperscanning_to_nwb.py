@@ -22,6 +22,10 @@ spelling varies in places, and these variants are accepted: a session token
 in the stem (``_Session1_``, ``_sess1_``, ``_Sess1_``), ``Merge`` glued to
 the date (``_Merge20260423_``), ``merged.rec`` without its underscore
 (``…_0237HS4merged.rec``), and ``Calibration`` for ``cal`` in a video name.
+A merged file sitting loose in the ``.rec`` directory, outside its animal's
+folder, is found too. A recording whose names contradict its files is read
+through its entry under ``corrections`` in the config, which can rename it
+or point at an animal's merged file.
 
 The recording becomes two NWB files, one per animal, in the DANDI layout, with the shared videos placed next to the
 lower-numbered animal's file and referenced from both::
@@ -80,6 +84,7 @@ VIDEO_NAME_PATTERN = re.compile(
     r"^cam(?P<camera>\d+)(?P<calibration>-cal(?:ibration)?)?-(?P<stamp>\d{14})-\d{4}\.avi$", re.IGNORECASE
 )
 MERGED_SUFFIXES = ("_merged.rec", "merged.rec")
+CORRECTION_KEYS = frozenset({"name", "merged", "reason"})
 VIDEO_STAMP_FORMAT = "%m%d%Y%H%M%S"
 VIDEOS_DIRNAME = "Videos"
 VIDEO_KINDS = ("video", "calibration")
@@ -101,13 +106,29 @@ class Headstage:
     headstage: str
     position: int
 
+    @property
+    def tag(self):
+        """``0236HS3``, as folder and file names label this animal's headstage."""
+        tag = f"{self.subject}HS{self.headstage}"
+        return tag
+
 
 @dataclasses.dataclass(frozen=True)
 class RecordingIdentity:
+    """A recording's animals and session, read from ``name``.
+
+    ``name`` is the uploaded recording name unless a correction replaces it. A
+    correction can also give an animal's merged file in ``merged_files``,
+    keyed by headstage tag, and says why in ``correction_reason``.
+    """
+
     rec_path: Path
     headstages: tuple[Headstage, Headstage]
     session_label: str
     name_start: datetime.datetime
+    name: str
+    merged_files: dict[str, Path] = dataclasses.field(default_factory=dict)
+    correction_reason: str | None = None
 
     @property
     def pair(self):
@@ -137,13 +158,21 @@ def resolve_rec_file(rec, /):
 def merged_rec_path(*, identity, headstage):
     """The Trodes file holding *headstage*'s ephys, merged from its datalogger.
 
-    The expected spelling is returned when no spelling exists, so a missing file is reported by its expected name.
+    A correction's file is taken while it exists. Otherwise the file is looked for in the headstage's folder, then
+    loose in the recording folder, named after the recording as uploaded or as corrected. The expected spelling is
+    returned when none exists, so a missing file is reported by its expected name.
     """
-    tag = f"{headstage.subject}HS{headstage.headstage}"
-    candidates = [
-        identity.rec_path.parent / tag / f"{identity.rec_path.stem}_{tag}{suffix}" for suffix in MERGED_SUFFIXES
+    tag = headstage.tag
+    rec_dir = identity.rec_path.parent
+    stems = dict.fromkeys([identity.rec_path.stem, identity.name])
+    named = [
+        folder / f"{stem}_{tag}{suffix}"
+        for folder in (rec_dir / tag, rec_dir)
+        for stem in stems
+        for suffix in MERGED_SUFFIXES
     ]
-    path = next((candidate for candidate in candidates if candidate.is_file()), candidates[0])
+    corrected = [identity.merged_files[tag]] if tag in identity.merged_files else []
+    path = next((candidate for candidate in [*corrected, *named] if candidate.is_file()), named[0])
     return path
 
 
@@ -168,12 +197,34 @@ def derive_subject_labels(rec_stem, /):
     return headstages
 
 
-def parse_rec_identity(rec, /):
+def recording_corrections(cfg, /):
+    """The config's per-recording corrections, keyed by the recording name as uploaded, each checked."""
+    corrections = cfg.get("corrections") or {}
+    for uploaded, correction in corrections.items():
+        unknown = sorted(set(correction) - CORRECTION_KEYS)
+        if unknown:
+            raise ValueError(f"correction for {uploaded} has unknown keys {unknown}")
+        if not correction.get("reason"):
+            raise ValueError(f"correction for {uploaded} gives no reason")
+        name = correction.get("name", uploaded)
+        if REC_NAME_PATTERN.match(name) is None:
+            raise ValueError(f"correction for {uploaded} names unrecognized recording {name!r}")
+        tags = {headstage.tag for headstage in derive_subject_labels(name)}
+        strays = sorted(set(correction.get("merged") or {}) - tags)
+        if strays:
+            raise ValueError(f"correction for {uploaded} gives merged files for {strays}, not headstages of {name}")
+    return corrections
+
+
+def parse_rec_identity(rec, /, *, corrections=None):
+    """The animals, headstages and session of a recording, from its name or its entry in *corrections*."""
     rec_path = resolve_rec_file(rec)
-    match = REC_NAME_PATTERN.match(rec_path.stem)
+    correction = (corrections or {}).get(rec_path.stem) or {}
+    name = correction.get("name", rec_path.stem)
+    match = REC_NAME_PATTERN.match(name)
     if match is None:
         raise ValueError(f"not a recognized recording name: {rec_path.name!r}")
-    headstages = derive_subject_labels(rec_path.stem)
+    headstages = derive_subject_labels(name)
     container = rec_path.parent.parent
     date_dir = container.parent if SESSION_DIRNAME_PATTERN.match(container.name) else container
     pair_dirname = date_dir.parent.name
@@ -181,11 +232,15 @@ def parse_rec_identity(rec, /):
     if PAIR_DIRNAME_PATTERN.match(pair_dirname) and pair_dirname != expected_pair:
         raise ValueError(f"recording {rec_path.name} names pair {expected_pair} but sits under {pair_dirname}/")
     name_start = datetime.datetime.strptime(match["date"] + match["time"], "%Y%m%d%H%M%S")
+    merged_files = {tag: rec_path.parent / relative for tag, relative in (correction.get("merged") or {}).items()}
     identity = RecordingIdentity(
         rec_path=rec_path,
         headstages=headstages,
-        session_label=derive_session_label(rec_path.stem),
+        session_label=derive_session_label(name),
         name_start=name_start,
+        name=name,
+        merged_files=merged_files,
+        correction_reason=correction.get("reason"),
     )
     return identity
 
@@ -217,17 +272,15 @@ def session_start_time(*, identity, cfg):
     return start_time
 
 
-def match_videos(rec, /):
-    """Per camera, the behavior and calibration videos nearest this recording's timestamp.
+def match_videos(identity, /):
+    """Per camera, the behavior and calibration videos nearest the recording's timestamp.
 
     Returns ``(matched, unmatched)``: ``matched`` maps a camera number to a
     ``{kind: path}`` dict, ``unmatched`` lists files in ``Videos/`` whose
     names the pattern does not recognize. A missing ``Videos/`` directory
     yields nothing matched.
     """
-    rec_path = resolve_rec_file(rec)
-    identity = parse_rec_identity(rec_path)
-    videos_dir = rec_path.parent.parent / VIDEOS_DIRNAME
+    videos_dir = identity.rec_path.parent.parent / VIDEOS_DIRNAME
     matched: dict[int, dict[str, Path]] = {}
     unmatched: list[Path] = []
     if not videos_dir.is_dir():
@@ -274,6 +327,18 @@ def find_session_row(rows, /, *, pair, start):
         return candidates[0]
     nearest = min(timed, key=lambda row: abs(_minutes(row["start"]) - rec_minutes))
     return nearest
+
+
+def session_notes(*, identity, session_row, cfg):
+    """The NWB ``notes``: the pair, the session log's usable-data text and notes, and any naming correction."""
+    notes = cfg["session"]["notes_template"].format(
+        pair=identity.pair,
+        usable_data=(session_row or {}).get("usable_data") or "not logged",
+        notes=(session_row or {}).get("notes") or "none",
+    )
+    if identity.correction_reason:
+        notes += f" Source names corrected for {identity.rec_path.parent.name}: {identity.correction_reason}"
+    return notes
 
 
 def select_channel_map(*, belly_up, cfg):
@@ -437,11 +502,7 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
     device_name = cfg["devices"]["headstage"]["name_template"].format(headstage=headstage.headstage)
     session_cfg = cfg["session"]
     channel_map_name = "Belly-up" if belly_up else "Belly-down"
-    notes = session_cfg["notes_template"].format(
-        pair=identity.pair,
-        usable_data=(session_row or {}).get("usable_data") or "not logged",
-        notes=(session_row or {}).get("notes") or "none",
-    )
+    notes = session_notes(identity=identity, session_row=session_row, cfg=cfg)
 
     video_interfaces = _video_interfaces(placed_videos=placed_videos, cfg=cfg)
     converter = neuroconv.ConverterPipe(data_interfaces={"ecephys": interface, **video_interfaces})
@@ -499,7 +560,9 @@ def build_nwbfile(*, identity, headstage, cfg, placed_videos, nwb_path, belly_up
 
 def convert_session(*, rec, output_dir, cfg, session_log=None, overwrite=False):
     """Convert one recording into its two subject files; returns the written NWB paths."""
-    identity = parse_rec_identity(rec)
+    identity = parse_rec_identity(rec, corrections=recording_corrections(cfg))
+    if identity.correction_reason:
+        print(f"{identity.rec_path.name}: read through its correction. {identity.correction_reason}", flush=True)
     output_dir = Path(output_dir)
     # Checked before the videos are placed, which copies about 170 GB when it cannot hard-link.
     missing_ephys = [
@@ -509,7 +572,7 @@ def convert_session(*, rec, output_dir, cfg, session_log=None, overwrite=False):
     ]
     if missing_ephys:
         raise MissingInputError(f"no merged ephys file at {', '.join(str(path) for path in missing_ephys)}")
-    matched, unmatched = match_videos(identity.rec_path)
+    matched, unmatched = match_videos(identity)
     for path in unmatched:
         print(f"Ignoring unrecognized file in {VIDEOS_DIRNAME}/: {path.name}", flush=True)
     expected_cameras = set(cfg["video"]["cameras"])
