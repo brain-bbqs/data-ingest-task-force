@@ -29,7 +29,7 @@ converted and the exit code reports whether any failed.
 Example CLI usage (from the repository root, so the package resolves)
 ---------------------------------------------------------------------
 python3 -m labs.inman.code.batch_convert --input ember-incoming/000519 \\
-    --output ember-standardized/000526 --config labs/inman/code/config.yaml
+    --output ember-standardized/000638 --config labs/inman/code/config.yaml
 """
 
 import argparse

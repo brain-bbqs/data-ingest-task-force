@@ -66,7 +66,7 @@ docker pull ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest
 docker run --rm -v "$PWD":/work -w /work \
     ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest \
     python -m labs.inman.code.batch_convert \
-        --input 000519 --output 000526 --config labs/inman/code/config.yaml
+        --input 000519 --output 000638 --config labs/inman/code/config.yaml
 
 # The same image runs the test suite:
 docker run --rm -v "$PWD":/work -w /work \
@@ -99,7 +99,7 @@ reports completions. This is the entry point dispatch runs (see
 
 ```bash
 python3 -m labs.inman.code.batch_convert \
-    --input path/to/000519 --output path/to/000526 --config labs/inman/code/config.yaml
+    --input path/to/000519 --output path/to/000638 --config labs/inman/code/config.yaml
 ```
 
 ## Tests

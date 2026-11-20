@@ -23,7 +23,7 @@
     {
       "lab": "inman",
       "incoming_dandiset_id": "000519",
-      "standardized_dandiset_id": "000526",
+      "standardized_dandiset_id": "000638",
       "script_path": "labs/inman/code/_inman_to_nwb.py",
       "overwrite_flag": "--overwrite",
       "container_image": "ghcr.io/brain-bbqs/inman-r61mh135109-ingest:latest",

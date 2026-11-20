@@ -25,3 +25,11 @@ conversion work.)
 > we will do separate follow-up for improvements; ensure 'Neha Thomas' gets
 > credit for the existing scripts since we can't just port over the commit
 > history
+
+## Request 4 — New standardized dandiset
+
+> We had to do a thing and now the standardized output for inman is 000638
+
+The dispatch registry now uploads Inman's output to `000638` instead of
+`000526`. The first run after the change converts every walk again into a
+fresh `ember-standardized/000638` and uploads it there.
