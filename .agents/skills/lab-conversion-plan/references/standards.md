@@ -14,6 +14,7 @@ The choice of standard belongs to the requester. Use this table to understand th
 | Mixed physiological and behavioral time series (IMU, gaze, analog sensors) | NWB | `labs/inman/` |
 | Multicamera video plus pose estimation plus analog/digital sync channels | NWB, raw + processed pair | `labs/shepherd/` |
 | Raw behavioral audio, video, or image recordings with no neural data | BIDS `beh` datatype per BEP047 | `labs/kemere/` |
+| Behavioral video plus pose files, where the requester wants BIDS throughout | BIDS study dataset: BEP047 videos in `rawbids/`, pose in native formats under `derivatives/<pipeline>/` | `labs/talmo/` |
 | Several animals recorded together in one session (hyperscanning, social groups) | NWB, one file per subject per session, shared videos referenced from each | `labs/zhang/ferret-hyperscanning/` (`labs/sanes/` for the multi-subject-file alternative) |
 
 Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, is an intermediate step toward NWB. When a dataset straddles the line, lean NWB and note the alternative in the plan so the reviewer decides.
@@ -37,19 +38,22 @@ Both are staging formats on the way to DANDI. Kemere's BIDS tree, for example, i
 
 ## BIDS (BEP047) targets
 
-BEP047 covers audio, video, and image recordings of behavior in the `beh` datatype. It is still an open bids-specification pull request, so pin what you follow and note the commit reviewed, as `labs/kemere/prompts/initial.md` does.
+BEP047 covers audio, video, and image recordings of behavior in the `beh` datatype. It is still an open bids-specification pull request, so pin what you follow and note the commit reviewed, as `labs/kemere/prompts/initial.md` does. When the rendered spec is unreachable, read the schema straight from the PR head: `https://raw.githubusercontent.com/bids-standard/bids-specification/refs/pull/2231/head/src/schema/rules/files/raw/beh.yaml`, and `rules/sidecars/beh.yaml` and `media.yaml` beside it.
 
 - Specification: https://github.com/bids-standard/bids-specification/pull/2231
 - Reference dataset: `beh_audio_video_recordings` in https://github.com/bids-standard/bids-examples
 
-Load-bearing details, verified for Kemere. Re-verify them against the PR's current state on each new use:
+Load-bearing details, verified at PR head `61fdc19` for Talmo. Re-verify them against the PR's current state on each new use:
 
-- Suffixes and extensions: `_video` (`.mp4`/`.mkv`/`.avi`), `_audiovideo` (same extensions, when an audio stream is present), `_audio` (`.wav`/`.flac`/...), `_image` (`.png`/`.jpg`).
+- Suffixes and extensions: `_video` (`.mp4`/`.mkv`/`.avi`/`.webm`), `_audiovideo` (same extensions, when an audio stream is present), `_audio` (`.wav`/`.flac`/`.mp3`/`.ogg`/`.aac`/`.m4a`), `_image` (`.png`/`.jpg`/`.tif`/`.tiff`).
 - Entity order: `sub`, `ses`, `task`, `acq`, `run`, `recording`, `split`. Subject is required, the rest are optional. `recording-<label>` distinguishes simultaneous camera angles.
+- `StartTime` (seconds from the run's time zero) is required in the sidecar of every file that has a `recording` entity. For files of one run listed in `scans.tsv`, `acq_time` minus `StartTime` must be the same moment. So look for per-frame timestamps or per-camera offsets in the source before writing `0`, and say in the sidecar what the value rests on.
 - Every media file gets a JSON sidecar with its measured properties (via `ffprobe`: codec, frame rate, frame count, duration, dimensions, pixel format, bit depth).
 - Lab-specific raw parameters ride along in the sidecar under a namespaced block (Kemere's `TrackingSettings`), carrying a `Description` and `SourceFile` so provenance is explicit and the block is clearly not part of BIDS itself.
 - Dataset scaffolding files are required: `dataset_description.json`, `README`, `participants.tsv`/`.json`, and per-session `scans.tsv`/`.json`. The `scans.tsv` `filename` column is participant-relative, so it includes the `ses-<label>/` prefix.
-- Kemere precedent for where the tree lives inside the standardized dandiset: `<standardized>/sourcedata/rawbids/`.
+- Where the tree lives inside the standardized dandiset is the requester's call. Kemere uses `<standardized>/sourcedata/rawbids/`. Talmo follows the BIDS 1.11.2 study convention: the dandiset root is a `DatasetType: "study"` dataset with the raw BIDS dataset in a top-level `rawbids/`, non-BIDS source documents in `sourcedata/`, and one `DatasetType: "derivative"` dataset per pipeline under `derivatives/`.
+- BIDS has no pose standard. Talmo keeps pose, calibration and model files byte-for-byte in their native formats under BIDS-style names with non-schema suffixes (`_pose`, `_calibration`), each with a JSON sidecar describing its contents and pointing at its video by BIDS URI. Whether to convert them instead is the requester's call.
+- When no file belongs to one animal, the subject is a group. Kemere and SLAP-2M use `sub-multi`. Where animal IDs exist, a subject per unique combination works (Talmo's MouseDyad-10M: the sorted IDs joined, `sub-181313x181321`), with the roster in `participants.tsv` and `sessions.tsv`.
 
 ## DANDI requirements that apply either way
 
