@@ -199,6 +199,52 @@
         "--results",
         "{results}"
       ]
+    },
+    {
+      "lab": "talmo",
+      "project": "mouse-dyad-10m",
+      "incoming_dandiset_id": "000641",
+      "standardized_dandiset_id": "000643",
+      "script_path": "labs/talmo/code/convert_luc3d_to_bids.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/talmo-u01da063581-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/talmo/code/convert_luc3d_to_bids.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/talmo/code/config.yaml",
+        "--dataset",
+        "mouse-dyad-10m",
+        "--results",
+        "{results}"
+      ]
+    },
+    {
+      "lab": "talmo",
+      "project": "slap-2m",
+      "incoming_dandiset_id": "000641",
+      "standardized_dandiset_id": "000642",
+      "script_path": "labs/talmo/code/convert_luc3d_to_bids.py",
+      "overwrite_flag": "--overwrite",
+      "container_image": "ghcr.io/brain-bbqs/talmo-u01da063581-ingest:latest",
+      "convert_command": [
+        "python3",
+        "{repo_root}/labs/talmo/code/convert_luc3d_to_bids.py",
+        "--input",
+        "{incoming_dir}",
+        "--output",
+        "{standardized_dir}",
+        "--config",
+        "{repo_root}/labs/talmo/code/config.yaml",
+        "--dataset",
+        "slap-2m",
+        "--results",
+        "{results}"
+      ]
     }
   ]
 }

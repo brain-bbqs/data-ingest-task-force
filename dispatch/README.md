@@ -170,6 +170,13 @@ Its `sessions.json` glob selects the `.rec` directory rather than the date direc
 It uses the default `upload_validation`. Whether DANDI accepts the `.avi` assets written next to the NWB files is unconfirmed until the first real upload; set `ignore` if it does not.
 Open questions that still affect the output are tracked in `labs/zhang/ferret-hyperscanning/OPEN_QUESTIONS.md`.
 
+Note: the Talmo lab registers two datasets, both read from incoming `000641` and converted by the one codebase in `labs/talmo/` with the `talmo-u01da063581-ingest` image.
+`talmo/mouse-dyad-10m` writes to `000643` and `talmo/slap-2m` to `000642`. Each entry passes its key as `--dataset`, and the standardized dandiset root is the BIDS study root.
+The two collections sit side by side under `sourcedata/raw/luc3d/`, so each project's `sessions.json` glob reaches only its own `sessions/` folder. SLAP-2M nests sessions under date folders, hence its extra `*`.
+Both projects share the incoming dandiset, so the first run of each downloads all 408 GB of it. Each standardized dandiset then receives a full copy of its videos (105.5 GB and 188.9 GB).
+Both use the default `upload_validation`. Whether DANDI accepts a BIDS study dataset with native-format pose derivatives is unconfirmed until the first real upload, so the projects are **not yet proven for a real cron run**. Keep the runner off them with `--only` until someone has watched one upload. The image exists on GHCR only after the first merge to main.
+Open questions that still affect the output are tracked in `labs/talmo/OPEN_QUESTIONS.md`.
+
 ## Tests
 
 ```bash

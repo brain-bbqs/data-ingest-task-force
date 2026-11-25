@@ -43,6 +43,14 @@
         "sourcedata/raw/Ferret_Hyperscanning/*/*/[Ss]ess*/*.rec"
       ],
       "exclude": []
+    },
+    "talmo/mouse-dyad-10m": {
+      "include": ["sourcedata/raw/luc3d/MouseDyad-10M/sessions/*"],
+      "exclude": []
+    },
+    "talmo/slap-2m": {
+      "include": ["sourcedata/raw/luc3d/SLAP-2M/sessions/*/*"],
+      "exclude": []
     }
   }
 }

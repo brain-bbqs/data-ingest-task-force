@@ -59,6 +59,9 @@ jobs:
             zhang-ferret-hyperscanning-r34da061924-ingest:
               - 'labs/zhang/ferret-hyperscanning/**'
               - '.github/workflows/container_images.yml'
+            talmo-u01da063581-ingest:
+              - 'labs/talmo/**'
+              - '.github/workflows/container_images.yml'
             dandi-cli:
               - 'dispatch/**'
               - '.github/workflows/container_images.yml'
@@ -99,6 +102,10 @@ jobs:
              "dockerfile": "labs/zhang/ferret-hyperscanning/containers/zhang-ferret-hyperscanning.Dockerfile",
              "context": "labs/zhang/ferret-hyperscanning",
              "tests": "labs/zhang/ferret-hyperscanning/tests"},
+            {"image": "talmo-u01da063581-ingest",
+             "dockerfile": "labs/talmo/containers/talmo.Dockerfile",
+             "context": "labs/talmo",
+             "tests": "labs/talmo/tests"},
             {"image": "dandi-cli",
              "dockerfile": "dispatch/containers/dandi.Dockerfile",
              "context": "dispatch",
