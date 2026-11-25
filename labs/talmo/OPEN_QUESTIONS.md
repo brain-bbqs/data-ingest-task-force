@@ -13,7 +13,7 @@ When a question is answered, quote the answer into `prompts/initial.md` as a new
 | [Q9](#q9-metadata-nobody-supplied) | Ages, SLAP-2M animals, authors, license, institutions | Waiting on the lab or the preprint | DANDI-ready metadata |
 | [Q10](#q10-2d-track-identity) | Which 2D track is which mouse in MouseDyad-10M? | Waiting on the lab | Per-animal use of the 2D files |
 | [Q11](#q11-triangulation-tool) | Which tool made the 3D? | Waiting on the lab or the preprint | `GeneratedBy` of the derivative dataset |
-| [Q14](#q14-per-animal-metadata) | Age, genotype and identity of each animal | Waiting on the lab or the preprint | A complete per-animal record |
+| [Q14](#q14-per-animal-metadata) | Age and identity of each animal | Waiting on the lab or the preprint | A complete per-animal record |
 | [Q12](#q12-validation-not-yet-run) | BIDS validator and DANDI upload behavior | Deferred to the first real run | Upload |
 
 ## Waiting on the lab or the preprint
@@ -43,10 +43,11 @@ The 3D files name their tracks by animal. The 2D files say `track_0` and `track_
 What the deposit and the dataset cards give for each animal is incomplete.
 
 - **MouseDyad-10M, known:** the 9 animal IDs, each animal's sex (from its track position, with the card's "track 0 is always the male"), the strain (CD-1), the number of tail marks per session, and which sessions each animal is in.
-- **MouseDyad-10M, missing:** age or date of birth, genotype, weight, housing, and whether the two animals of a pair were familiar.
+- **Genotype:** presumed wild type in both collections. The cards name only standard strains (CD-1, C57BL/6J, BALB/c) and no transgenic line. No source says so outright, so it is not written into `participants.tsv`.
+- **MouseDyad-10M, missing:** age or date of birth, weight, housing, and whether the two animals of a pair were familiar.
 - **SLAP-2M, missing:** everything per animal. The deposit has only the number of white, agouti and black mice per session. There are no animal IDs, so the 16 animals the card mentions cannot be told apart or matched to sessions, and no sex or age is given.
 - **Current handling:** a subject is a pair (MouseDyad-10M) or `sub-multi` (SLAP-2M), so `participants.tsv` has `sex` as `n/a`. The MouseDyad-10M animal IDs and sexes are in the `male_id` and `female_id` columns. There is no one-row-per-animal table.
-- **Ask the lab:** a table with one row per animal (ID, sex, date of birth, strain, genotype), and for SLAP-2M the animal IDs present in each session.
+- **Ask the lab:** a table with one row per animal (ID, sex, date of birth, strain), confirmation that all animals are wild type, and for SLAP-2M the animal IDs present in each session.
 
 ## Implemented, unconfirmed
 

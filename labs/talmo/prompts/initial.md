@@ -65,3 +65,13 @@ Setting up the Talmo lab conversion. One incoming dandiset (`000641`) holds two 
 
 - The 2D pose, the 3D pose, the calibration and the models now sit in one derivative dataset, `derivatives/pipeline-luc3d/`. This resolves Q13.
 - Per-subject information is incomplete. What is known and missing per animal is recorded as Q14 in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+
+---
+
+## Request 5 — Genotype
+
+> you don't think all mice are wildtypes?
+
+### What happened
+
+- Agreed that they almost certainly are. The dataset cards name only standard strains and no transgenic line. Q14 now records genotype as presumed wild type, not as missing. It is not written into `participants.tsv`, since no source states it.
