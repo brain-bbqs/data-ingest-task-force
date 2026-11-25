@@ -52,3 +52,16 @@ Setting up the Talmo lab conversion. One incoming dandiset (`000641`) holds two 
 - Found the preprint, "LUC3D: Multi-animal 3D pose tracking in the browser" (bioRxiv, doi:10.64898/2026.11.17.767188). It could not be read, because `biorxiv.org`, `doi.org` and `crossref.org` are outside the sandbox's network allowlist.
 - Read the lab's public dataset cards on Hugging Face instead (`talmolab/mouse-dyad-10M`, `talmolab/slap-2m`). They supplied strains, sexes, the animal ID format, the hardware synchronization of MouseDyad-10M, the license and the recording labs. Each value in `code/config.yaml` cites its source.
 - lab-scaffold, lab-register and lab-lessons then ran. What is still missing is in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+
+---
+
+## Request 4 — One derivative dataset, and per-subject information
+
+> maybe put both under derivatives/pipeline-luc3d?
+>
+> did you get all the per subject info you needed?
+
+### What happened
+
+- The 2D pose, the 3D pose, the calibration and the models now sit in one derivative dataset, `derivatives/pipeline-luc3d/`. This resolves Q13.
+- Per-subject information is incomplete. What is known and missing per animal is recorded as Q14 in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).

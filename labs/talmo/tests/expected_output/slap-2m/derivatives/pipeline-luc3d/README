@@ -1,8 +1,10 @@
-SLAP-2M 3D pose and calibration
+SLAP-2M pose
 
 Multi-camera 3D pose of one to four mice in an arena with graded levels of environmental enrichment. Eight synchronized grayscale cameras at 1280x1024, 30 fps except the 13 sessions of 2022-10-19 at 60 fps.
 
-3D pose, reprojections and camera calibration in the lab's native HDF5 and TOML files.
+Per-camera 2D pose in native SLEAP .slp and analysis .h5 files, and the 3D pose, reprojections
+and camera calibration in the lab's native HDF5 and TOML files. models/ holds the SLEAP models.
+
 Files keep their native formats and bytes. The pose and calibration suffixes are not part
 of the BIDS specification. Each JSON sidecar describes the files that share its name.
 

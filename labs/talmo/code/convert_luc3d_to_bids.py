@@ -9,8 +9,7 @@ its collection under ``--input`` and writing the study under ``--output``::
       README
       sourcedata/                   the lab's own documents, verbatim
       rawbids/                      DatasetType "raw", BEP047 videos with JSON sidecars
-      derivatives/sleap/            2D pose, native SLEAP files, plus the models that made them
-      derivatives/triangulation/    3D pose, reprojections and camera calibration, native files
+      derivatives/pipeline-luc3d/   2D pose, 3D pose, reprojections, calibration and models, native files
 
 Videos and pose files are copied byte-for-byte under BIDS names. Nothing is re-encoded.
 
@@ -51,8 +50,7 @@ import yaml
 __version__ = "0.1.0"
 
 RAW_DATASET = "rawbids"
-SLEAP_DATASET = "derivatives/sleap"
-TRIANGULATION_DATASET = "derivatives/triangulation"
+DERIVATIVE_DATASET = "derivatives/pipeline-luc3d"
 DOCUMENTS_DIRECTORY = "sourcedata"
 RAW_LINK_NAME = "rawbids"
 
@@ -604,7 +602,7 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
         handled.update(tracks)
         emit_derivative(
             ctx=ctx,
-            dataset=SLEAP_DATASET,
+            dataset=DERIVATIVE_DATASET,
             subject=subject,
             session=session,
             entities=f"_recording-{recording_label(camera)}_desc-predictions",
@@ -622,7 +620,7 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
 
     emit_derivative(
         ctx=ctx,
-        dataset=TRIANGULATION_DATASET,
+        dataset=DERIVATIVE_DATASET,
         subject=subject,
         session=session,
         entities="_desc-arena",
@@ -643,7 +641,7 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
     )
     emit_derivative(
         ctx=ctx,
-        dataset=TRIANGULATION_DATASET,
+        dataset=DERIVATIVE_DATASET,
         subject=subject,
         session=session,
         entities="",
@@ -657,7 +655,7 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
     if board is not None:
         emit_derivative(
             ctx=ctx,
-            dataset=TRIANGULATION_DATASET,
+            dataset=DERIVATIVE_DATASET,
             subject=subject,
             session=session,
             entities="_desc-board",
@@ -671,7 +669,7 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
     if detections is not None:
         emit_derivative(
             ctx=ctx,
-            dataset=TRIANGULATION_DATASET,
+            dataset=DERIVATIVE_DATASET,
             subject=subject,
             session=session,
             entities="_desc-detections",
@@ -733,19 +731,19 @@ SLAP_PARTICIPANT_COLUMNS = ["participant_id", "species", "strain", "sex"]
 SLAP_CAMERA_PRODUCTS = [
     (
         ["*.predictions.proofread.slp", "*.predictions.proofread.slp.analysis.h5"],
-        SLEAP_DATASET,
+        DERIVATIVE_DATASET,
         "proofread",
         "Proofread 2D SLEAP tracks of this camera.",
     ),
     (
         ["*.mp4.predictions.slp"],
-        SLEAP_DATASET,
+        DERIVATIVE_DATASET,
         "predictions",
         "2D predictions of this camera, not proofread. For side and sideL they come from a separate side-camera model.",
     ),
     (
         ["*.reprojections.slp", "*.reprojections.slp.h5"],
-        TRIANGULATION_DATASET,
+        DERIVATIVE_DATASET,
         "reprojections",
         "The 3D pose reprojected into this camera, as SLEAP labels.",
     ),
@@ -832,7 +830,7 @@ def convert_slap_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
                 extra.update(skeleton)
         emit_derivative(
             ctx=ctx,
-            dataset=TRIANGULATION_DATASET,
+            dataset=DERIVATIVE_DATASET,
             subject=subject,
             session=session,
             entities=f"_desc-{label}" if label else "",
@@ -962,8 +960,8 @@ def write_dataset_files(*, ctx: Context) -> None:
                 "",
                 "- sourcedata/ holds the lab's own documents, verbatim.",
                 "- rawbids/ holds the videos as a BEP047 raw BIDS dataset.",
-                "- derivatives/sleap/ holds the 2D pose and the models that made it.",
-                "- derivatives/triangulation/ holds the 3D pose, reprojections and camera calibration.",
+                "- derivatives/pipeline-luc3d/ holds the 2D pose, 3D pose, reprojections, camera calibration",
+                "  and the SLEAP models.",
                 "",
                 f"Institution: {dataset['institution']}",
             ],
@@ -995,41 +993,32 @@ def write_dataset_files(*, ctx: Context) -> None:
         )
     )
 
-    for key, title, body in (
-        (
-            "sleap",
-            "2D pose",
-            "Per-camera 2D pose in native SLEAP .slp and analysis .h5 files. models/ holds the SLEAP models verbatim.",
-        ),
-        (
-            "triangulation",
-            "3D pose and calibration",
-            "3D pose, reprojections and camera calibration in the lab's native HDF5 and TOML files.",
-        ),
-    ):
-        root = output / "derivatives" / key
-        write_json(
-            path=root / "dataset_description.json",
-            data={
-                "Name": f"{name} {title}",
-                "DatasetType": "derivative",
-                **common,
-                "GeneratedBy": [*dataset["generated_by"][key], generator],
-                "SourceDatasets": [{"URL": f"../../{RAW_DATASET}/"}],
-                "DatasetLinks": {RAW_LINK_NAME: f"../../{RAW_DATASET}"},
-            },
+    root = output / DERIVATIVE_DATASET
+    pipeline = [step for steps in dataset["generated_by"].values() for step in steps]
+    write_json(
+        path=root / "dataset_description.json",
+        data={
+            "Name": f"{name} pose",
+            "DatasetType": "derivative",
+            **common,
+            "GeneratedBy": [*pipeline, generator],
+            "SourceDatasets": [{"URL": f"../../{RAW_DATASET}/"}],
+            "DatasetLinks": {RAW_LINK_NAME: f"../../{RAW_DATASET}"},
+        },
+    )
+    (root / "README").write_text(
+        readme_text(
+            title=f"{name} pose",
+            ctx=ctx,
+            body=[
+                "Per-camera 2D pose in native SLEAP .slp and analysis .h5 files, and the 3D pose, reprojections",
+                "and camera calibration in the lab's native HDF5 and TOML files. models/ holds the SLEAP models.",
+                "",
+                "Files keep their native formats and bytes. The pose and calibration suffixes are not part",
+                "of the BIDS specification. Each JSON sidecar describes the files that share its name.",
+            ],
         )
-        (root / "README").write_text(
-            readme_text(
-                title=f"{name} {title}",
-                ctx=ctx,
-                body=[
-                    body,
-                    "Files keep their native formats and bytes. The pose and calibration suffixes are not part",
-                    "of the BIDS specification. Each JSON sidecar describes the files that share its name.",
-                ],
-            )
-        )
+    )
 
 
 def copy_tree(*, source: Path, destination: Path, ctx: Context) -> int:
@@ -1059,7 +1048,7 @@ def copy_collection_files(*, ctx: Context) -> list[str]:
             print(f"  document not found: {name}")
     models = ctx.collection_dir / "models"
     if models.is_dir():
-        count = copy_tree(source=models, destination=ctx.output_dir / SLEAP_DATASET / "models", ctx=ctx)
+        count = copy_tree(source=models, destination=ctx.output_dir / DERIVATIVE_DATASET / "models", ctx=ctx)
         print(f"  models: {count} files")
     ignored = sorted(path.name for path in ctx.collection_dir.iterdir() if path.name not in handled)
     return ignored

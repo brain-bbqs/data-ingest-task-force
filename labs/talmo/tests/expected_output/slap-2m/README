@@ -6,8 +6,8 @@ Layout
 
 - sourcedata/ holds the lab's own documents, verbatim.
 - rawbids/ holds the videos as a BEP047 raw BIDS dataset.
-- derivatives/sleap/ holds the 2D pose and the models that made it.
-- derivatives/triangulation/ holds the 3D pose, reprojections and camera calibration.
+- derivatives/pipeline-luc3d/ holds the 2D pose, 3D pose, reprojections, camera calibration
+  and the SLEAP models.
 
 Institution: PROVISIONAL: Princeton University
 

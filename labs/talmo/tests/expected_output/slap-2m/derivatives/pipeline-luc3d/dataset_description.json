@@ -1,5 +1,5 @@
 {
-  "Name": "SLAP-2M 3D pose and calibration",
+  "Name": "SLAP-2M pose",
   "DatasetType": "derivative",
   "BIDSVersion": "1.11.2",
   "License": "MIT",
@@ -18,6 +18,10 @@
     "https://github.com/talmolab/figures-luc3d"
   ],
   "GeneratedBy": [
+    {
+      "Name": "SLEAP",
+      "Description": "Top-down centroid and centered-instance models, then manual proofreading. The proofread files carry no provenance. The side-camera predictions were made with sleap-nn 0.2.0."
+    },
     {
       "Name": "LUC3D",
       "Description": "PROVISIONAL (Q11). The dataset card says the poses were proofread in 3D. The triangulation tool is not named in the deposit."

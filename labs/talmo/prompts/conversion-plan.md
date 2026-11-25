@@ -1,21 +1,21 @@
 # Talmo lab conversion plan (MouseDyad-10M and SLAP-2M)
 
-Status: approved by the requester on 2026-11-25, with the decisions quoted in Request 2 of [the request record](initial.md). Questions still open are tracked in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
+Status: approved by the requester on 2026-11-25, with the decisions quoted in Requests 2 and 4 of [the request record](initial.md). Questions still open are tracked in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
 
 The request record is [`initial.md`](initial.md).
 
 ## Amendments after approval
 
-The requester's decisions in Request 2 changed the draft below. Where the two differ, this list wins. The mapping tables as built are in [`../code/README.md`](../code/README.md).
+The requester's decisions in Requests 2 and 4 changed the draft below. Where the two differ, this list wins. The mapping tables as built are in [`../code/README.md`](../code/README.md).
 
 - The raw BIDS dataset sits in a top-level `rawbids/`, the BIDS 1.11.2 study convention. The lab's own documents go to the study's `sourcedata/`, not `derivatives/pose/docs/`.
 - MouseDyad-10M has one subject per unique pair of animals, labeled by the two sorted animal IDs (`sub-181313x181321`). SLAP-2M has no animal IDs and keeps `sub-multi`.
-- The derivatives are split by pipeline into `derivatives/sleap/` (2D) and `derivatives/triangulation/` (3D, reprojections, calibration). The models sit in `derivatives/sleap/models/`. Both names are how I read the request and are unconfirmed (Q13).
+- All derivatives sit in one dataset, `derivatives/pipeline-luc3d/`, with the models in its `models/` folder (Request 4). An interim build split them into `derivatives/sleap/` and `derivatives/triangulation/`.
 - The lab's dataset cards, found after the draft, correct two intake facts. A track name is `<animal ID>_<number of tail marks>`, so MouseDyad-10M has 9 mice in 18 pairings, not 15 and 24. Track 0 is the male and track 1 the female.
 - The cards also supply strains, the MIT license and "hardware-synchronized" for MouseDyad-10M. These fill parts of questions 6 and 9.
 - The SLAP-2M side-camera predictions are named `desc-predictions`, not `desc-sidemodel`, matching MouseDyad-10M.
 - Not built from the draft: the check of every source file against `manifest.csv`. Files no rule covers are reported by walking each session folder instead.
-- New questions Q11 (triangulation tool), Q12 (validation) and Q13 (derivative names) were added.
+- New questions Q11 (triangulation tool), Q12 (validation), Q13 (derivative names, since resolved) and Q14 (per-animal metadata) were added.
 
 ## Questions for review
 

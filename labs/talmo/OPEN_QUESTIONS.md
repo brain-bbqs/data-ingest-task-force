@@ -1,6 +1,6 @@
 # Open questions
 
-The questions this conversion still depends on, and where their answers land. Numbers match the conversion plan in [`prompts/conversion-plan.md`](prompts/conversion-plan.md), so they stay citable from follow-up PRs, commit messages and the `PROVISIONAL` comments in `code/config.yaml`. Q11 to Q13 were added after the plan.
+The questions this conversion still depends on, and where their answers land. Numbers match the conversion plan in [`prompts/conversion-plan.md`](prompts/conversion-plan.md), so they stay citable from follow-up PRs, commit messages and the `PROVISIONAL` comments in `code/config.yaml`. Q11 to Q14 were added after the plan.
 
 When a question is answered, quote the answer into `prompts/initial.md` as a new request, make the change, and move the entry to "Resolved" below.
 
@@ -12,9 +12,9 @@ When a question is answered, quote the answer into `prompts/initial.md` as a new
 | [Q8](#q8-three-stray-analysis-files) | What are the three `.slpanalysis.h5` files? | Implemented as proposed, unconfirmed | Three files left out |
 | [Q9](#q9-metadata-nobody-supplied) | Ages, SLAP-2M animals, authors, license, institutions | Waiting on the lab or the preprint | DANDI-ready metadata |
 | [Q10](#q10-2d-track-identity) | Which 2D track is which mouse in MouseDyad-10M? | Waiting on the lab | Per-animal use of the 2D files |
-| [Q11](#q11-triangulation-tool) | Which tool made the 3D? | Waiting on the lab or the preprint | `GeneratedBy` of `derivatives/triangulation` |
+| [Q11](#q11-triangulation-tool) | Which tool made the 3D? | Waiting on the lab or the preprint | `GeneratedBy` of the derivative dataset |
+| [Q14](#q14-per-animal-metadata) | Age, genotype and identity of each animal | Waiting on the lab or the preprint | A complete per-animal record |
 | [Q12](#q12-validation-not-yet-run) | BIDS validator and DANDI upload behavior | Deferred to the first real run | Upload |
-| [Q13](#q13-derivative-names-and-model-placement) | Derivative dataset names and where the models sit | Implemented as understood, unconfirmed | Output paths |
 
 ## Waiting on the lab or the preprint
 
@@ -38,6 +38,16 @@ The 3D files name their tracks by animal. The 2D files say `track_0` and `track_
 - **Ask the lab:** which tool and version triangulated and smoothed each collection's 3D?
 - **Current handling:** `generated_by.triangulation` in `code/config.yaml` names sleap-anipose (MouseDyad-10M) and LUC3D (SLAP-2M), both `PROVISIONAL`.
 
+### Q14. Per-animal metadata
+
+What the deposit and the dataset cards give for each animal is incomplete.
+
+- **MouseDyad-10M, known:** the 9 animal IDs, each animal's sex (from its track position, with the card's "track 0 is always the male"), the strain (CD-1), the number of tail marks per session, and which sessions each animal is in.
+- **MouseDyad-10M, missing:** age or date of birth, genotype, weight, housing, and whether the two animals of a pair were familiar.
+- **SLAP-2M, missing:** everything per animal. The deposit has only the number of white, agouti and black mice per session. There are no animal IDs, so the 16 animals the card mentions cannot be told apart or matched to sessions, and no sex or age is given.
+- **Current handling:** a subject is a pair (MouseDyad-10M) or `sub-multi` (SLAP-2M), so `participants.tsv` has `sex` as `n/a`. The MouseDyad-10M animal IDs and sexes are in the `male_id` and `female_id` columns. There is no one-row-per-animal table.
+- **Ask the lab:** a table with one row per animal (ID, sex, date of birth, strain, genotype), and for SLAP-2M the animal IDs present in each session.
+
 ## Implemented, unconfirmed
 
 ### Q6. Camera timing in SLAP-2M
@@ -53,13 +63,6 @@ BEP047 requires `StartTime` on every file with a `recording` entity. The request
 SLAP-2M sessions `10212022175626` (top, topL) and `10212022181154` (back) each hold a `*.predictions.proofread.slpanalysis.h5` beside the regular `*.predictions.proofread.slp.analysis.h5`.
 
 - **Current handling:** reported in the run summary and not converted.
-
-### Q13. Derivative names and model placement
-
-The requester asked for models under `derivatives/models` "unless each is one to one with the .slp output in which case bundle it closer to the `derivatives/pipeline-SLEAP` entry".
-
-- **Current handling:** each collection ships one centroid and centered-instance model pair, and the provenance in the MouseDyad-10M `.slp` files names exactly that pair. So the models sit in `derivatives/sleap/models/`, beside the files they produced. The derivative datasets are named `derivatives/sleap` and `derivatives/triangulation`.
-- **To confirm:** whether `derivatives/sleap` is the intended name, and whether one model pair per collection counts as one to one. The names are constants at the top of the converter. The SLAP-2M side-camera model is not in the deposit.
 
 ## Deferred
 
@@ -77,6 +80,7 @@ The requester asked for models under `derivatives/models` "unless each is one to
 | Q1 | Where the raw BIDS dataset sits | Top-level `rawbids/` | Request 2 |
 | Q2 | Subject model | One subject per unique pair of animal IDs in MouseDyad-10M. SLAP-2M has no IDs and stays `sub-multi`. | Request 2 |
 | Q3 | Pose format | Native `.slp` and others for now. NWB later. | Request 2 |
-| Q4 | One derivative dataset or several | Split by pipeline (see Q13 for the names) | Request 2 |
-| Q5 | Models | Kept, beside the SLEAP derivative (see Q13) | Request 2 |
+| Q4 | One derivative dataset or several | One, `derivatives/pipeline-luc3d/` | Request 4 |
+| Q5 | Models | Kept, in `derivatives/pipeline-luc3d/models/` | Requests 2 and 4 |
 | Q7 | Lab key | `talmo` | Request 2 |
+| Q13 | Derivative dataset names and where the models sit | Everything under `derivatives/pipeline-luc3d/` | Request 4 |

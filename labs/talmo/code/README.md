@@ -27,14 +27,11 @@ Nothing is re-encoded or rewritten. Every video and pose file is copied byte-for
           sub-181313x181321_ses-20250827141755_recording-21241563_video.mp4   (+ .json)
           ...
   derivatives/
-    sleap/                               DatasetType "derivative"
+    pipeline-luc3d/                      DatasetType "derivative"
       dataset_description.json  README
       models/                            the SLEAP models, verbatim
       sub-181313x181321/ses-20250827141755/beh/
         ..._recording-21241563_desc-predictions_pose.slp   (+ .h5, one shared .json)
-    triangulation/                       DatasetType "derivative"
-      dataset_description.json  README
-      sub-181313x181321/ses-20250827141755/beh/
         ..._desc-arena_pose.h5                 (+ .json)
         ..._calibration.toml                   (+ .json)
         ..._desc-board_calibration.toml        (+ .json)
@@ -45,17 +42,17 @@ The study layout follows the BIDS 1.11.2 study convention, with the raw BIDS dat
 
 ## Mapping, MouseDyad-10M
 
-`<ses>` stands for `sub-<pair>_ses-<session>`.
+`<ses>` stands for `sub-<pair>_ses-<session>`. "derivative" means `derivatives/pipeline-luc3d`.
 
 | Source | Output |
 | --- | --- |
 | `sessions/<s>/<serial>/<serial>-<ts>.mp4` | `rawbids`, `<ses>_recording-<serial>_video.mp4` |
-| `sessions/<s>/<serial>/<serial>-<ts>.slp` and `.analysis.h5` | `derivatives/sleap`, `<ses>_recording-<serial>_desc-predictions_pose.slp` and `.h5` |
-| `sessions/<s>/<ts>_points3d_translated_rotated_metric.h5` | `derivatives/triangulation`, `<ses>_desc-arena_pose.h5`. Also the source of the animal pair. |
-| `sessions/<s>/calibration/*_calibration.toml` | `derivatives/triangulation`, `<ses>_calibration.toml`. Each camera's block is also merged into its video sidecar. |
-| `sessions/<s>/calibration/*_cboard.toml` | `derivatives/triangulation`, `<ses>_desc-board_calibration.toml` |
-| `sessions/<s>/calibration/*_calibration.metadata.h5` | `derivatives/triangulation`, `<ses>_desc-detections_calibration.h5` |
-| `models/**` | `derivatives/sleap/models/**`, verbatim |
+| `sessions/<s>/<serial>/<serial>-<ts>.slp` and `.analysis.h5` | derivative, `<ses>_recording-<serial>_desc-predictions_pose.slp` and `.h5` |
+| `sessions/<s>/<ts>_points3d_translated_rotated_metric.h5` | derivative, `<ses>_desc-arena_pose.h5`. Also the source of the animal pair. |
+| `sessions/<s>/calibration/*_calibration.toml` | derivative, `<ses>_calibration.toml`. Each camera's block is also merged into its video sidecar. |
+| `sessions/<s>/calibration/*_cboard.toml` | derivative, `<ses>_desc-board_calibration.toml` |
+| `sessions/<s>/calibration/*_calibration.metadata.h5` | derivative, `<ses>_desc-detections_calibration.h5` |
+| `models/**` | `derivatives/pipeline-luc3d/models/**`, verbatim |
 | `README.md`, `manifest.csv`, `qc_sessions.csv`, `qc_views.csv`, `mouse_skeleton.toml` | `sourcedata/`, verbatim. The skeleton is also merged into every pose sidecar. |
 | anything else | reported in the run summary and not converted |
 
@@ -66,15 +63,15 @@ The study layout follows the BIDS 1.11.2 study convention, with the raw BIDS dat
 | Source | Output |
 | --- | --- |
 | `<cam>/<cam>-<ts>-0000_h264_CRF20_denoised.mp4` | `rawbids`, `<ses>_recording-<cam>_video.mp4` |
-| `<cam>/*.predictions.proofread.slp` and `.slp.analysis.h5` | `derivatives/sleap`, `<ses>_recording-<cam>_desc-proofread_pose.slp` and `.h5` |
-| `<cam>/*.mp4.predictions.slp` (side and sideL) | `derivatives/sleap`, `<ses>_recording-<cam>_desc-predictions_pose.slp` |
-| `<cam>/*.reprojections.slp` and `.slp.h5` | `derivatives/triangulation`, `<ses>_recording-<cam>_desc-reprojections_pose.slp` and `.h5` |
-| `points3d.h5` | `derivatives/triangulation`, `<ses>_desc-camera_pose.h5` |
-| `aligned_points3d.h5` | `derivatives/triangulation`, `<ses>_desc-arena_pose.h5` |
-| `aligned_cage_points3d.h5` | `derivatives/triangulation`, `<ses>_desc-arenalandmarks_pose.h5` |
-| `reprojections.h5` | `derivatives/triangulation`, `<ses>_desc-reprojections_pose.h5` |
-| `calibration.toml` | `derivatives/triangulation`, `<ses>_calibration.toml`. Each camera's block is also merged into its video sidecar. |
-| `alignment.toml` | `derivatives/triangulation`, `<ses>_desc-arena_calibration.toml` |
+| `<cam>/*.predictions.proofread.slp` and `.slp.analysis.h5` | derivative, `<ses>_recording-<cam>_desc-proofread_pose.slp` and `.h5` |
+| `<cam>/*.mp4.predictions.slp` (side and sideL) | derivative, `<ses>_recording-<cam>_desc-predictions_pose.slp` |
+| `<cam>/*.reprojections.slp` and `.slp.h5` | derivative, `<ses>_recording-<cam>_desc-reprojections_pose.slp` and `.h5` |
+| `points3d.h5` | derivative, `<ses>_desc-camera_pose.h5` |
+| `aligned_points3d.h5` | derivative, `<ses>_desc-arena_pose.h5` |
+| `aligned_cage_points3d.h5` | derivative, `<ses>_desc-arenalandmarks_pose.h5` |
+| `reprojections.h5` | derivative, `<ses>_desc-reprojections_pose.h5` |
+| `calibration.toml` | derivative, `<ses>_calibration.toml`. Each camera's block is also merged into its video sidecar. |
+| `alignment.toml` | derivative, `<ses>_desc-arena_calibration.toml` |
 | `master_sheet.tsv` | per-session columns of `sub-multi_sessions.tsv`. Verbatim copy in `sourcedata/`. |
 | `models/**` and the other documents | as in MouseDyad-10M |
 | `<cam>/*.predictions.proofread.slpanalysis.h5` (three stray files) and anything else | reported in the run summary and not converted |

@@ -2,7 +2,7 @@
 
 Data ingest codebase for the Talmo lab, nested under `labs/talmo/` in the [data-ingest-task-force](https://github.com/brain-bbqs/data-ingest-task-force) repo (see the [top-level README](../../README.md) for how labs are organized).
 
-It converts the two LUC3D collections of dandiset `000641` into BIDS study datasets. Videos become a raw BIDS dataset following [BEP047](https://github.com/bids-standard/bids-specification/pull/2231). The SLEAP 2D pose, triangulated 3D pose, calibration and models go under `derivatives/` in their native formats. A conversion of the pose to NWB is left for later.
+It converts the two LUC3D collections of dandiset `000641` into BIDS study datasets. Videos become a raw BIDS dataset following [BEP047](https://github.com/bids-standard/bids-specification/pull/2231). The SLEAP 2D pose, triangulated 3D pose, calibration and models go under `derivatives/pipeline-luc3d/` in their native formats. A conversion of the pose to NWB is left for later.
 
 | Dataset key | Collection | Incoming | Standardized |
 | --- | --- | --- | --- |

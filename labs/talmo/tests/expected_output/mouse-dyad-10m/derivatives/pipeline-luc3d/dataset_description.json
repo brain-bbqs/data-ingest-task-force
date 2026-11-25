@@ -1,5 +1,5 @@
 {
-  "Name": "MouseDyad-10M 2D pose",
+  "Name": "MouseDyad-10M pose",
   "DatasetType": "derivative",
   "BIDSVersion": "1.11.2",
   "License": "MIT",
@@ -22,6 +22,10 @@
       "Name": "SLEAP",
       "Version": "1.3.3",
       "Description": "Top-down centroid and centered-instance models, flow tracker. Read from the provenance stored in the .slp files."
+    },
+    {
+      "Name": "sleap-anipose",
+      "Description": "PROVISIONAL (Q11). The calibration files are in anipose/sleap-anipose format. The dataset card says the 3D was triangulated from all five cameras and smoothed over time. The tool is not named."
     },
     {
       "Name": "convert_luc3d_to_bids.py",
