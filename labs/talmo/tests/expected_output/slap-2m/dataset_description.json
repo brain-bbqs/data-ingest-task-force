@@ -1,0 +1,27 @@
+{
+  "Name": "SLAP-2M",
+  "DatasetType": "study",
+  "BIDSVersion": "1.11.2",
+  "License": "MIT",
+  "Authors": [
+    "PROVISIONAL: Leonardis, E. J.",
+    "PROVISIONAL: Oline, S. N.",
+    "PROVISIONAL: Falkner, A. L.",
+    "PROVISIONAL: Pereira, T. D."
+  ],
+  "Funding": [
+    "NIH U01DA063581"
+  ],
+  "ReferencesAndLinks": [
+    "https://doi.org/10.64898/2026.11.17.767188",
+    "https://luc3d.sleap.ai",
+    "https://github.com/talmolab/figures-luc3d"
+  ],
+  "GeneratedBy": [
+    {
+      "Name": "convert_luc3d_to_bids.py",
+      "Version": "0.1.0",
+      "CodeURL": "https://github.com/brain-bbqs/data-ingest-task-force/tree/main/labs/talmo"
+    }
+  ]
+}

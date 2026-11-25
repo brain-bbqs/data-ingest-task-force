@@ -1,0 +1,11 @@
+[cam_0]
+name = "21241563"
+size = [ 64, 48,]
+matrix = [ [ 100.5, 0.0, 31.5,], [ 0.0, 100.5, 23.5,], [ 0.0, 0.0, 1.0,],]
+distortions = [ -0.2, 0.0, 0.0, 0.0, 0.0,]
+rotation = [ 0.1, 0.0, 0.3,]
+translation = [ 0.0, 20.0, 30.0,]
+
+[metadata]
+adjusted = false
+error = 0.5

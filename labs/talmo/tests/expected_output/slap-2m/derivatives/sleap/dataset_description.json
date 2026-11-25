@@ -1,0 +1,39 @@
+{
+  "Name": "SLAP-2M 2D pose",
+  "DatasetType": "derivative",
+  "BIDSVersion": "1.11.2",
+  "License": "MIT",
+  "Authors": [
+    "PROVISIONAL: Leonardis, E. J.",
+    "PROVISIONAL: Oline, S. N.",
+    "PROVISIONAL: Falkner, A. L.",
+    "PROVISIONAL: Pereira, T. D."
+  ],
+  "Funding": [
+    "NIH U01DA063581"
+  ],
+  "ReferencesAndLinks": [
+    "https://doi.org/10.64898/2026.11.17.767188",
+    "https://luc3d.sleap.ai",
+    "https://github.com/talmolab/figures-luc3d"
+  ],
+  "GeneratedBy": [
+    {
+      "Name": "SLEAP",
+      "Description": "Top-down centroid and centered-instance models, then manual proofreading. The proofread files carry no provenance. The side-camera predictions were made with sleap-nn 0.2.0."
+    },
+    {
+      "Name": "convert_luc3d_to_bids.py",
+      "Version": "0.1.0",
+      "CodeURL": "https://github.com/brain-bbqs/data-ingest-task-force/tree/main/labs/talmo"
+    }
+  ],
+  "SourceDatasets": [
+    {
+      "URL": "../../rawbids/"
+    }
+  ],
+  "DatasetLinks": {
+    "rawbids": "../../rawbids"
+  }
+}

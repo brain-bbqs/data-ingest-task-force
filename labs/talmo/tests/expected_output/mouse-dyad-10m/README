@@ -1,0 +1,19 @@
+MouseDyad-10M (BIDS study dataset)
+
+Multi-camera 3D pose of freely interacting male-female mouse pairs. Five hardware-synchronized grayscale cameras at 1280x1024 and about 150.1 fps, two mice per session.
+
+Layout
+
+- sourcedata/ holds the lab's own documents, verbatim.
+- rawbids/ holds the videos as a BEP047 raw BIDS dataset.
+- derivatives/sleap/ holds the 2D pose and the models that made it.
+- derivatives/triangulation/ holds the 3D pose, reprojections and camera calibration.
+
+Institution: PROVISIONAL: Princeton University
+
+Known issues
+
+- Session 20250904_183921 has corrupted 3D and is left out of the lab's public release.
+- Session 20250904_140306, camera 21372316, has 12 fragmented 2D tracks. Its 3D looks normal.
+- The six sessions of 2025-09-08 lack the ChArUco board file and the calibration detections file.
+- Identities were proofread one camera at a time, so a swap that stays consistent within a camera can reach the 3D. The dataset card puts this at about 0.2% of frames.

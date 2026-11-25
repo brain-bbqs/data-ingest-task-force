@@ -1,0 +1,20 @@
+{
+  "participant_id": {
+    "Description": "One row per subject directory."
+  },
+  "species": {
+    "Description": "Binomial species name."
+  },
+  "strain": {
+    "Description": "Mouse strain or strains, from the lab's dataset card."
+  },
+  "sex": {
+    "Description": "n/a, since a subject here is more than one animal."
+  },
+  "male_id": {
+    "Description": "Animal ID of the male of the pair."
+  },
+  "female_id": {
+    "Description": "Animal ID of the female of the pair."
+  }
+}

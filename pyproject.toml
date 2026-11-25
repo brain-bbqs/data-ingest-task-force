@@ -14,6 +14,8 @@ exclude = [
   "labs/inman/tests/example_raw",
   "labs/sanes/tests/example_raw",
   "labs/sanes/tests/expected_output",
+  "labs/talmo/tests/example_raw",
+  "labs/talmo/tests/expected_output",
   # Verbatim port of the original Shepherd conversion work, kept unformatted
   # and unlinted as original provenance (see labs/shepherd/README.md).
   # batch_convert.py alongside it is new code and is linted normally.

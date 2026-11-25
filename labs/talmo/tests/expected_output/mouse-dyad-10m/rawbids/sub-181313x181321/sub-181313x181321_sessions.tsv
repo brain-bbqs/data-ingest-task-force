@@ -1,0 +1,2 @@
+session_id	acq_time	source_session	male_id	female_id	male_track_name	female_track_name	experimental_code	frame_rate	pose3d_frame_count	calibration	notes
+ses-20250827141755	2025-08-27T14:18:04	20250827_141755	181321	181313	181321_0	181313_3	ACL2MSFSd	150.1054	5	20250821100634_calibration.toml	n/a

@@ -26,4 +26,29 @@ Setting up the Talmo lab conversion. One incoming dandiset (`000641`) holds two 
 ### What happened
 
 - lab-intake: listed all 4,402 assets of `000641` through the archive API and read the lab's own READMEs, manifests, master sheets, QC tables, skeleton, calibration files, and one representative file of every other kind.
-- lab-conversion-plan: drafted [`conversion-plan.md`](conversion-plan.md). Stopped here for review, as asked.
+- lab-conversion-plan: drafted [`conversion-plan.md`](conversion-plan.md) and stopped for review, as asked.
+
+---
+
+## Request 2 — Plan decisions
+
+> rawbids; an way to add ID to unique dyad based on unique combinations of subject IDs?; first pass less keep native .slp and other, will deal with NWB in the future; I assume via luc3d all cameras are on the same time stream but keep an eye on the supplementary file contents to see if they have anything like timestamps or offsets; yes, derivatives/models unless each is one to one with the .slp output in which case bundle it closer to the `derivatives/pipeline-SLEAP` entry; talmo is fine
+
+### What happened
+
+- Raw BIDS dataset moved to a top-level `rawbids/`.
+- MouseDyad-10M subjects are now one per unique pair of animal IDs.
+- Looked for timestamps and offsets in every kind of supplementary file: the SLEAP `.slp` files, the analysis and 3D `.h5` files, the calibration files, the QC tables and the video containers. None holds per-frame timestamps or per-camera offsets, and video timestamps are evenly spaced. `StartTime` stays 0.
+- Each collection has one model pair behind its SLEAP output, so the models went to `derivatives/sleap/models/`. This reading of the request is recorded as Q13.
+
+---
+
+## Request 3 — The paper
+
+> are oyu able to read the corresponding paper to get any of that other info?
+
+### What happened
+
+- Found the preprint, "LUC3D: Multi-animal 3D pose tracking in the browser" (bioRxiv, doi:10.64898/2026.11.17.767188). It could not be read, because `biorxiv.org`, `doi.org` and `crossref.org` are outside the sandbox's network allowlist.
+- Read the lab's public dataset cards on Hugging Face instead (`talmolab/mouse-dyad-10M`, `talmolab/slap-2m`). They supplied strains, sexes, the animal ID format, the hardware synchronization of MouseDyad-10M, the license and the recording labs. Each value in `code/config.yaml` cites its source.
+- lab-scaffold, lab-register and lab-lessons then ran. What is still missing is in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).

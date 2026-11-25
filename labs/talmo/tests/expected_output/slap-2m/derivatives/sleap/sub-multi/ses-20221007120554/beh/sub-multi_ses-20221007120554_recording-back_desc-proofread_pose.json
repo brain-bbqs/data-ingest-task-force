@@ -1,0 +1,110 @@
+{
+  "Description": "Proofread 2D SLEAP tracks of this camera.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-back_video.mp4"
+  ],
+  "Units": "pixel",
+  "SamplingFrequency": 30.0,
+  "Skeleton": {
+    "NodeNames": [
+      "Nose",
+      "Ear_R",
+      "Ear_L",
+      "TTI",
+      "TailTip",
+      "Head",
+      "Trunk",
+      "Tail_0",
+      "Tail_1",
+      "Tail_2",
+      "Shoulder_left",
+      "Shoulder_right",
+      "Haunch_left",
+      "Haunch_right",
+      "Neck"
+    ],
+    "Edges": [
+      [
+        "TTI",
+        "Head"
+      ],
+      [
+        "Head",
+        "Nose"
+      ]
+    ]
+  },
+  "Files": {
+    "sub-multi_ses-20221007120554_recording-back_desc-proofread_pose.slp": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/back/back-10072022120551-0000_h265_CRF30_denoised.mp4.predictions.proofread.slp",
+      "Format": "SLEAP labels (HDF5)",
+      "FormatVersion": "2.0.0",
+      "LabeledFrameCount": 5,
+      "InstanceCount": 5,
+      "TrackNames": [
+        "track_0"
+      ],
+      "Videos": [
+        "back-10072022120551-0000_h264_CRF20_denoised.mp4"
+      ],
+      "Provenance": {}
+    },
+    "sub-multi_ses-20221007120554_recording-back_desc-proofread_pose.h5": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/back/back-10072022120551-0000_h265_CRF30_denoised.mp4.predictions.proofread.slp.analysis.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "node_names": {
+          "Shape": [
+            15
+          ],
+          "DataType": "|S14",
+          "Value": [
+            "Nose",
+            "Ear_R",
+            "Ear_L",
+            "TTI",
+            "TailTip",
+            "Head",
+            "Trunk",
+            "Tail_0",
+            "Tail_1",
+            "Tail_2",
+            "Shoulder_left",
+            "Shoulder_right",
+            "Haunch_left",
+            "Haunch_right",
+            "Neck"
+          ]
+        },
+        "provenance": {
+          "Shape": [],
+          "DataType": "object",
+          "Value": {}
+        },
+        "track_names": {
+          "Shape": [
+            1
+          ],
+          "DataType": "|S7",
+          "Value": [
+            "track_0"
+          ]
+        },
+        "tracks": {
+          "Shape": [
+            1,
+            2,
+            15,
+            5
+          ],
+          "DataType": "float64"
+        },
+        "video_path": {
+          "Shape": [],
+          "DataType": "object",
+          "Value": "back-10072022120551-0000_h264_CRF20_denoised.mp4"
+        }
+      }
+    }
+  }
+}

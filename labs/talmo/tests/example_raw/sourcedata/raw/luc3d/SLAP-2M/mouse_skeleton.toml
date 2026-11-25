@@ -1,0 +1,3 @@
+nodes = [ "Nose", "Ear_R", "Ear_L", "TTI", "TailTip", "Head", "Trunk", "Tail_0", "Tail_1", "Tail_2", "Shoulder_left", "Shoulder_right", "Haunch_left", "Haunch_right", "Neck",]
+edges = [ [ "TTI", "Head",], [ "Head", "Nose",],]
+edge_idxs = [ [ 3, 5,], [ 5, 0,],]

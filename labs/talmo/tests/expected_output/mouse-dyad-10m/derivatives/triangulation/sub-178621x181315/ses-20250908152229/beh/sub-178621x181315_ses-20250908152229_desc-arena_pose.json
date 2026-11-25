@@ -1,0 +1,105 @@
+{
+  "Description": "3D pose, translated and rotated into the arena frame with z as height and the floor at z = 0. Axes of `tracks` are (frame, animal, node, xyz).",
+  "Sources": [
+    "bids:rawbids:sub-178621x181315/ses-20250908152229/beh/sub-178621x181315_ses-20250908152229_recording-21241563_video.mp4"
+  ],
+  "Units": "m",
+  "SamplingFrequency": 150.1054,
+  "TrackNames": [
+    "178621_1",
+    "181315_4"
+  ],
+  "TrackSexes": [
+    "M",
+    "F"
+  ],
+  "Skeleton": {
+    "NodeNames": [
+      "Nose",
+      "Ear_R",
+      "Ear_L",
+      "TTI",
+      "TailTip",
+      "Head",
+      "Trunk",
+      "Tail_0",
+      "Tail_1",
+      "Tail_2",
+      "Shoulder_left",
+      "Shoulder_right",
+      "Haunch_left",
+      "Haunch_right",
+      "Neck"
+    ],
+    "Edges": [
+      [
+        "TTI",
+        "Head"
+      ],
+      [
+        "Head",
+        "Nose"
+      ]
+    ]
+  },
+  "Files": {
+    "sub-178621x181315_ses-20250908152229_desc-arena_pose.h5": {
+      "SourceFile": "sessions/20250908_152229/20250908152238_points3d_translated_rotated_metric.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "experimental_code": {
+          "Shape": [],
+          "DataType": "object",
+          "Value": "ACL2MSFSd"
+        },
+        "node_names": {
+          "Shape": [
+            15
+          ],
+          "DataType": "object",
+          "Value": [
+            "Nose",
+            "Ear_R",
+            "Ear_L",
+            "TTI",
+            "TailTip",
+            "Head",
+            "Trunk",
+            "Tail_0",
+            "Tail_1",
+            "Tail_2",
+            "Shoulder_left",
+            "Shoulder_right",
+            "Haunch_left",
+            "Haunch_right",
+            "Neck"
+          ]
+        },
+        "recording_frame_rate": {
+          "Shape": [],
+          "DataType": "float64",
+          "Value": 150.1054
+        },
+        "track_names": {
+          "Shape": [
+            2
+          ],
+          "DataType": "object",
+          "Value": [
+            "178621_1",
+            "181315_4"
+          ]
+        },
+        "tracks": {
+          "Shape": [
+            5,
+            2,
+            15,
+            3
+          ],
+          "DataType": "float64"
+        }
+      }
+    }
+  }
+}

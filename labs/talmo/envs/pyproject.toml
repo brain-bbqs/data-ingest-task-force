@@ -1,0 +1,47 @@
+# Loose, declarative environment for the Talmo lab LUC3D-to-BIDS conversion pipeline.
+#
+# This file is the single source of truth for the Python environment. It is
+# intentionally NOT pinned: containers/talmo.Dockerfile resolves it fresh at
+# build time and the resulting image (by digest) is the reproducibility lock,
+# so there is no lockfile in the repository to keep in sync.
+#
+# The converter also needs the external FFmpeg toolchain (ffprobe), a system
+# package installed in containers/talmo.Dockerfile.
+
+[project]
+name = "talmo-u01da063581-ingest"
+version = "0.1.0"
+description = "Convert Talmo-lab LUC3D collections into BIDS study datasets with BEP047 videos."
+# tomllib, which reads the calibration files, is in the standard library from 3.11.
+requires-python = ">=3.11"
+dependencies = [
+  "h5py",
+  "PyYAML",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+# `av` backs the PyAV ffprobe shim so the suite is deterministic and needs no
+# system FFmpeg. The floor is 18.1, the first release to report the h.264 level
+# of a demuxed stream, which `VideoCodecRFC6381` in the golden sidecars needs.
+test = [
+  "pytest>=7",
+  "av>=18.1",
+]
+# Everything in `test`, plus what tests/generate_fixtures.py needs to rebuild
+# the committed fixtures.
+dev = [
+  "pytest>=7",
+  "av>=18.1",
+  "numpy",
+  "imageio-ffmpeg>=0.4",
+]
+
+# The package carries no importable modules. Installing it only realizes the
+# dependency sets above (the converter is run as a script, not imported).
+[tool.setuptools]
+py-modules = []
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

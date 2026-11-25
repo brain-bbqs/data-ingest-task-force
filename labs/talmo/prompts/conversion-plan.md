@@ -1,12 +1,25 @@
 # Talmo lab conversion plan (MouseDyad-10M and SLAP-2M)
 
-Status: DRAFT, awaiting the requester's sign-off. Nothing is scaffolded yet.
+Status: approved by the requester on 2026-11-25, with the decisions quoted in Request 2 of [the request record](initial.md). Questions still open are tracked in [`../OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md).
 
 The request record is [`initial.md`](initial.md).
 
+## Amendments after approval
+
+The requester's decisions in Request 2 changed the draft below. Where the two differ, this list wins. The mapping tables as built are in [`../code/README.md`](../code/README.md).
+
+- The raw BIDS dataset sits in a top-level `rawbids/`, the BIDS 1.11.2 study convention. The lab's own documents go to the study's `sourcedata/`, not `derivatives/pose/docs/`.
+- MouseDyad-10M has one subject per unique pair of animals, labeled by the two sorted animal IDs (`sub-181313x181321`). SLAP-2M has no animal IDs and keeps `sub-multi`.
+- The derivatives are split by pipeline into `derivatives/sleap/` (2D) and `derivatives/triangulation/` (3D, reprojections, calibration). The models sit in `derivatives/sleap/models/`. Both names are how I read the request and are unconfirmed (Q13).
+- The lab's dataset cards, found after the draft, correct two intake facts. A track name is `<animal ID>_<number of tail marks>`, so MouseDyad-10M has 9 mice in 18 pairings, not 15 and 24. Track 0 is the male and track 1 the female.
+- The cards also supply strains, the MIT license and "hardware-synchronized" for MouseDyad-10M. These fill parts of questions 6 and 9.
+- The SLAP-2M side-camera predictions are named `desc-predictions`, not `desc-sidemodel`, matching MouseDyad-10M.
+- Not built from the draft: the check of every source file against `manifest.csv`. Files no rule covers are reported by walking each session folder instead.
+- New questions Q11 (triangulation tool), Q12 (validation) and Q13 (derivative names) were added.
+
 ## Questions for review
 
-None of these block drafting. Questions 1 to 5 are strategy and are yours to decide. Each has a default the plan below assumes, so "approved" accepts all defaults.
+These are the questions as put to the requester with the draft. Their answers are in Request 2.
 
 1. **Where the raw BIDS dataset sits in the study.** You asked for "the sourcedata being the BEP047 valid behavioral videos", and Kemere uses `sourcedata/rawbids/`. The current BIDS spec text for study datasets (master, `1.11.3-dev`, after [bids-specification#2191](https://github.com/bids-standard/bids-specification/pull/2191)) instead reserves a top-level `rawbids/` for the raw BIDS dataset and keeps `sourcedata/` for non-BIDS source. Default: `sourcedata/rawbids/`, matching your wording and Kemere. Say so if you want top-level `rawbids/`.
 2. **Subject model.** Every video shows 1 to 4 mice, so no file belongs to one animal. Default: one `sub-multi` (Kemere precedent), with the per-session roster in `sub-multi_sessions.tsv`. MouseDyad-10M has real mouse ids (15 mice, from the 3D files). SLAP-2M has only counts per coat color. The alternative for MouseDyad-10M is one subject per pair (24 pairings), which gives 24 subject folders and still no per-animal files.
