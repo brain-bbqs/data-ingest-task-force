@@ -35,6 +35,9 @@
   "duration": {
     "Description": "Duration as the lab's master sheet gives it, in minutes. Blank for six sessions."
   },
+  "animal_ids": {
+    "Description": "IDs of the animals in the session. n/a until the lab can recover them."
+  },
   "notes": {
     "Description": "Known issues with the session, from the lab README and dataset card."
   }

@@ -118,6 +118,17 @@ def test_session_without_3d_file_is_pending(tmp_path):
     assert list(json.loads(results.read_text())["pending"]) == ["20250101_000000"]
 
 
+def test_session_the_lab_excluded_is_not_converted(tmp_path, capsys):
+    session = tmp_path / "in" / "sourcedata/raw/luc3d/MouseDyad-10M/sessions/20250904_183921"
+    session.mkdir(parents=True)
+
+    exit_code = convert(dataset="mouse-dyad-10m", output=tmp_path / "out", incoming=tmp_path / "in")
+
+    assert exit_code == 0
+    assert "excluded [20250904_183921]" in capsys.readouterr().out
+    assert list((tmp_path / "out" / "rawbids").glob("sub-*")) == []
+
+
 @pytest.mark.parametrize(
     ("function", "folder", "expected"),
     [

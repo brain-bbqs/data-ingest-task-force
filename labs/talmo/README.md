@@ -6,7 +6,7 @@ It converts the two LUC3D collections of dandiset `000641` into BIDS study datas
 
 | Dataset key | Collection | Incoming | Standardized |
 | --- | --- | --- | --- |
-| `mouse-dyad-10m` | MouseDyad-10M, male-female mouse pairs, 5 cameras, 56 sessions | `000641` | `000643` |
+| `mouse-dyad-10m` | MouseDyad-10M, male-female mouse pairs, 5 cameras, 55 sessions (a 56th is excluded) | `000641` | `000643` |
 | `slap-2m` | SLAP-2M, 1 to 4 mice in an enriched arena, 8 cameras, 74 sessions | `000641` | `000642` |
 
 The data accompany the preprint "LUC3D: Multi-animal 3D pose tracking in the browser" ([doi:10.64898/2026.11.17.767188](https://doi.org/10.64898/2026.11.17.767188)).
@@ -18,6 +18,7 @@ labs/talmo/
   code/                 Conversion code (see code/README.md)
     convert_luc3d_to_bids.py
     config.yaml           per-dataset metadata
+    *.csv                 subject and session tables sent by the lab
   containers/           The pinned, reproducible runtime (talmo.Dockerfile)
   envs/                 Loose environment declaration
   tests/                Integration tests + committed fixtures
@@ -32,7 +33,7 @@ labs/talmo/
 
 Values marked `PROVISIONAL` in [`code/config.yaml`](code/config.yaml) keep the conversion runnable. Replace them before treating the output as final. [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) lists each one, what it blocks, and what to ask.
 
-The largest gaps are the animals' ages, the per-animal metadata of SLAP-2M, the author list, and confirmation of the license and recording institutions. The preprint could not be read from the build sandbox, so everything sourced beyond the deposit itself comes from the lab's public dataset cards.
+The largest gaps are the animals' ages, the animal IDs of SLAP-2M, the author list, and confirmation of the license and recording institutions. The lab is collecting the first two and will send them, to be backfilled through the tables in `code/` (see [`code/README.md`](code/README.md)). The preprint could not be read from the build sandbox, so everything sourced beyond the deposit comes from the lab's public dataset cards and its reply quoted in `prompts/initial.md`.
 
 ## The environment
 

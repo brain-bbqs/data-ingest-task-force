@@ -26,7 +26,7 @@ A converter that already processes a whole incoming tree in one invocation can s
 
 When the driver imports the core module with a relative import, dispatch invokes it as a module from the repo root (`python3 -m labs.<lab>.code.batch_convert`) so the import resolves. Kemere and Shepherd instead run plain script paths. Either works, just keep `convert_command` (lab-register) consistent with the choice. A hyphenated project directory (`in-lab`, `ferret-hyperscanning`) is not a valid package name, so there the driver puts its own directory on `sys.path` and runs as a plain script (Suthana in-lab and Zhang precedent).
 
-A lab spreadsheet that carries per-session facts (a session log, per-animal flags) is committed as a normalized CSV under `code/`, with the cleanup rules stated in `config.yaml`, rather than read from the incoming dandiset at run time (Zhang precedent).
+A lab spreadsheet that carries per-session facts (a session log, per-animal flags) is committed as a normalized CSV under `code/`, with the cleanup rules stated in `config.yaml`, rather than read from the incoming dandiset at run time (Zhang precedent). Dispatch hashes only the script and the files `convert_command` names as `{repo_root}/...`, so name such a CSV in the command when an edit to it should force a reprocess, or say in the dispatch note that it does not (Talmo).
 
 ## The dispatch contract for the batch driver
 

@@ -46,7 +46,7 @@
     },
     "talmo/mouse-dyad-10m": {
       "include": ["sourcedata/raw/luc3d/MouseDyad-10M/sessions/*"],
-      "exclude": []
+      "exclude": ["20250904_183921"]
     },
     "talmo/slap-2m": {
       "include": ["sourcedata/raw/luc3d/SLAP-2M/sessions/*/*"],

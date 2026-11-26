@@ -90,6 +90,20 @@ Each one lives in a single function of `convert_luc3d_to_bids.py`.
 | Camera | The camera folder name as the `recording` entity. | `recording_label` |
 | `acq_time` | The timestamp in the video names (MouseDyad-10M) or the session folder (SLAP-2M), without a timezone. | `iso_from_label` |
 
+## Tables from the lab
+
+The lab sent three tables after the deposit. They are committed beside the converter, verbatim, and copied into each study's `sourcedata/`.
+
+| File | Used for |
+| --- | --- |
+| `mousedyad10m_subjects.csv` | One row per animal. Its `sex` is checked against the track order of every session, and a disagreement fails the session. Its `age` fills `male_age` and `female_age` of `participants.tsv`. |
+| `mousedyad10m_sessions_subjects.csv` | The lab's session to animal map. A session whose 3D file names different tracks is reported. |
+| `slap2m_sessions_animals.csv` | Its `animal_ids (fill in)` column fills `animal_ids` of `sub-multi_sessions.tsv`. |
+
+To backfill, edit the CSV and rerun with `--overwrite`. The converter drops parenthetical remarks from a value and reads a value starting with `UNKNOWN` as missing. Dispatch does not hash these files, so a cron run will not pick up an edit on its own.
+
+MouseDyad-10M session `20250904_183921` is listed under `excluded_sessions` in `config.yaml` and is not converted. The lab excluded it from the paper and the release.
+
 ## Sidecars
 
 Video sidecars hold the BEP047 media fields measured with `ffprobe`, `StartTime`, the camera serial number or position, `SourceFile`, and three blocks that are not part of BIDS and say so: `Synchronization`, `CameraCalibration` and (SLAP-2M) `SourceEncoding`.

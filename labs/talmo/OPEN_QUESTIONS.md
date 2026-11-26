@@ -22,7 +22,7 @@ When a question is answered, quote the answer into `prompts/initial.md` as a new
 
 The preprint ([doi:10.64898/2026.11.17.767188](https://doi.org/10.64898/2026.11.17.767188)) could not be read from the build sandbox, because `biorxiv.org`, `doi.org` and `crossref.org` are outside its network allowlist. What follows comes from the lab's dataset cards on Hugging Face.
 
-- **Known now:** MouseDyad-10M is 9 CD-1 mice (4 male, 5 female) in 18 pairings, with track 0 the male. SLAP-2M is eight CD-1, four C57BL/6J and four BALB/c mice. Both cards carry `license: mit`.
+- **Known now:** MouseDyad-10M is 9 CD-1 mice (4 male, 5 female) in 18 pairings, with track 0 the male. SLAP-2M is eight CD-1, four C57BL/6J and four BALB/c mice. Both cards carry `license: mit`. Per-animal detail is tracked in Q14.
 - **Ask the lab, or read from the preprint:** ages or dates of birth. The sex and identity of the SLAP-2M animals, and which coat color is which strain. The full author list. Whether MIT is the license they want on EMBER. The recording institution of each collection (the cards say Murthy lab for MouseDyad-10M and Falkner lab for SLAP-2M, both Princeton, while paths inside the MouseDyad-10M files name a Falkner lab server). Camera make and model. The timezone of the timestamps. The meaning of `experimental_code` (`ACL2MSFSd/e/m/p`).
 - **Current handling:** `participants.tsv` has `sex` as `n/a` and no age. `authors`, `license` and `institution` in `code/config.yaml` are `PROVISIONAL`.
 
@@ -40,14 +40,14 @@ The 3D files name their tracks by animal. The 2D files say `track_0` and `track_
 
 ### Q14. Per-animal metadata
 
-What the deposit and the dataset cards give for each animal is incomplete.
+The lab sent a subject table, a session map and a SLAP-2M session sheet (Request 6), and is collecting the rest.
 
-- **MouseDyad-10M, known:** the 9 animal IDs, each animal's sex (from its track position, with the card's "track 0 is always the male"), the strain (CD-1), the number of tail marks per session, and which sessions each animal is in.
-- **Genotype:** presumed wild type in both collections. The cards name only standard strains (CD-1, C57BL/6J, BALB/c) and no transgenic line. No source says so outright, so it is not written into `participants.tsv`.
-- **MouseDyad-10M, missing:** age or date of birth, weight, housing, and whether the two animals of a pair were familiar.
-- **SLAP-2M, missing:** everything per animal. The deposit has only the number of white, agouti and black mice per session. There are no animal IDs, so the 16 animals the card mentions cannot be told apart or matched to sessions, and no sex or age is given.
-- **Current handling:** a subject is a pair (MouseDyad-10M) or `sub-multi` (SLAP-2M), so `participants.tsv` has `sex` as `n/a`. The MouseDyad-10M animal IDs and sexes are in the `male_id` and `female_id` columns. There is no one-row-per-animal table.
-- **Ask the lab:** a table with one row per animal (ID, sex, date of birth, strain), confirmation that all animals are wild type, and for SLAP-2M the animal IDs present in each session.
+- **MouseDyad-10M, known:** the 9 animal IDs, each animal's sex, strain (CD-1, supplier not recorded), coat color, and the animals of every session. The lab's session map agrees with the 3D files for all 55 sessions.
+- **MouseDyad-10M, waiting:** birth dates. The lab is asking the experimenter. Until then `male_age` and `female_age` in `participants.tsv` are `n/a`.
+- **SLAP-2M, known:** 8 CD-1 (Charles River 022), 4 C57BL/6J (Jackson 000664) and 4 BALB/c (Taconic BALB/cAnNTac).
+- **SLAP-2M, waiting:** animal IDs, sex, age and coat color per animal. The lab is checking whether they can be recovered. Until then `animal_ids` in `sub-multi_sessions.tsv` is `n/a`, and which coat color is which strain is unstated.
+- **Genotype:** `wild type` in both `participants.tsv` files, as the lab reports it "as far as I know". They are confirming with the experimenters.
+- **Backfill:** edit the tables in `code/` and rerun with `--overwrite`.
 
 ## Implemented, unconfirmed
 
@@ -72,7 +72,6 @@ SLAP-2M sessions `10212022175626` (top, topL) and `10212022181154` (back) each h
 - The BIDS validator has not been run on `rawbids/` against the BEP047 schema, nor on the study root.
 - The `_pose` and `_calibration` suffixes of the derivatives are not in the BIDS schema. A `.bidsignore` may be needed.
 - Whether `dandi upload` accepts a study dataset with these derivatives is unknown. Both projects are registered with the default `upload_validation`, so a refused upload fails the run visibly. Switching to `ignore` is the requester's call.
-- The MouseDyad-10M session `20250904_183921` has corrupted 3D and is left out of the lab's public release. It is converted here and flagged in `sessions.tsv`. Decide whether it should be excluded.
 
 ## Resolved
 
@@ -85,3 +84,4 @@ SLAP-2M sessions `10212022175626` (top, topL) and `10212022181154` (back) each h
 | Q5 | Models | Kept, in `derivatives/pipeline-luc3d/models/` | Requests 2 and 4 |
 | Q7 | Lab key | `talmo` | Request 2 |
 | Q13 | Derivative dataset names and where the models sit | Everything under `derivatives/pipeline-luc3d/` | Request 4 |
+| Q12 (part) | Should session `20250904_183921` be converted? | No. The lab excluded it from the paper and the release. | Request 6 |

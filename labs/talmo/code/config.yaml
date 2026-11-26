@@ -10,6 +10,10 @@
 #   lab README    the README.md at the root of each collection in dandiset 000641
 #   dataset card  https://huggingface.co/datasets/talmolab/mouse-dyad-10M and .../slap-2m
 #                 (read 2026-11-25)
+#   lab reply     the lab's message and three tables relayed by the requester, quoted as Request 6
+#                 of labs/talmo/prompts/initial.md. The tables are committed beside this file,
+#                 verbatim. The converter drops their parenthetical remarks and reads a value
+#                 starting with UNKNOWN as missing.
 
 bids_version: "1.11.2"
 bep047_reference: "https://github.com/bids-standard/bids-specification/pull/2231"
@@ -38,8 +42,20 @@ datasets:
     description: >-
       Multi-camera 3D pose of freely interacting male-female mouse pairs. Five hardware-synchronized
       grayscale cameras at 1280x1024 and about 150.1 fps, two mice per session.
-    # Dataset card: "9 CD-1 mice (4 male, 5 female) in 18 pairings".
+    # Dataset card and lab reply: "9 CD-1 mice, 4 male and 5 female". Supplier not recorded.
     strain: "CD-1"
+    # Lab reply: "As far as I know, all are wild type ... I'm confirming with the experimenters."
+    genotype: "wild type"
+    # Lab reply. Ages are "UNKNOWN - ask Bartul" for every animal for now (Q14).
+    lab_tables:
+      subjects: "mousedyad10m_subjects.csv"
+      sessions: "mousedyad10m_sessions_subjects.csv"
+    # Lab reply: "We excluded the session from the paper and from the release". Also excluded from
+    # dispatch discovery in dispatch/sessions.json.
+    excluded_sessions:
+      "20250904_183921": >-
+        The lab excluded it from the paper and the release. One camera's identity swap was
+        triangulated into the 3D, which is corrupted over frames ~42,000-115,000.
     # Dataset card: "The data come from the Murthy lab (Princeton)". Paths stored inside the SLEAP
     # files name a Falkner lab server instead. PROVISIONAL (Q9).
     institution: "PROVISIONAL: Princeton University"
@@ -64,13 +80,10 @@ datasets:
       - "mouse_skeleton.toml"
     # Lab README "Known issues" and the dataset card.
     session_notes:
-      "20250904_183921": >-
-        3D is corrupted over frames ~42,000-115,000, where one camera's identity swap was
-        triangulated into the 3D. Left out of the lab's public release.
       "20250904_140306": "Camera 21372316's 2D breaks into 12 short tracks. The 3D is unaffected."
       "20250905_203607": "Triangulation validation error is elevated."
     known_issues:
-      - "Session 20250904_183921 has corrupted 3D and is left out of the lab's public release."
+      - "Session 20250904_183921 has corrupted 3D. The lab excluded it, and it is not converted."
       - "Session 20250904_140306, camera 21372316, has 12 fragmented 2D tracks. Its 3D looks normal."
       - "The six sessions of 2025-09-08 lack the ChArUco board file and the calibration detections file."
       - >-
@@ -95,9 +108,14 @@ datasets:
       Multi-camera 3D pose of one to four mice in an arena with graded levels of environmental
       enrichment. Eight synchronized grayscale cameras at 1280x1024, 30 fps except the 13 sessions of
       2022-10-19 at 60 fps.
-    # Dataset card: "eight CD-1, four C57BL/6J and four BALB/c mice". Which coat color column of the
-    # master sheet is which strain is not stated (Q9).
-    strain: "CD-1, C57BL/6J and BALB/c"
+    # Lab reply: "8 CD-1 (Charles River 022), 4 C57BL/6J (Jackson 000664) and 4 BALB/c (Taconic
+    # BALB/cAnNTac)". Which coat color column of the master sheet is which strain is not stated (Q14).
+    strain: "CD-1 (Charles River 022), C57BL/6J (Jackson 000664) and BALB/c (Taconic BALB/cAnNTac)"
+    # Lab reply: "As far as I know, all are wild type ... I'm confirming with the experimenters."
+    genotype: "wild type"
+    # Lab reply. The animal_ids column is empty until the lab can recover the IDs (Q14).
+    lab_tables:
+      sessions: "slap2m_sessions_animals.csv"
     # Dataset card: "The data come from the Falkner lab (Princeton)". PROVISIONAL (Q9).
     institution: "PROVISIONAL: Princeton University"
     synchronization: >-

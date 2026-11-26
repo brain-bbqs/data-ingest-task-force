@@ -91,6 +91,8 @@ class Context:
     skeleton: dict[str, Any]
     session_sheet: dict[str, dict[str, str]]
     quality_frames: dict[tuple[str, str], int]
+    lab_tables: dict[str, dict[str, dict[str, str]]]
+    lab_table_paths: list[Path]
 
 
 @dataclasses.dataclass
@@ -522,7 +524,52 @@ DYAD_SESSION_COLUMNS = [
     "calibration",
     "notes",
 ]
-DYAD_PARTICIPANT_COLUMNS = ["participant_id", "species", "strain", "sex", "male_id", "female_id"]
+DYAD_PARTICIPANT_COLUMNS = [
+    "participant_id",
+    "species",
+    "strain",
+    "genotype",
+    "sex",
+    "male_id",
+    "female_id",
+    "male_age",
+    "female_age",
+]
+
+
+def clean_lab_value(value: str | None, /) -> str:
+    """Drop the lab's parenthetical remarks, and treat its UNKNOWN markers as missing."""
+    text = (value or "").strip()
+    if not text or text.upper().startswith("UNKNOWN"):
+        return ""
+    cleaned = text.split(" (")[0].strip()
+    return cleaned
+
+
+def check_against_lab_tables(*, session_id: str, roster: dict[str, Any], animals: list[str], ctx: Context) -> list[str]:
+    """Compare what the 3D file says with the lab's subject table and session map."""
+    warnings = []
+    subjects = ctx.lab_tables.get("subjects", {})
+    for animal, sex in zip(animals, ctx.dataset["track_sexes"], strict=True):
+        row = subjects.get(animal)
+        if row is None:
+            if subjects:
+                warnings.append(f"Animal {animal} is not in the lab's subject table")
+        elif row.get("sex") != sex:
+            raise SourceDataError(
+                f"Animal {animal} is {row.get('sex')} in the lab's subject table, {sex} by track order"
+            )
+    sessions = ctx.lab_tables.get("sessions", {})
+    row = sessions.get(session_id)
+    if row is None:
+        if sessions:
+            warnings.append("Session is not in the lab's session map")
+    elif [row.get("track_0_name"), row.get("track_1_name")] != roster["track_names"]:
+        warnings.append(
+            f"3D file names tracks {roster['track_names']}, the lab's session map says "
+            f"{[row.get('track_0_name'), row.get('track_1_name')]}"
+        )
+    return warnings
 
 
 def read_dyad_roster(path: Path, /) -> dict[str, Any]:
@@ -551,6 +598,8 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
     outcome.subject = subject
     sexes = ctx.dataset["track_sexes"]
     by_sex = dict(zip(sexes, zip(animals, roster["track_names"], strict=True), strict=True))
+    outcome.warnings += check_against_lab_tables(session_id=session_dir.name, roster=roster, animals=animals, ctx=ctx)
+    subjects = ctx.lab_tables.get("subjects", {})
 
     if scans_path(ctx=ctx, subject=subject, session=session).exists() and not ctx.overwrite:
         outcome.status = "skipped"
@@ -699,9 +748,12 @@ def convert_dyad_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
         "participant_id": f"sub-{subject}",
         "species": ctx.settings["species"],
         "strain": ctx.dataset["strain"],
+        "genotype": ctx.dataset.get("genotype", ""),
         "sex": "n/a",
         "male_id": by_sex.get("M", ("", ""))[0],
         "female_id": by_sex.get("F", ("", ""))[0],
+        "male_age": clean_lab_value(subjects.get(by_sex.get("M", ("", ""))[0], {}).get("age")),
+        "female_age": clean_lab_value(subjects.get(by_sex.get("F", ("", ""))[0], {}).get("age")),
     }
     report_leftovers(session_dir=session_dir, handled=handled, outcome=outcome, ctx=ctx)
     write_scans(ctx=ctx, subject=subject, session=session, videos=all_videos, acq_time=acq_time)
@@ -724,8 +776,9 @@ SLAP_SHEET_COLUMNS = [
     "frames",
     "duration",
 ]
-SLAP_SESSION_COLUMNS = ["session_id", "acq_time", "source_session", *SLAP_SHEET_COLUMNS, "notes"]
-SLAP_PARTICIPANT_COLUMNS = ["participant_id", "species", "strain", "sex"]
+SLAP_SESSION_COLUMNS = ["session_id", "acq_time", "source_session", *SLAP_SHEET_COLUMNS, "animal_ids", "notes"]
+SLAP_PARTICIPANT_COLUMNS = ["participant_id", "species", "strain", "genotype", "sex"]
+SLAP_ANIMAL_IDS_COLUMN = "animal_ids (fill in)"
 
 # (glob inside a camera folder, derivative dataset, desc label, description)
 SLAP_CAMERA_PRODUCTS = [
@@ -851,12 +904,14 @@ def convert_slap_session(*, session_dir: Path, ctx: Context) -> SessionOutcome:
         "acq_time": acq_time,
         "source_session": session_dir.name,
         **{column: sheet_row.get(column, "") for column in SLAP_SHEET_COLUMNS},
+        "animal_ids": ctx.lab_tables.get("sessions", {}).get(session_dir.name, {}).get(SLAP_ANIMAL_IDS_COLUMN, ""),
         "notes": ctx.dataset.get("session_notes", {}).get(session_dir.name, ""),
     }
     outcome.participant_row = {
         "participant_id": f"sub-{subject}",
         "species": ctx.settings["species"],
         "strain": ctx.dataset["strain"],
+        "genotype": ctx.dataset.get("genotype", ""),
         "sex": "n/a",
     }
     report_leftovers(session_dir=session_dir, handled=handled, outcome=outcome, ctx=ctx)
@@ -888,6 +943,10 @@ COLUMN_DESCRIPTIONS = {
     "species": "Binomial species name.",
     "strain": "Mouse strain or strains, from the lab's dataset card.",
     "sex": "n/a, since a subject here is more than one animal.",
+    "genotype": "Genotype as the lab reports it, pending their confirmation with the experimenters.",
+    "male_age": "Age of the male. n/a until the lab supplies birth dates.",
+    "female_age": "Age of the female. n/a until the lab supplies birth dates.",
+    "animal_ids": "IDs of the animals in the session. n/a until the lab can recover them.",
     "male_id": "Animal ID of the male of the pair.",
     "female_id": "Animal ID of the female of the pair.",
     "male_track_name": "The male's track name in the 3D file, <animal ID>_<number of tail marks>.",
@@ -1046,6 +1105,10 @@ def copy_collection_files(*, ctx: Context) -> list[str]:
             )
         else:
             print(f"  document not found: {name}")
+    for path in ctx.lab_table_paths:
+        place_file(
+            source=path, destination=ctx.output_dir / DOCUMENTS_DIRECTORY / path.name, link="copy", overwrite=True
+        )
     models = ctx.collection_dir / "models"
     if models.is_dir():
         count = copy_tree(source=models, destination=ctx.output_dir / DERIVATIVE_DATASET / "models", ctx=ctx)
@@ -1106,6 +1169,21 @@ def read_session_sheet(*, ctx_dataset: dict[str, Any], collection_dir: Path) -> 
     return sheet
 
 
+def read_lab_tables(
+    *, dataset: dict[str, Any], config_dir: Path
+) -> tuple[dict[str, dict[str, dict[str, str]]], list[Path]]:
+    """Tables the lab sent after the deposit, committed beside the config and keyed by their first column."""
+    tables, paths = {}, []
+    for name, file_name in (dataset.get("lab_tables") or {}).items():
+        path = config_dir / file_name
+        with path.open(newline="") as stream:
+            reader = csv.DictReader(stream)
+            key = reader.fieldnames[0]
+            tables[name] = {row[key]: row for row in reader}
+        paths.append(path)
+    return tables, paths
+
+
 def read_quality_frames(collection_dir: Path, /) -> dict[tuple[str, str], int]:
     """Frame counts the lab measured per session and camera, to cross-check ours against."""
     path = collection_dir / "qc_views.csv"
@@ -1159,6 +1237,12 @@ def convert_dataset(
             write_json(path=results_path, data={"pending": {}, "failed": {}})
         return 0
 
+    lab_tables, lab_table_paths = read_lab_tables(dataset=dataset, config_dir=config_path.parent)
+    excluded = dataset.get("excluded_sessions") or {}
+    for session_dir in session_dirs:
+        if session_dir.name in excluded:
+            print(f"  excluded [{session_dir.name}] {excluded[session_dir.name]}")
+    session_dirs = [session_dir for session_dir in session_dirs if session_dir.name not in excluded]
     ctx = Context(
         settings=settings,
         dataset=dataset,
@@ -1170,6 +1254,8 @@ def convert_dataset(
         skeleton=load_skeleton(collection_dir / "mouse_skeleton.toml"),
         session_sheet=read_session_sheet(ctx_dataset=dataset, collection_dir=collection_dir),
         quality_frames=read_quality_frames(collection_dir),
+        lab_tables=lab_tables,
+        lab_table_paths=lab_table_paths,
     )
     standardized_dir.mkdir(parents=True, exist_ok=True)
     print(f"{dataset['name']}: {len(session_dirs)} sessions under {collection_dir}")

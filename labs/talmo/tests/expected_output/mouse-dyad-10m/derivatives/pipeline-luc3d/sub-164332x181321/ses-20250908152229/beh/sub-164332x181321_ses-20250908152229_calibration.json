@@ -1,10 +1,10 @@
 {
   "Description": "Camera intrinsics, distortion and extrinsics in anipose/sleap-anipose format.",
   "Sources": [
-    "bids:rawbids:sub-178621x181315/ses-20250908152229/beh/sub-178621x181315_ses-20250908152229_recording-21241563_video.mp4"
+    "bids:rawbids:sub-164332x181321/ses-20250908152229/beh/sub-164332x181321_ses-20250908152229_recording-21241563_video.mp4"
   ],
   "Files": {
-    "sub-178621x181315_ses-20250908152229_calibration.toml": {
+    "sub-164332x181321_ses-20250908152229_calibration.toml": {
       "SourceFile": "sessions/20250908_152229/calibration/20250904115349_calibration.toml",
       "Format": "TOML"
     }

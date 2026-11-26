@@ -1,2 +1,2 @@
-participant_id	species	strain	sex
-sub-multi	Mus musculus	CD-1, C57BL/6J and BALB/c	n/a
+participant_id	species	strain	genotype	sex
+sub-multi	Mus musculus	CD-1 (Charles River 022), C57BL/6J (Jackson 000664) and BALB/c (Taconic BALB/cAnNTac)	wild type	n/a

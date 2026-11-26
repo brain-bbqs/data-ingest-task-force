@@ -8,7 +8,7 @@ The animals of each session are listed in the sessions.tsv of its subject.
 
 Known issues
 
-- Session 20250904_183921 has corrupted 3D and is left out of the lab's public release.
+- Session 20250904_183921 has corrupted 3D. The lab excluded it, and it is not converted.
 - Session 20250904_140306, camera 21372316, has 12 fragmented 2D tracks. Its 3D looks normal.
 - The six sessions of 2025-09-08 lack the ChArUco board file and the calibration detections file.
 - Identities were proofread one camera at a time, so a swap that stays consistent within a camera can reach the 3D. The dataset card puts this at about 0.2% of frames.

@@ -1,13 +1,13 @@
 {
   "Description": "3D pose, translated and rotated into the arena frame with z as height and the floor at z = 0. Axes of `tracks` are (frame, animal, node, xyz).",
   "Sources": [
-    "bids:rawbids:sub-178621x181315/ses-20250908152229/beh/sub-178621x181315_ses-20250908152229_recording-21241563_video.mp4"
+    "bids:rawbids:sub-164332x181321/ses-20250908152229/beh/sub-164332x181321_ses-20250908152229_recording-21241563_video.mp4"
   ],
   "Units": "m",
   "SamplingFrequency": 150.1054,
   "TrackNames": [
-    "178621_1",
-    "181315_4"
+    "181321_0",
+    "164332_1"
   ],
   "TrackSexes": [
     "M",
@@ -43,7 +43,7 @@
     ]
   },
   "Files": {
-    "sub-178621x181315_ses-20250908152229_desc-arena_pose.h5": {
+    "sub-164332x181321_ses-20250908152229_desc-arena_pose.h5": {
       "SourceFile": "sessions/20250908_152229/20250908152238_points3d_translated_rotated_metric.h5",
       "Format": "HDF5",
       "Datasets": {
@@ -86,8 +86,8 @@
           ],
           "DataType": "object",
           "Value": [
-            "178621_1",
-            "181315_4"
+            "181321_0",
+            "164332_1"
           ]
         },
         "tracks": {

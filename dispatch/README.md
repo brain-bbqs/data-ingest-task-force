@@ -172,7 +172,8 @@ Open questions that still affect the output are tracked in `labs/zhang/ferret-hy
 
 Note: the Talmo lab registers two datasets, both read from incoming `000641` and converted by the one codebase in `labs/talmo/` with the `talmo-u01da063581-ingest` image.
 `talmo/mouse-dyad-10m` writes to `000643` and `talmo/slap-2m` to `000642`. Each entry passes its key as `--dataset`, and the standardized dandiset root is the BIDS study root.
-The two collections sit side by side under `sourcedata/raw/luc3d/`, so each project's `sessions.json` glob reaches only its own `sessions/` folder. SLAP-2M nests sessions under date folders, hence its extra `*`.
+The two collections sit side by side under `sourcedata/raw/luc3d/`, so each project's `sessions.json` glob reaches only its own `sessions/` folder. SLAP-2M nests sessions under date folders, hence its extra `*`. MouseDyad-10M excludes session `20250904_183921`, which the lab left out of its release for corrupted 3D.
+The lab's subject tables in `labs/talmo/code/*.csv` are not named in the command, so dispatch does not hash them. After backfilling one, force a reprocess by hand.
 Both projects share the incoming dandiset, so the first run of each downloads all 408 GB of it. Each standardized dandiset then receives a full copy of its videos (105.5 GB and 188.9 GB).
 Both use the default `upload_validation`. Whether DANDI accepts a BIDS study dataset with native-format pose derivatives is unconfirmed until the first real upload, so the projects are **not yet proven for a real cron run**. Keep the runner off them with `--only` until someone has watched one upload. The image exists on GHCR only after the first merge to main.
 Open questions that still affect the output are tracked in `labs/talmo/OPEN_QUESTIONS.md`.

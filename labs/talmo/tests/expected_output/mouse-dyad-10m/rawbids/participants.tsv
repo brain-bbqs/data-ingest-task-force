@@ -1,3 +1,3 @@
-participant_id	species	strain	sex	male_id	female_id
-sub-178621x181315	Mus musculus	CD-1	n/a	178621	181315
-sub-181313x181321	Mus musculus	CD-1	n/a	181321	181313
+participant_id	species	strain	genotype	sex	male_id	female_id	male_age	female_age
+sub-164332x181321	Mus musculus	CD-1	wild type	n/a	181321	164332	n/a	n/a
+sub-181313x181321	Mus musculus	CD-1	wild type	n/a	181321	181313	n/a	n/a

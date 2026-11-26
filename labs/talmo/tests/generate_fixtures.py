@@ -193,7 +193,7 @@ def build_dyad(root: Path, /) -> None:
         timestamp="20250908152238",
         calibration="20250904115349",
         cameras=["21241563"],
-        tracks=["178621_1", "181315_4"],
+        tracks=["181321_0", "164332_1"],
         full=False,
     )
     (session / "20250908_152229" / "notes.txt").write_text("A file no mapping rule covers.\n")

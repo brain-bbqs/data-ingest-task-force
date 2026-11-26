@@ -1,7 +1,7 @@
 {
   "Description": "Per-camera 2D SLEAP tracks. The lab README calls them SLEAP predictions and the dataset card calls them identity-proofread. Track order is male then female per the dataset card, which the files themselves do not state (Q10).",
   "Sources": [
-    "bids:rawbids:sub-178621x181315/ses-20250908152229/beh/sub-178621x181315_ses-20250908152229_recording-21241563_video.mp4"
+    "bids:rawbids:sub-164332x181321/ses-20250908152229/beh/sub-164332x181321_ses-20250908152229_recording-21241563_video.mp4"
   ],
   "Units": "pixel",
   "SamplingFrequency": 150.0,
@@ -35,7 +35,7 @@
     ]
   },
   "Files": {
-    "sub-178621x181315_ses-20250908152229_recording-21241563_desc-predictions_pose.slp": {
+    "sub-164332x181321_ses-20250908152229_recording-21241563_desc-predictions_pose.slp": {
       "SourceFile": "sessions/20250908_152229/21241563/21241563-20250908152238.slp",
       "Format": "SLEAP labels (HDF5)",
       "FormatVersion": "2.0.0",
@@ -53,7 +53,7 @@
         "predictor": "TopDownPredictor"
       }
     },
-    "sub-178621x181315_ses-20250908152229_recording-21241563_desc-predictions_pose.h5": {
+    "sub-164332x181321_ses-20250908152229_recording-21241563_desc-predictions_pose.h5": {
       "SourceFile": "sessions/20250908_152229/21241563/21241563-20250908152238.analysis.h5",
       "Format": "HDF5",
       "Datasets": {
