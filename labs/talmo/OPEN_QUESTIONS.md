@@ -2,6 +2,8 @@
 
 The questions this conversion still depends on, and where their answers land. Numbers match the conversion plan in [`prompts/conversion-plan.md`](prompts/conversion-plan.md), so they stay citable from follow-up PRs, commit messages and the `PROVISIONAL` comments in `code/config.yaml`. Q11 to Q14 were added after the plan.
 
+The metadata the lab still owes is also tracked in [issue 66](https://github.com/brain-bbqs/data-ingest-task-force/issues/66).
+
 When a question is answered, quote the answer into `prompts/initial.md` as a new request, make the change, and move the entry to "Resolved" below.
 
 ## Status at a glance
@@ -47,7 +49,7 @@ The lab sent a subject table, a session map and a SLAP-2M session sheet (Request
 - **SLAP-2M, known:** 8 CD-1 (Charles River 022), 4 C57BL/6J (Jackson 000664) and 4 BALB/c (Taconic BALB/cAnNTac).
 - **SLAP-2M, waiting:** animal IDs, sex, age and coat color per animal. The lab is checking whether they can be recovered. Until then `animal_ids` in `sub-multi_sessions.tsv` is `n/a`, and which coat color is which strain is unstated.
 - **Genotype:** `wild type` in both `participants.tsv` files, as the lab reports it "as far as I know". They are confirming with the experimenters.
-- **Backfill:** edit the tables in `code/` and rerun with `--overwrite`.
+- **Backfill:** edit the tables in `code/`. Dispatch hashes them, so the next run reprocesses the dataset.
 
 ## Implemented, unconfirmed
 

@@ -100,7 +100,7 @@ The lab sent three tables after the deposit. They are committed beside the conve
 | `mousedyad10m_sessions_subjects.csv` | The lab's session to animal map. A session whose 3D file names different tracks is reported. |
 | `slap2m_sessions_animals.csv` | Its `animal_ids (fill in)` column fills `animal_ids` of `sub-multi_sessions.tsv`. |
 
-To backfill, edit the CSV and rerun with `--overwrite`. The converter drops parenthetical remarks from a value and reads a value starting with `UNKNOWN` as missing. Dispatch does not hash these files, so a cron run will not pick up an edit on its own.
+To backfill, edit the CSV. The registered dispatch command names each table through `--tables`, so dispatch hashes them and the next cron run reprocesses every session of that dataset. By hand, rerun with `--overwrite`. The converter drops parenthetical remarks from a value and reads a value starting with `UNKNOWN` as missing.
 
 MouseDyad-10M session `20250904_183921` is listed under `excluded_sessions` in `config.yaml` and is not converted. The lab excluded it from the paper and the release.
 
@@ -129,6 +129,7 @@ python3 code/convert_luc3d_to_bids.py \
 | `--jobs` | Parallel sessions. One per CPU by default. |
 | `--link` | `copy` (default), `hardlink` or `symlink`. How files are placed. |
 | `--ffprobe` | Path to `ffprobe` |
+| `--tables` | The lab tables the config names. Beside the config by default. |
 | `--results` | Write the sessions left unconverted as `{"pending": {...}, "failed": {...}}` |
 
 Sessions convert in parallel. Per-session memory is small, since the converter reads HDF5 shapes and metadata and never loads pose arrays or decodes video.

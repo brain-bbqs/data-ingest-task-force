@@ -220,7 +220,10 @@
         "--dataset",
         "mouse-dyad-10m",
         "--results",
-        "{results}"
+        "{results}",
+        "--tables",
+        "{repo_root}/labs/talmo/code/mousedyad10m_subjects.csv",
+        "{repo_root}/labs/talmo/code/mousedyad10m_sessions_subjects.csv"
       ]
     },
     {
@@ -243,7 +246,9 @@
         "--dataset",
         "slap-2m",
         "--results",
-        "{results}"
+        "{results}",
+        "--tables",
+        "{repo_root}/labs/talmo/code/slap2m_sessions_animals.csv"
       ]
     }
   ]

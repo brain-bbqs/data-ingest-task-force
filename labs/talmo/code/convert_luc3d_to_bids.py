@@ -1170,12 +1170,19 @@ def read_session_sheet(*, ctx_dataset: dict[str, Any], collection_dir: Path) -> 
 
 
 def read_lab_tables(
-    *, dataset: dict[str, Any], config_dir: Path
+    *, dataset: dict[str, Any], config_dir: Path, table_paths: list[Path] | None
 ) -> tuple[dict[str, dict[str, dict[str, str]]], list[Path]]:
-    """Tables the lab sent after the deposit, committed beside the config and keyed by their first column."""
+    """Tables the lab sent after the deposit, keyed by their first column.
+
+    They sit beside the config. Dispatch passes them as ``--tables`` too, so that it hashes them and an
+    edit forces a reprocess. A table the config names must then be among the paths given.
+    """
+    given = {path.name: path for path in table_paths or []}
     tables, paths = {}, []
     for name, file_name in (dataset.get("lab_tables") or {}).items():
-        path = config_dir / file_name
+        if table_paths is not None and file_name not in given:
+            raise SystemExit(f"The config names the lab table {file_name}, which --tables does not list")
+        path = given.get(file_name, config_dir / file_name)
         with path.open(newline="") as stream:
             reader = csv.DictReader(stream)
             key = reader.fieldnames[0]
@@ -1222,6 +1229,7 @@ def convert_dataset(
     link: str = "copy",
     ffprobe_bin: str = "ffprobe",
     results_path: Path | None = None,
+    table_paths: list[Path] | None = None,
 ) -> int:
     settings = yaml.safe_load(config_path.read_text())
     if dataset_key not in settings["datasets"]:
@@ -1237,7 +1245,9 @@ def convert_dataset(
             write_json(path=results_path, data={"pending": {}, "failed": {}})
         return 0
 
-    lab_tables, lab_table_paths = read_lab_tables(dataset=dataset, config_dir=config_path.parent)
+    lab_tables, lab_table_paths = read_lab_tables(
+        dataset=dataset, config_dir=config_path.parent, table_paths=table_paths
+    )
     excluded = dataset.get("excluded_sessions") or {}
     for session_dir in session_dirs:
         if session_dir.name in excluded:
@@ -1306,6 +1316,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--link", choices=["copy", "hardlink", "symlink"], default="copy", help="How to place files")
     parser.add_argument("--ffprobe", default="ffprobe", help="Path to the ffprobe executable")
     parser.add_argument("--results", type=Path, default=None, help="Write the sessions left unconverted to this JSON")
+    parser.add_argument(
+        "--tables", type=Path, nargs="+", default=None, help="The lab tables the config names (default: beside it)"
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -1322,6 +1335,7 @@ def main(argv: list[str] | None = None, /) -> int:
         link=args.link,
         ffprobe_bin=args.ffprobe,
         results_path=args.results,
+        table_paths=args.tables,
     )
     return exit_code
 

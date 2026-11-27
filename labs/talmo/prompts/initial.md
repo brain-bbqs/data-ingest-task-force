@@ -112,3 +112,16 @@ Setting up the Talmo lab conversion. One incoming dandiset (`000641`) holds two 
 - `participants.tsv` gained `genotype` (`wild type`), and for MouseDyad-10M `male_age` and `female_age`, which are `n/a` until birth dates arrive. The SLAP-2M strains carry their suppliers, and its `sessions.tsv` gained an `animal_ids` column, also `n/a` for now.
 - The lab's subject table is now checked against the track order of every session.
 - Session `20250904_183921` is no longer converted, and is excluded from dispatch discovery.
+
+---
+
+## Request 7 — Hash the lab tables, and track the backfill
+
+> name the lab tables in the registered command
+>
+> raise issue so we dont forget to update
+
+### What happened
+
+- The converter takes `--tables`, and both registered commands pass the lab tables through it. Dispatch hashes them, so a backfilled table reprocesses its dataset on the next run.
+- Opened an issue listing what the lab still owes and where each value lands.

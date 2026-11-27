@@ -141,3 +141,8 @@ def test_session_the_lab_excluded_is_not_converted(tmp_path, capsys):
 )
 def test_identity_rules(function, folder, expected):
     assert function(folder) == expected
+
+
+def test_table_the_config_names_must_be_listed(tmp_path):
+    with pytest.raises(SystemExit, match="mousedyad10m_subjects.csv"):
+        convert(dataset="mouse-dyad-10m", output=tmp_path / "out", table_paths=[tmp_path / "other.csv"])
