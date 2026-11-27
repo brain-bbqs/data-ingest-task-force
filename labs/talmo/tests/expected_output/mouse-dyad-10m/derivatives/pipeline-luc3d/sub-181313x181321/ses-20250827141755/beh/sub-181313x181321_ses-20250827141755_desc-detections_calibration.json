@@ -1,0 +1,22 @@
+{
+  "Description": "Board corners detected, triangulated and reprojected during the calibration.",
+  "Sources": [],
+  "Files": {
+    "sub-181313x181321_ses-20250827141755_desc-detections_calibration.h5": {
+      "SourceFile": "sessions/20250827_141755/calibration/20250821100634_calibration.metadata.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "detected_corners": {
+          "Shape": [
+            2,
+            3,
+            4,
+            2
+          ],
+          "DataType": "float64",
+          "Description": "Shape: (n_cams, n_frames, n_corners, 2). View order: ['21241563', '22085397']."
+        }
+      }
+    }
+  }
+}

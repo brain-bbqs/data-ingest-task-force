@@ -32,7 +32,7 @@ Fill in what the description answers. Leave unknowns open rather than guessing. 
 
 ## Associated papers
 
-DOIs or links, one per line. These become `related_publications` in NWB metadata or dataset-level references in BIDS, and they are often the best source for device and protocol details the description leaves out.
+DOIs or links, one per line. If none were supplied, search for the collection names and record any dataset card or preprint found, or that the search found nothing. These become `related_publications` in NWB metadata or dataset-level references in BIDS, and they are often the best source for device and protocol details the description leaves out.
 
 ## Source data
 

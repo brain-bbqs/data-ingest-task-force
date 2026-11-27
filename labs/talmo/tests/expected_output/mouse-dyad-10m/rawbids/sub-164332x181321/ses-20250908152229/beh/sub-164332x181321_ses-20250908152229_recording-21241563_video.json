@@ -1,0 +1,63 @@
+{
+  "RecordingDuration": 0.033333,
+  "StartTime": 0,
+  "VideoCodec": "h264",
+  "VideoCodecRFC6381": "avc1.64000b",
+  "VideoFrameRate": 150.0,
+  "VideoFrameCount": 5,
+  "ImageWidth": 64,
+  "ImageHeight": 48,
+  "ImagePixelFormat": "yuv420p",
+  "ImageBitDepth": 8,
+  "DeviceSerialNumber": "21241563",
+  "Synchronization": {
+    "Description": "StartTime is 0 for every camera. The dataset card states the cameras are hardware-synchronized, and the 3D pose is aligned to the videos by frame index. Cameras of one session can differ in length by a few frames. Not part of the BIDS specification.",
+    "SourceTimestamp": "20250908152238"
+  },
+  "CameraCalibration": {
+    "Description": "This camera's block of the anipose/sleap-anipose calibration, preserved verbatim. Not part of the BIDS specification.",
+    "SourceFile": "sessions/20250908_152229/calibration/20250904115349_calibration.toml",
+    "Parameters": {
+      "name": "21241563",
+      "size": [
+        64,
+        48
+      ],
+      "matrix": [
+        [
+          100.5,
+          0.0,
+          31.5
+        ],
+        [
+          0.0,
+          100.5,
+          23.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "distortions": [
+        -0.2,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.1,
+        0.0,
+        0.3
+      ],
+      "translation": [
+        0.0,
+        20.0,
+        30.0
+      ]
+    }
+  },
+  "SourceFile": "sessions/20250908_152229/21241563/21241563-20250908152238.mp4"
+}

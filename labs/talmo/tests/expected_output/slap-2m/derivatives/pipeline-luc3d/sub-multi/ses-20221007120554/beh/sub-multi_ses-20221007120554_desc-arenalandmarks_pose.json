@@ -1,0 +1,27 @@
+{
+  "Description": "The arena landmarks in the aligned frame.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-back_video.mp4",
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-side_video.mp4"
+  ],
+  "Units": "mm",
+  "SamplingFrequency": 30.0,
+  "Files": {
+    "sub-multi_ses-20221007120554_desc-arenalandmarks_pose.h5": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/aligned_cage_points3d.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "tracks": {
+          "Shape": [
+            1,
+            1,
+            24,
+            3
+          ],
+          "DataType": "float64",
+          "Description": "Shape: (n_frames, n_tracks, n_nodes, 3)."
+        }
+      }
+    }
+  }
+}

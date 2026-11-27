@@ -1,0 +1,57 @@
+{
+  "Description": "2D predictions of this camera, not proofread. For side and sideL they come from a separate side-camera model.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-side_video.mp4"
+  ],
+  "Units": "pixel",
+  "SamplingFrequency": 30.0,
+  "Skeleton": {
+    "NodeNames": [
+      "Nose",
+      "Ear_R",
+      "Ear_L",
+      "TTI",
+      "TailTip",
+      "Head",
+      "Trunk",
+      "Tail_0",
+      "Tail_1",
+      "Tail_2",
+      "Shoulder_left",
+      "Shoulder_right",
+      "Haunch_left",
+      "Haunch_right",
+      "Neck"
+    ],
+    "Edges": [
+      [
+        "TTI",
+        "Head"
+      ],
+      [
+        "Head",
+        "Nose"
+      ]
+    ]
+  },
+  "Files": {
+    "sub-multi_ses-20221007120554_recording-side_desc-predictions_pose.slp": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/side/side-10072022120559-0000_h265_CRF12_denoised.mp4.predictions.slp",
+      "Format": "SLEAP labels (HDF5)",
+      "FormatVersion": "2.0.0",
+      "LabeledFrameCount": 5,
+      "InstanceCount": 10,
+      "TrackNames": [
+        "track_0",
+        "track_1"
+      ],
+      "Videos": [
+        "side-10072022120559-0000_h264_CRF20_denoised.mp4"
+      ],
+      "Provenance": {
+        "sleap_nn_version": "0.2.0",
+        "model_type": "bottom_up"
+      }
+    }
+  }
+}

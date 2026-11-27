@@ -1,0 +1,10 @@
+subject_id,sex,strain,genotype,coat_color,age,n_sessions,first_session,last_session
+164332,F,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,11,20250829,20250908
+177397,F,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,3,20250827,20250829
+181312,F,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,13,20250827,20250908
+181313,F,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,10,20250827,20250908
+181315,F,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,18,20250827,20250908
+178621,M,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,15,20250829,20250908
+181321,M,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,16,20250827,20250908
+181322,M,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,15,20250827,20250908
+181323,M,"CD-1 (supplier not recorded)","wild type (per manuscript; confirm)",albino (white),UNKNOWN - ask Bartul,9,20250827,20250907

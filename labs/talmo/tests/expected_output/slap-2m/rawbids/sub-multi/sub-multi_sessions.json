@@ -1,0 +1,44 @@
+{
+  "session_id": {
+    "Description": "Session label."
+  },
+  "acq_time": {
+    "Description": "Start of acquisition, local time of the acquisition computer. The source carries no timezone."
+  },
+  "source_session": {
+    "Description": "Name of the session folder in the lab's deposit."
+  },
+  "animals": {
+    "Description": "Number of mice in the arena, from the lab's master sheet."
+  },
+  "white_mice": {
+    "Description": "Number of white mice, from the lab's master sheet."
+  },
+  "agouti_mice": {
+    "Description": "Number of agouti mice, from the lab's master sheet."
+  },
+  "black_mice": {
+    "Description": "Number of black mice, from the lab's master sheet."
+  },
+  "obstacle_rating": {
+    "Description": "The lab's rating of the enrichment objects in the arena, verbatim from the master sheet."
+  },
+  "bedding": {
+    "Description": "Bedding color, from the lab's master sheet."
+  },
+  "difficulty": {
+    "Description": "The lab's difficulty rating, from the number of animals and the enrichment objects."
+  },
+  "frames": {
+    "Description": "Frames per camera, from the lab's master sheet."
+  },
+  "duration": {
+    "Description": "Duration as the lab's master sheet gives it, in minutes. Blank for six sessions."
+  },
+  "animal_ids": {
+    "Description": "IDs of the animals in the session. n/a until the lab can recover them."
+  },
+  "notes": {
+    "Description": "Known issues with the session, from the lab README and dataset card."
+  }
+}

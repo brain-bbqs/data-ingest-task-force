@@ -1,0 +1,13 @@
+{
+  "Description": "Camera intrinsics, distortion and extrinsics in anipose format.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-back_video.mp4",
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-side_video.mp4"
+  ],
+  "Files": {
+    "sub-multi_ses-20221007120554_calibration.toml": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/calibration.toml",
+      "Format": "TOML"
+    }
+  }
+}

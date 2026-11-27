@@ -1,0 +1,10 @@
+{
+  "Description": "The ChArUco board used for the calibration.",
+  "Sources": [],
+  "Files": {
+    "sub-181313x181321_ses-20250827141755_desc-board_calibration.toml": {
+      "SourceFile": "sessions/20250827_141755/calibration/20250821100634_cboard.toml",
+      "Format": "TOML"
+    }
+  }
+}

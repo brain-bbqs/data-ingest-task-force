@@ -1,0 +1,159 @@
+# Metadata for the Talmo lab LUC3D conversions (labs/talmo/code/convert_luc3d_to_bids.py).
+#
+# One block per dataset. Pick one with `--dataset <key>`.
+#
+# Values marked PROVISIONAL keep the conversion runnable. Replace them with confirmed lab metadata
+# before treating the output as final. Each one names the open question that would confirm it
+# (see labs/talmo/OPEN_QUESTIONS.md).
+#
+# Sources cited below:
+#   lab README    the README.md at the root of each collection in dandiset 000641
+#   dataset card  https://huggingface.co/datasets/talmolab/mouse-dyad-10M and .../slap-2m
+#                 (read 2026-11-25)
+#   lab reply     the lab's message and three tables relayed by the requester, quoted as Request 6
+#                 of labs/talmo/prompts/initial.md. The tables are committed beside this file,
+#                 verbatim. The converter drops their parenthetical remarks and reads a value
+#                 starting with UNKNOWN as missing.
+
+bids_version: "1.11.2"
+bep047_reference: "https://github.com/bids-standard/bids-specification/pull/2231"
+funding:
+  - "NIH U01DA063581"
+# Dataset cards. The bioRxiv preprint (doi:10.64898/2026.11.17.767188) was not readable from the
+# build sandbox, so the author list is PROVISIONAL (Q9).
+authors:
+  - "PROVISIONAL: Leonardis, E. J."
+  - "PROVISIONAL: Oline, S. N."
+  - "PROVISIONAL: Falkner, A. L."
+  - "PROVISIONAL: Pereira, T. D."
+# Dataset cards (`license: mit`). PROVISIONAL for the EMBER deposit, which the lab has not confirmed (Q9).
+license: "MIT"
+references:
+  - "https://doi.org/10.64898/2026.11.17.767188"
+  - "https://luc3d.sleap.ai"
+  - "https://github.com/talmolab/figures-luc3d"
+species: "Mus musculus"
+
+datasets:
+  mouse-dyad-10m:
+    layout: mouse-dyad
+    name: "MouseDyad-10M"
+    source: "sourcedata/raw/luc3d/MouseDyad-10M"
+    description: >-
+      Multi-camera 3D pose of freely interacting male-female mouse pairs. Five hardware-synchronized
+      grayscale cameras at 1280x1024 and about 150.1 fps, two mice per session.
+    # Dataset card and lab reply: "9 CD-1 mice, 4 male and 5 female". Supplier not recorded.
+    strain: "CD-1"
+    # Lab reply: "As far as I know, all are wild type ... I'm confirming with the experimenters."
+    genotype: "wild type"
+    # Lab reply. Ages are "UNKNOWN - ask Bartul" for every animal for now (Q14).
+    lab_tables:
+      subjects: "mousedyad10m_subjects.csv"
+      sessions: "mousedyad10m_sessions_subjects.csv"
+    # Lab reply: "We excluded the session from the paper and from the release". Also excluded from
+    # dispatch discovery in dispatch/sessions.json.
+    excluded_sessions:
+      "20250904_183921": >-
+        The lab excluded it from the paper and the release. One camera's identity swap was
+        triangulated into the 3D, which is corrupted over frames ~42,000-115,000.
+    # Dataset card: "The data come from the Murthy lab (Princeton)". Paths stored inside the SLEAP
+    # files name a Falkner lab server instead. PROVISIONAL (Q9).
+    institution: "PROVISIONAL: Princeton University"
+    # Dataset card: "Track 0 is always the male and track 1 the female."
+    track_sexes: ["M", "F"]
+    # Dataset card: "Cameras: 5, hardware-synchronized". No file in the deposit holds per-frame
+    # timestamps or per-camera offsets, and the video timestamps are evenly spaced.
+    synchronization: >-
+      StartTime is 0 for every camera. The dataset card states the cameras are hardware-synchronized,
+      and the 3D pose is aligned to the videos by frame index. Cameras of one session can differ in
+      length by a few frames. Not part of the BIDS specification.
+    pose_units_3d: "m"
+    pose_2d_description: >-
+      Per-camera 2D SLEAP tracks. The lab README calls them SLEAP predictions and the dataset card
+      calls them identity-proofread. Track order is male then female per the dataset card, which the
+      files themselves do not state (Q10).
+    documents:
+      - "README.md"
+      - "manifest.csv"
+      - "qc_sessions.csv"
+      - "qc_views.csv"
+      - "mouse_skeleton.toml"
+    # Lab README "Known issues" and the dataset card.
+    session_notes:
+      "20250904_140306": "Camera 21372316's 2D breaks into 12 short tracks. The 3D is unaffected."
+      "20250905_203607": "Triangulation validation error is elevated."
+    known_issues:
+      - "Session 20250904_183921 has corrupted 3D. The lab excluded it, and it is not converted."
+      - "Session 20250904_140306, camera 21372316, has 12 fragmented 2D tracks. Its 3D looks normal."
+      - "The six sessions of 2025-09-08 lack the ChArUco board file and the calibration detections file."
+      - >-
+        Identities were proofread one camera at a time, so a swap that stays consistent within a camera
+        can reach the 3D. The dataset card puts this at about 0.2% of frames.
+    generated_by:
+      sleap:
+        - Name: "SLEAP"
+          Version: "1.3.3"
+          Description: "Top-down centroid and centered-instance models, flow tracker. Read from the provenance stored in the .slp files."
+      triangulation:
+        - Name: "sleap-anipose"
+          Description: >-
+            PROVISIONAL (Q11). The calibration files are in anipose/sleap-anipose format. The dataset card
+            says the 3D was triangulated from all five cameras and smoothed over time. The tool is not named.
+
+  slap-2m:
+    layout: slap
+    name: "SLAP-2M"
+    source: "sourcedata/raw/luc3d/SLAP-2M"
+    description: >-
+      Multi-camera 3D pose of one to four mice in an arena with graded levels of environmental
+      enrichment. Eight synchronized grayscale cameras at 1280x1024, 30 fps except the 13 sessions of
+      2022-10-19 at 60 fps.
+    # Lab reply: "8 CD-1 (Charles River 022), 4 C57BL/6J (Jackson 000664) and 4 BALB/c (Taconic
+    # BALB/cAnNTac)". Which coat color column of the master sheet is which strain is not stated (Q14).
+    strain: "CD-1 (Charles River 022), C57BL/6J (Jackson 000664) and BALB/c (Taconic BALB/cAnNTac)"
+    # Lab reply: "As far as I know, all are wild type ... I'm confirming with the experimenters."
+    genotype: "wild type"
+    # Lab reply. The animal_ids column is empty until the lab can recover the IDs (Q14).
+    lab_tables:
+      sessions: "slap2m_sessions_animals.csv"
+    # Dataset card: "The data come from the Falkner lab (Princeton)". PROVISIONAL (Q9).
+    institution: "PROVISIONAL: Princeton University"
+    synchronization: >-
+      PROVISIONAL (Q6). StartTime is 0 for every camera. The lab README and the dataset card state the
+      cameras are synchronized, every camera of a session has the same frame count, and the 3D pose is
+      aligned to the videos by frame index. The per-camera timestamps in the file names differ by 6 to
+      18 s within a session and are kept here as SourceTimestamp. Not part of the BIDS specification.
+    pose_units_3d: "mm"
+    # Lab README, "Videos".
+    source_encoding:
+      Description: >-
+        The lab re-encoded this video from an HEVC CRF 12 original before deposit. Frame counts match
+        the original. Pose file names still mention the original encodes. Not part of the BIDS specification.
+      Encoder: "x264"
+      ConstantRateFactor: 20
+      Preset: "medium"
+      GroupOfPictures: 250
+    documents:
+      - "README.md"
+      - "manifest.csv"
+      - "master_sheet.tsv"
+      - "master_sheet_side_model.tsv"
+      - "qc_sessions.csv"
+      - "qc_views.csv"
+      - "mouse_skeleton.toml"
+    session_sheet: "master_sheet.tsv"
+    session_notes: {}
+    known_issues:
+      - "Cameras side and sideL have no proofread 2D. Their 2D comes from a separate side-camera model."
+      - "Six sessions (10072022142111 to 10072022151549) have a blank duration in the master sheet. Their frame counts are fine."
+      - "Heights up to 393 mm and floor dips to -42 mm occur only in difficulty 5 to 7 sessions, consistent with climbing."
+      - "The side-camera model itself (260321_155949.bottomup.n=3558) is not part of the deposit."
+    generated_by:
+      sleap:
+        - Name: "SLEAP"
+          Description: >-
+            Top-down centroid and centered-instance models, then manual proofreading. The proofread files
+            carry no provenance. The side-camera predictions were made with sleap-nn 0.2.0.
+      triangulation:
+        - Name: "LUC3D"
+          Description: "PROVISIONAL (Q11). The dataset card says the poses were proofread in 3D. The triangulation tool is not named in the deposit."

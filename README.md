@@ -29,6 +29,10 @@ labs/
   zhang/                Zhang lab, one directory per project
     ferret-hyperscanning/ ferret dyads: SpikeGadgets wireless ephys + multicamera video -> NWB
                            (see labs/zhang/ferret-hyperscanning/README.md)
+  talmo/                Talmo lab: LUC3D multi-camera mouse videos -> BEP047 BIDS study,
+                         with SLEAP 2D and triangulated 3D pose as native-format
+                         derivatives, one codebase for MouseDyad-10M and SLAP-2M
+                         (see labs/talmo/README.md)
 dispatch/               Cron entrypoint driving all labs' conversions
                          (see dispatch/README.md), including its own
                          containers/dandi.Dockerfile -- the portable dandi

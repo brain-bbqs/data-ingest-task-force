@@ -1,0 +1,70 @@
+{
+  "RecordingDuration": 0.166667,
+  "StartTime": 0,
+  "VideoCodec": "h264",
+  "VideoCodecRFC6381": "avc1.64000a",
+  "VideoFrameRate": 30.0,
+  "VideoFrameCount": 5,
+  "ImageWidth": 64,
+  "ImageHeight": 48,
+  "ImagePixelFormat": "yuvj420p",
+  "ImageBitDepth": 8,
+  "DevicePosition": "side",
+  "Synchronization": {
+    "Description": "PROVISIONAL (Q6). StartTime is 0 for every camera. The lab README and the dataset card state the cameras are synchronized, every camera of a session has the same frame count, and the 3D pose is aligned to the videos by frame index. The per-camera timestamps in the file names differ by 6 to 18 s within a session and are kept here as SourceTimestamp. Not part of the BIDS specification.",
+    "SourceTimestamp": "20221007120559"
+  },
+  "CameraCalibration": {
+    "Description": "This camera's block of the anipose/sleap-anipose calibration, preserved verbatim. Not part of the BIDS specification.",
+    "SourceFile": "sessions/2022-10-07/10072022120554/calibration.toml",
+    "Parameters": {
+      "name": "side",
+      "size": [
+        64,
+        48
+      ],
+      "matrix": [
+        [
+          101.5,
+          0.0,
+          31.5
+        ],
+        [
+          0.0,
+          101.5,
+          23.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "distortions": [
+        -0.2,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.1,
+        0.2,
+        0.3
+      ],
+      "translation": [
+        10.0,
+        20.0,
+        30.0
+      ]
+    }
+  },
+  "SourceEncoding": {
+    "Description": "The lab re-encoded this video from an HEVC CRF 12 original before deposit. Frame counts match the original. Pose file names still mention the original encodes. Not part of the BIDS specification.",
+    "Encoder": "x264",
+    "ConstantRateFactor": 20,
+    "Preset": "medium",
+    "GroupOfPictures": 250
+  },
+  "SourceFile": "sessions/2022-10-07/10072022120554/side/side-10072022120559-0000_h264_CRF20_denoised.mp4"
+}

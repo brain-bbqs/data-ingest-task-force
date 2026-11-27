@@ -1,0 +1,8 @@
+{
+  "filename": {
+    "Description": "Path to the video, relative to the subject directory."
+  },
+  "acq_time": {
+    "Description": "Start of acquisition, from the timestamp in the source names. Local time of the acquisition computer. The source carries no timezone."
+  }
+}

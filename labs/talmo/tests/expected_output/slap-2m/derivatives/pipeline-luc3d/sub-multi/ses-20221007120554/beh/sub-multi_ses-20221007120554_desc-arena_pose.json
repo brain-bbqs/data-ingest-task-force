@@ -1,0 +1,56 @@
+{
+  "Description": "3D pose aligned to the arena.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-back_video.mp4",
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-side_video.mp4"
+  ],
+  "Units": "mm",
+  "SamplingFrequency": 30.0,
+  "Skeleton": {
+    "NodeNames": [
+      "Nose",
+      "Ear_R",
+      "Ear_L",
+      "TTI",
+      "TailTip",
+      "Head",
+      "Trunk",
+      "Tail_0",
+      "Tail_1",
+      "Tail_2",
+      "Shoulder_left",
+      "Shoulder_right",
+      "Haunch_left",
+      "Haunch_right",
+      "Neck"
+    ],
+    "Edges": [
+      [
+        "TTI",
+        "Head"
+      ],
+      [
+        "Head",
+        "Nose"
+      ]
+    ]
+  },
+  "Files": {
+    "sub-multi_ses-20221007120554_desc-arena_pose.h5": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/aligned_points3d.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "tracks": {
+          "Shape": [
+            5,
+            1,
+            15,
+            3
+          ],
+          "DataType": "float64",
+          "Description": "Shape: (n_frames, n_tracks, n_nodes, 3)."
+        }
+      }
+    }
+  }
+}

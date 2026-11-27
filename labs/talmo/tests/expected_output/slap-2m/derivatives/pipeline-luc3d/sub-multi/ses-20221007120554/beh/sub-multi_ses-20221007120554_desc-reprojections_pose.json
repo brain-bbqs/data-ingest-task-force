@@ -1,0 +1,64 @@
+{
+  "Description": "The 3D pose reprojected into every camera, in pixels.",
+  "Sources": [
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-back_video.mp4",
+    "bids:rawbids:sub-multi/ses-20221007120554/beh/sub-multi_ses-20221007120554_recording-side_video.mp4"
+  ],
+  "Units": "pixel",
+  "SamplingFrequency": 30.0,
+  "Skeleton": {
+    "NodeNames": [
+      "Nose",
+      "Ear_R",
+      "Ear_L",
+      "TTI",
+      "TailTip",
+      "Head",
+      "Trunk",
+      "Tail_0",
+      "Tail_1",
+      "Tail_2",
+      "Shoulder_left",
+      "Shoulder_right",
+      "Haunch_left",
+      "Haunch_right",
+      "Neck"
+    ],
+    "Edges": [
+      [
+        "TTI",
+        "Head"
+      ],
+      [
+        "Head",
+        "Nose"
+      ]
+    ]
+  },
+  "Files": {
+    "sub-multi_ses-20221007120554_desc-reprojections_pose.h5": {
+      "SourceFile": "sessions/2022-10-07/10072022120554/reprojections.h5",
+      "Format": "HDF5",
+      "Datasets": {
+        "back": {
+          "Shape": [
+            5,
+            1,
+            15,
+            2
+          ],
+          "DataType": "float64"
+        },
+        "side": {
+          "Shape": [
+            5,
+            1,
+            15,
+            2
+          ],
+          "DataType": "float64"
+        }
+      }
+    }
+  }
+}

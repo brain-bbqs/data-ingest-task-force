@@ -1,0 +1,14 @@
+SLAP-2M videos
+
+Multi-camera 3D pose of one to four mice in an arena with graded levels of environmental enrichment. Eight synchronized grayscale cameras at 1280x1024, 30 fps except the 13 sessions of 2022-10-19 at 60 fps.
+
+One video per camera per session, copied unmodified. The recording entity names the camera.
+Each sidecar adds the camera's calibration block and the source file name.
+The animals of each session are listed in the sessions.tsv of its subject.
+
+Known issues
+
+- Cameras side and sideL have no proofread 2D. Their 2D comes from a separate side-camera model.
+- Six sessions (10072022142111 to 10072022151549) have a blank duration in the master sheet. Their frame counts are fine.
+- Heights up to 393 mm and floor dips to -42 mm occur only in difficulty 5 to 7 sessions, consistent with climbing.
+- The side-camera model itself (260321_155949.bottomup.n=3558) is not part of the deposit.

@@ -1,0 +1,38 @@
+{
+  "session_id": {
+    "Description": "Session label."
+  },
+  "acq_time": {
+    "Description": "Start of acquisition, local time of the acquisition computer. The source carries no timezone."
+  },
+  "source_session": {
+    "Description": "Name of the session folder in the lab's deposit."
+  },
+  "male_id": {
+    "Description": "Animal ID of the male of the pair."
+  },
+  "female_id": {
+    "Description": "Animal ID of the female of the pair."
+  },
+  "male_track_name": {
+    "Description": "The male's track name in the 3D file, <animal ID>_<number of tail marks>."
+  },
+  "female_track_name": {
+    "Description": "The female's track name in the 3D file, <animal ID>_<number of tail marks>."
+  },
+  "experimental_code": {
+    "Description": "The lab's code for the session, verbatim. Its meaning is not documented."
+  },
+  "frame_rate": {
+    "Description": "Recording frame rate stored in the 3D file, in Hz."
+  },
+  "pose3d_frame_count": {
+    "Description": "Frames in the 3D file. It can be a few frames shorter than the videos."
+  },
+  "calibration": {
+    "Description": "Name of the calibration file the session uses."
+  },
+  "notes": {
+    "Description": "Known issues with the session, from the lab README and dataset card."
+  }
+}
